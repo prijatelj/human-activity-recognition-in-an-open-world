@@ -15,10 +15,6 @@ Each directory will have an index.md file to serve as a starting point.
     - any base requirements
 + tests/
     - index.md: basic test structure goes here for convenience (e.g. pytest)
-+ docs/
-    - indedx.md: basic docs stuff goes here (e.g. Sphinx)
-    - yapf style file here since docs and style kinda go together.
-        May put in prijatelj dots repo.
 + fraud_detection/
     - Package place holder. This contains common abstract classes.
 + experiments/
