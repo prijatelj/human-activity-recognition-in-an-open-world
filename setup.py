@@ -8,7 +8,7 @@ install_requires = ''
 with open('requirements/package.txt', 'r') as f:
     install_requires = f.read()
 
-project_name = 'fraud_detection'
+project_name = 'arn'
 
 setup(
     name=project_name,

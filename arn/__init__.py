@@ -8,4 +8,4 @@ __all__ = [
 ]
 
 for module in __all__:
-    globals()[module] = import_module(f'.{module}', 'fraud_detection')
+    globals()[module] = import_module(f'.{module}', 'arn')
