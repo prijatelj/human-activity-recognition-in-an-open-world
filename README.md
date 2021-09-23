@@ -1,6 +1,6 @@
-## Activity Recognition with Novelty
+## Formalization and Analysis of Human Activity Recognition with Novelty
 
-Activity Recognition (AR) as a classification task is the task of mapping videos to their corresponding activity label.
+Human Activity Recognition (HAR) as a classification task is the task of mapping videos to their corresponding activity label.
 Novelty and open set/world learning in this domain is akin to image classification or any traditional classification task.
 
 ### Activity Recognition Label Specifity
@@ -34,7 +34,7 @@ Each directory will have an index.md file to serve as a starting point.
 
 + setup.py
     - basic template to be filled out for the package that will be worked on
-+ dockerfile
++ Dockerfile
     - at least an example of how to setup a docker file
 + requirements.txt
     - any base requirements
