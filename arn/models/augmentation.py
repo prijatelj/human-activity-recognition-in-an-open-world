@@ -7,14 +7,18 @@ import logging
 from math import floor
 import os
 import sys
-
+import torchvision.transforms as T
+import torchvision.transforms.functional as F
 import cv2
 import numpy as np
 from scipy.interpolate import griddata
 from torch.utils.data import Dataset # TODO use IterableDataset
+import torch
+from torchvision.transforms.functional import InterpolationMode
 
 from exputils.ml.generic_predictors import Stateful
 
+# TODO tell derek about breaking change adding param output
 
 # TODO make torch DataLoader versions of these that can be chained together.
 #   Perhaps, make a generic class that allows the user to give the function
@@ -101,7 +105,7 @@ class StochasticAugmenter(Augmenter):
     """
     def __init__(
         self,
-        augs_per_item,
+        augs_per_item=1,
         include_original=False,
         rng=None,
         iterable=None,
@@ -294,9 +298,51 @@ class ElasticTransform(StochasticAugmenter):
         )
 
 
+class ColorJitter(StochasticAugmenter):
+    def __init__(self, brightness=0, contrast=0, saturation=0, hue=0, *args, **kwargs):
+        super(ColorJitter, self).__init__(*args, **kwargs)
+        self.brightness = float(brightness)
+        self.contrast = float(contrast)
+        self.saturation = float(saturation)
+        self.hue = float(hue)
+        self.cj = T.ColorJitter(self.brightness, self.contrast, self.saturation, self.hue)
+        #TODO figure out if we care about the random state or it is fine to just record everything
+
+
+    def augment(self, image):
+        # TODO these are probably bad for the purposes of this, since pytorch expects it to be C,H,W instead of H,W,C
+        if len(image.shape) != 3:
+            raise ValueError(
+                f'`image` shape expected to be 3 dims BGR, not {image.shape}'
+            )
+        if image.dtype != 'uint8':
+            raise ValueError(
+                f'`image` dtype expected to be uint8. BGR. not {image.dtype}'
+            )
+        image = torch.tensor(image).permute(2, 0, 1)
+        # to keep the parameters for the transform, i had to copy it from the forward method Hope it doesn't change :shrug:
+        params = self.cj.get_params(self.cj.brightness, self.cj.contrast, self.cj.saturation, self.cj.hue)
+
+        return self.jitter(image,params).permute(1,2,0).numpy(),params
+    @staticmethod
+    def jitter(img, params):
+        # image in pytorch format
+        fn_idx, brightness_factor, contrast_factor, saturation_factor, hue_factor = params
+        for fn_id in fn_idx:
+            if fn_id == 0 and brightness_factor is not None:
+                img = F.adjust_brightness(img, brightness_factor)
+            elif fn_id == 1 and contrast_factor is not None:
+                img = F.adjust_contrast(img, contrast_factor)
+            elif fn_id == 2 and saturation_factor is not None:
+                img = F.adjust_saturation(img, saturation_factor)
+            elif fn_id == 3 and hue_factor is not None:
+                img = F.adjust_hue(img, hue_factor)
+        return img
+
+
 class Noise(StochasticAugmenter):
     """Add Gaussian noise to the image."""
-    def __init__(self, mean=0, std=10, *args, **kwargs):
+    def __init__(self, mean=0, std=10,*args, **kwargs):
         super(Noise, self).__init__(*args, **kwargs)
 
         # TODO figure out how this object can carry a cv2 RNG object...
@@ -325,21 +371,27 @@ class Noise(StochasticAugmenter):
 
 class Blur(StochasticAugmenter):
     """Gaussian blur the image."""
-    def __init__(self, ksize, sigmaX, sigmaY=0, *args, **kwargs):
+    def __init__(self, ksize, sigma_min, sigma_max, *args, **kwargs):
         super(Blur, self).__init__(*args, **kwargs)
 
         self.ksize = tuple(ksize)
-        self.sigmaX = sigmaX
-        self.sigmaY = sigmaY
+        self.sigma_min = sigma_min
+        self.sigma_max = sigma_max
 
     def augment(self, image):
-        return cv2.GaussianBlur(image, self.ksize, self.sigmaX, self.sigmaY)
+        image = torch.tensor(image).permute(2, 0, 1)
+        sigma = T.GaussianBlur.get_params(self.sigma_min, self.sigma_max)
+        params = self.ksize, [sigma, sigma]
+        return self.blur(image,params).permute(1,2,0).numpy(),params
+    @staticmethod
+    def blur(img,params):
+        ksize, sigma = params
+        return F.gaussian_blur(img, ksize, sigma)
 
 
 class InvertColor(Augmenter):
     def __init__(self, iterable=None):
         super(InvertColor, self).__init__(iterable)
-
     def augment(self, image):
         if len(image.shape) != 3:
             raise ValueError(
@@ -349,8 +401,51 @@ class InvertColor(Augmenter):
             raise ValueError(
                 f'`image` dtype expected to be uint8. BGR. not {image.dtype}'
             )
-        return 255 - image
+        image = torch.tensor(image).permute(2, 0, 1)
+        return F.invert(image).permute(1,2,0).numpy(), True
 
+class PerspectiveTransform(StochasticAugmenter):
+    def __init__(self, distortion_scale=0.5, p=0.5, interpolation=InterpolationMode.BILINEAR, fill=0, *args, **kwargs):
+        super(PerspectiveTransform, self).__init__(*args, **kwargs)
+        if fill == -1:
+            fill = list((255*torch.rand(3)).numpy().astype(np.uint8))
+        self.pt  = T.RandomPerspective(distortion_scale=distortion_scale, p=p, interpolation=interpolation, fill=fill)
+
+    def augment(self, image):
+        image = torch.tensor(image).permute(2, 0, 1)
+        width, height = F._get_image_size(image)
+        params = T.RandomPerspective.get_params(width, height, distortion_scale=self.pt.distortion_scale)
+        params += (self.pt.p,self.pt.interpolation,self.pt.fill)
+        return self.PerspectiveTransform(image, params).permute(1,2,0).numpy(), params
+
+
+    @staticmethod
+    def PerspectiveTransform(img,params):
+        # width, height = F._get_image_size(img)
+        # startpoints, endpoints = self.get_params(width, height, self.pt.distortion_scale)
+        # F.perspective(img, startpoints, endpoints, self.interpolation, fill)
+        return F.perspective(img, params[0], params[1], params[3], params[4])
+
+
+
+# def augment(self, distortion_scale=0.5, p=0.5, interpolation=InterpolationMode.BILINEAR, fill=0):
+
+class Rotation(StochasticAugmenter):
+    def __init__( self, degrees, interpolation=InterpolationMode.NEAREST, expand=False, center=None, fill=0, *args, **kwargs):
+        super(Rotation, self).__init__(*args, **kwargs)
+        if fill == -1:
+            fill = list((255 * torch.rand(3)).numpy().astype(np.uint8))
+        self.r = T.RandomRotation(degrees, interpolation=interpolation, expand=expand, center=center, fill=fill)
+
+    def augment(self, image):
+        image = torch.tensor(image).permute(2, 0, 1)
+        params = (self.r.get_params(self.r.degrees),self.r.resample, self.r.expand, self.r.center, self.r.fill)
+        return self.Rotation(image, params).permute(1,2,0).numpy(), params
+
+
+    @staticmethod
+    def Rotation(img,params):
+        return F.rotate(img, params[0], params[1], params[2], params[3], params[4])
 
 class Reflect(Augmenter):
     """Generalized reflection class that reflects a 2D matrix."""
