@@ -1,11 +1,11 @@
-# ARN package Setup.py
+# ARN/experiments package Setup.py
 from setuptools import setup
 
 long_description = ''
 with open('README.md', 'r') as f:
     long_description = f.read()
 
-project_name = 'arn'
+project_name = 'experiments'
 
 install_requires = ''
 with open('requirements/{project_name}.txt', 'r') as f:
@@ -19,7 +19,7 @@ setup(
     packages=[
         project_name,
         f'{project_name}.data',
-        f'{project_name}.models',
+        f'{project_name}.research',
         #f'{project_name}.visuals',
     ],
     #scripts
