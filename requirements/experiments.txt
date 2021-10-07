@@ -1,2 +1,3 @@
 # Requirements for package extras: experiments
-exputils
+arn
+ipython
