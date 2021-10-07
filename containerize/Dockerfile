@@ -6,13 +6,25 @@ WORKDIR /tmp/container_workspaces/docker/arn/
 # Copy all the files to the container
 COPY . .
 
+# TODO create the virtual environment (Conda?)
+
 # TODO intall dependencies
-# TODO conda?
-# TODO python requirements
+
 # TODO install EVM
-# TODO install X3D, if not included in this package
-# TODO install CLIP, if not included in this package
+pip install timm
 
-# TODO intall this repo's main package
 
-# TODO intall this repo's experiments package
+
+# TODO install X3D
+
+
+# TODO install CLIP
+
+# TODO install other_model
+
+
+# Install this repo's main package and its dependencies
+python setup.py install
+
+# Install this repo's experiments package and its dependencies
+python experiments/setup.py install
