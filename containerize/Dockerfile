@@ -1,7 +1,7 @@
 FROM nvcr.io/nvidia/pytorch:19.02-py3
 
 # Set a working directory for the app
-WORKDIR /tmp/container_workspaces/docker/luke/
+WORKDIR /tmp/container_workspaces/docker/arn/
 
 # Copy all the files to the container
 COPY . .
