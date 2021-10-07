@@ -403,6 +403,14 @@ class InvertColor(Augmenter):
             )
         image = torch.tensor(image).permute(2, 0, 1)
         return F.invert(image).permute(1,2,0).numpy(), True
+    @staticmethod
+    def InvertColor(image,params):
+        image = torch.tensor(image).permute(2, 0, 1)
+        if params:
+            return F.invert(image)
+        else:
+            return image
+
 
 class PerspectiveTransform(StochasticAugmenter):
     def __init__(self, distortion_scale=0.5, p=0.5, interpolation=InterpolationMode.BILINEAR, fill=0, *args, **kwargs):
@@ -447,128 +455,31 @@ class Rotation(StochasticAugmenter):
     def Rotation(img,params):
         return F.rotate(img, params[0], params[1], params[2], params[3], params[4])
 
-class Reflect(Augmenter):
-    """Generalized reflection class that reflects a 2D matrix."""
-    def __init__(self, axis, iterable=None):
-        super(Reflect, self).__init__(iterable)
-        self.axis = axis
+class Flip(Augmenter):
+    def __init__( self, axis=(0,), *args, **kwargs):
+        super(Flip, self).__init__(*args, **kwargs)
+        assert len(axis) <= 3
+        # Have to remap axises, to make it consistent with the otherones, since most of the pytorch ones require a channel, h, w format
+        #  You can "Flip" the colors if you want too, why the hell not.
+        temp = []
+        for x in axis:
+            if x == 0:
+                temp.append(1)
+            elif x == 1:
+                temp.append(2)
+            elif x == 3:
+                temp.append(0)
+        self.axis = tuple(axis)
 
     def augment(self, image):
-        # TODO make optionally torch flip, based input
-        return np.flip(image, axis=self.axis)
+        image = torch.tensor(image).permute(2, 0, 1)
+        params = self.axis
+        return self.flip(image,params).permute(1,2,0).numpy(), params
 
 
-class Reflect_X(Reflect):
-    def __init__(self, iterable=None):
-        super(Reflect_X, self).__init__(0, iterable)
-
-
-class Reflect_Y(Reflect):
-    def __init__(self, iterable=None):
-        super(Reflect_Y, self).__init__(1, iterable)
-
-
-class Antique(StochasticAugmenter):
-    """Given the image, assumed to be grayscale/binary with white background,
-    the text line image is blended with a random selection from a set of
-    background paper images. A slice from the random selected background image
-    that fits the line image is applied to the line image. This is to simulate
-    text on antique papers.
-
-    Attributes
-    ----------
-    background_images : [np.ndarray]
-        List of background images to use for replacing the background of text
-        images.
-    """
-    def __init__(self, backgrounds_dir, grayscale=True, *args, **kwargs):
-        super(Antique, self).__init__(*args, **kwargs)
-
-        # Load the images from the backgrounds directory
-        self.background_images = []
-        for img_path in glob.iglob(os.path.join(backgrounds_dir, '*')):
-            if grayscale:
-                image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-
-                # We by default expect BGR for all other images, thus repeat
-                image = np.repeat(np.expand_dims(image, 2), 3, 2)
-            else:
-                image = cv2.imread(img_path)
-
-            if image is None:
-                raise IOError(
-                    f'Read image is None. Invalid filepath: {img_path}',
-                )
-
-            self.background_images.append(image)
-
-        if not self.background_images:
-            raise ValueError('No images were loaded!')
-
-    def augment(
-        self,
-        image,
-        bg_image_id=None,
-        approach='minimum',
-        color=[255, 255, 255]
-    ):
-        # Set offsets to random part of background
-        if bg_image_id is None:
-            bg_image = self.background_images[
-                self.rng.integers(len(self.background_images))
-            ]
-        else:
-            bg_image = self.background_images[bg_image_id]
-
-        if bg_image.shape[1] >= image.shape[1]:
-            x_offset = int(
-                self.rng.random()
-                * (bg_image.shape[1] - image.shape[1])
-            )
-        else:
-            x_offset = 0
-
-        if bg_image.shape[0] >= image.shape[0]:
-            y_offset = int(
-                self.rng.random()
-                * (bg_image.shape[0] - image.shape[0])
-            )
-        else:
-            y_offset = 0
-
-        bg_image_select = bg_image[
-            y_offset:y_offset + image.shape[0],
-            x_offset:x_offset + image.shape[1],
-            :,
-        ]
-
-        if image.shape[0:2] != bg_image.shape[0:2]:
-            bg_image_select = cv2.resize(
-                bg_image_select,
-                (image.shape[1], image.shape[0]),
-            )
-            blended = np.copy(image)
-
-        for i in range(image.shape[2]):
-            if approach == "minimum":
-                blended[:, :, i] = np.minimum(
-                    image[:, :, i],
-                    bg_image_select[:, :, i],
-                )
-            elif approach == "factor":
-                img = np.copy(image[:, :, i])
-
-                # Darker is letters
-                factor = (255 - img) / 255.0
-                blended[:, :, i] = bg_image_select[:, :, i] \
-                    * (1 - factor) + img * factor
-            else:
-                img = np.copy(image[:, :, i])
-                blended[:, :, i] = bg_image_select[:, :, i]
-                blended[:, :, i][img < 250] = color[i] \
-                    * ((255 - img) / 255.0).astype(np.uint8)[img < 250]
-
-        return blended
+    @staticmethod
+    def flip(img,params):
+        return torch.flip(img, dims=params)
 
 
 class SplitAugmenters(Augmenter):
