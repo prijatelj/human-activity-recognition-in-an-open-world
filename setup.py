@@ -4,11 +4,11 @@ long_description = ''
 with open('README.md', 'r') as f:
     long_description = f.read()
 
-install_requires = ''
-with open('requirements/package.txt', 'r') as f:
-    install_requires = f.read()
-
 project_name = 'arn'
+
+install_requires = ''
+with open('requirements/{project_name}.txt', 'r') as f:
+    install_requires = f.read()
 
 setup(
     name=project_name,
@@ -23,7 +23,7 @@ setup(
     ],
     #scripts
     description=' '.join(
-        'Fraud detection with novelty through machine learning',
+        'Human Activity Recognition with novelty through machine learning',
     ),
     long_description=long_description,
     long_description_content_type='text/markdown',
