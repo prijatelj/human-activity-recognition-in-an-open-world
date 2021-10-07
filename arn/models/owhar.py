@@ -4,7 +4,7 @@ import torch
 from arn.models import generics
 
 class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
-    """Streamline class of the different parts of the OWHAR.
+    """Pipeline class of the different parts of the OWHAR.
 
     Parameters
     ----------
@@ -22,7 +22,7 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
     label_enc : exputils.data.labels.NominalDataEncoder
         The Dector/Recognizer's label encoder as that is the end of the
         OWHAR model.
-    increment_count : int
+    increment_count : int = 0
         The number of incremental training phases this OWHAR has completed.
         Starts at zero when no trainings have been completed.
     """
@@ -38,7 +38,7 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
         # NoveltyDetector
         self.novelty_recognizer
 
-        self.increment_count = 0
+        self.increment_count
 
         raise NotImplementedError()
 
@@ -46,29 +46,45 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
     def label_enc(self):
         return self.novelty_detector.label_enc
 
-    def classify(self, input_samples):
-        """Classifies """
-        # TODO uses the end of the OWHAR model for classification.
+    def predict(self, input_samples, is_feature_repr=False):
+        """Classifies the input samples using the NoveltyDetector after getting
+        the FeatureRepr of the samples.
+
+        Parameters
+        ----------
+        input_samples : torch.tensor
+            The task samples as expected by the FeatureRepr model if
+            `is_feature_repr` is False. Otherwise, the input samples are
+            treated as the feature repr encoded task samples as expected
+            NoveltyDetector.
+        is_feature_repr : bool = False
+
+        Returns
+        -------
+        torch.tensor
+            The resulting Torch tensor.
+        """
         raise NotImplementedError()
-        return
+        # TODO Gets the freature representation of the samples
+        # TODO uses the NoveltyDetector of the OWHAR model for classification.
+        return self.novelty_detector.predict(self.get_feature_repr(input_samples))
 
     def get_feature_repr(self, input_samples):
-        """
-        """
-        # TODO Obtain the feature representation
+        """Encodes the task input samples with using the FeatureRepr model."""
+        # TODO Obtain the feature representation of the input samples
         raise NotImplementedError()
-        return
+        return self.feature_repr.encode(input_samples)
 
     def detect(self, input_samples):
         """Uses available NoveltyDetector/Recognizer to detect novelty in
         the given samples.
         """
         raise NotImplementedError()
-        return self.novelty_detector.detect(*args, **kwargs)
+        return self.novelty_detector.detect(input_samples)
 
     def recognize(self, input_samples):
         """Pass through that """
         raise NotImplementedError()
         if self.novelty_recognizer:
-            return self.novelty_recognizer.recognize(*args, **kwargs)
+            return self.novelty_recognizer.recognize(input_samples)
         raise ValueError('No novelty_recognizer present!')
