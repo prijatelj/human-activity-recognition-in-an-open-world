@@ -53,6 +53,27 @@ class OnlineDetector(SupervisedClassifier):
         # & kwargs as configs
         raise NotImplementedError()
 
+    def detect(self, features, labels):
+        """Given the current state of the predictor, continue training given
+        the provided data. This uses the existing state of the predictor.
+        """
+
+        # TODO fit in batches
+        # TODO fit incrementally
+        # TODO parameterize init, fit, and predict st they may be provided args
+        # & kwargs as configs
+        raise NotImplementedError()
+
+
+class OnlineRecognizer(OnlineDetector):
+
+    def init(self, *args, **kwargs):
+        pass
+
+    def recognize(self, features, labels):
+        raise NotImplementedError()
+
+
 class FeatureExtractor(StatefulIterable, Dataset):
     """Feature extraction abstract class."""
     # NOTE be careful with this and children feature extractor chaining. It may
@@ -69,6 +90,7 @@ class FeatureExtractor(StatefulIterable, Dataset):
         multiple samples at once.
         """
         raise NotImplementedError()
+
 
 # TODO ANN pretrained (e.g. ResNet50 on ImageNet) repr as an encoding, a
 # generic layer extraction class that access that network's selected layer.
