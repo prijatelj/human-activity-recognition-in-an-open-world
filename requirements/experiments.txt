@@ -1,3 +1,6 @@
 # Requirements for package extras: experiments
 arn
 ipython
+
+# TODO: need to fin docker yaml hierarchical parser and fin run w/ file.
+# docstr
