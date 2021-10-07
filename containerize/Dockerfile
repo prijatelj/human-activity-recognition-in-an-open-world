@@ -11,6 +11,7 @@ COPY . .
 # TODO intall dependencies
 
 # TODO install EVM
+git clone --recurse-submodules https://github.com/Vastlab/vast.git
 pip install timm
 
 
