@@ -39,7 +39,8 @@ class OnlineDetector(SupervisedClassifier):
     # created when first fit occurs (implies unable to predict in this case).
 
     def __init__(self, *args, **kwargs):
-        self.label_enc = self.char_enc
+        #self.label_enc = self.char_enc
+        pass
 
     @abstractmethod
     def fit(self, features, labels):
