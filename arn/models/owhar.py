@@ -78,6 +78,7 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
     def get_feature_repr(self, input_samples):
         """Encodes the task input samples with using the FeatureRepr model."""
         # TODO Obtain the feature representation of the input samples
+        # TODO consider finishing TorchAnnExtractor and use it here.
         raise NotImplementedError()
         return self.feature_repr.encode(input_samples)
 
