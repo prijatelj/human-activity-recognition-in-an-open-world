@@ -14,15 +14,9 @@ COPY . .
 git clone --recurse-submodules https://github.com/Vastlab/vast.git
 pip install timm
 
-
-
-# TODO install X3D
-
-
 # TODO install CLIP
 
 # TODO install other_model
-
 
 # Install this repo's main package and its dependencies
 python setup.py install
