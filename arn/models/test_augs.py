@@ -55,9 +55,9 @@ img = cv2.cvtColor(cv2.imread("/home/sgrieggs/Downloads/Lenna.png"), cv2.COLOR_B
 pylab.imshow(img)
 pylab.show()
 
-test = Rotation(degrees=(0, 180), fill=-1)
+test = Flip((1,2,0))
 img1,params = test.augment(img)
-img2 = test.Rotation(torch.tensor(img).permute(2, 0, 1),params).permute(1,2,0).numpy()
+img2 = test.flip(torch.tensor(img).permute(2, 0, 1),params).permute(1,2,0).numpy()
 
 
 print(np.equal(img1,img2).all())
