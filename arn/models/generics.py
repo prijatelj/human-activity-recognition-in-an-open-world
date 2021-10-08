@@ -7,7 +7,7 @@ from exputils.data.labels import NominalDataEncoder
 from exputils.ml.generic_predictors import SupervisedClassifier
 
 
-class OnlineDetector(SupervisedClassifier):
+class NoveltyDetector(SupervisedClassifier):
     """Abstract class for online supervised learning detectors.
     This will serve as the pipeline that wraps or includes the Pytorch model
     used so any data prep or model prep is handled in the child inheriting from
@@ -66,7 +66,7 @@ class OnlineDetector(SupervisedClassifier):
         raise NotImplementedError()
 
 
-class OnlineRecognizer(OnlineDetector):
+class NoveltyRecognizer(OnlineDetector):
 
     def init(self, *args, **kwargs):
         pass
