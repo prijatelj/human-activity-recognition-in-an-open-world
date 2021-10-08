@@ -6,7 +6,7 @@ from arn.models import generics
 class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
     """Pipeline class of the different parts of the OWHAR.
 
-    Parameters
+    Attributes
     ----------
     feature_repr : FeatureRepr
         The task's feature representation model used in this OWHAR. This is a
@@ -27,18 +27,24 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
         Starts at zero when no trainings have been completed.
     """
     def __init__(self, *args, **kwargs):
-        """HA HA HAR"""
+        """Initializes the OWHAR.
+
+        Args
+        ----
+        feature_repr : FeatureRepr
+        novelty_detector : NoveltyDetector
+        novelty_recognizer : NoveltyRecognizer
+        """
         # TODO init/load the task Feature Representation model
         self.feature_repr
 
         # TODO init/load the NoveltyDetector model if only a detector
         self.novelty_detector
 
-        # TODO init/load the NoveltyRecognizer model which also serves as the
-        # NoveltyDetector
+        # TODO init/load the NoveltyRecognizer model which is also the detector
         self.novelty_recognizer
 
-        self.increment_count
+        self.increment_count = increment_count
 
         raise NotImplementedError()
 
@@ -88,3 +94,8 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
         if self.novelty_recognizer:
             return self.novelty_recognizer.recognize(input_samples)
         raise ValueError('No novelty_recognizer present!')
+
+    def fit_increment(input_samples, labels):
+        """Incrementally fit the OWHAR."""
+        raise NotImplementedError()
+        self.increment_counter += 1
