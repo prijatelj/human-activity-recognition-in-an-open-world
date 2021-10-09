@@ -1,8 +1,12 @@
+from multiprocessing import Pool
 import os
 import cv2
 import numpy as np
+import glob
+import tqdm
+from tqdm.contrib.concurrent import process_map  # or thread_map
 from models.augmentation import *
-import torch
+
 
 
 def my_video_loader(seq_path):
@@ -27,11 +31,12 @@ def my_video_loader(seq_path):
     return frames, (int(width),int(height),int(fps),int(codec))
 
 def my_video_saver(seq_path,frames,params):
-    print(cv2.VideoWriter_fourcc('m', 'p', '4', 'v'))
+    print(seq_path)
+    # print(cv2.VideoWriter_fourcc('m', 'p', '4', 'v'))
     width, height, fps, codec = params
-    print(codec)
+    # print(codec)
     size = (width, height)
-    result = cv2.VideoWriter('/home/sgrieggs/Image/filename.mp4', cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), fps, size)
+    result = cv2.VideoWriter(seq_path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), fps, size)
     for frame in frames:
         result.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
@@ -47,7 +52,18 @@ def augment_all(frame_list, aug_func, same=True):
             frames.append(aug_func.augment(frame)[0])
     return frames
 
-
+def process_targets(target):
+    output_dir = "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Perspective/"
+    test = target.split("/")[-2:]
+    try:
+        os.makedirs(output_dir+test[0])
+    except FileExistsError as e:
+        exists = True
+        # print("test")
+    frames, params = my_video_loader(target)
+    frames = augment_all(frames, PerspectiveTransform(), same=True)
+    my_video_saver(output_dir+"/".join(test),frames, params)
+    return True
 
 # class ColorJitter(StochasticAugmenter):
 # class Noise(StochasticAugmenter):
@@ -59,6 +75,11 @@ def augment_all(frame_list, aug_func, same=True):
 
 
 # /home/sgrieggs/Image/
-frames, params = my_video_loader("/media/sgrieggs/pageparsing/Kinetics-700/val/200/AuMfvvCk_2A.mp4")
-frames =  augment_all(frames, PerspectiveTransform(), same=False)
-my_video_saver('/home/sgrieggs/Image/filename.mp4',frames, params)
+# frames, params = my_video_loader("/media/sgrieggs/pageparsing/Kinetics-700/val/200/AuMfvvCk_2A.mp4")
+
+# my_video_saver('/home/sgrieggs/Image/filename.mp4',frames, params)
+targets = glob.glob("/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256/*/*.mp4")
+out_file_names = []
+# process_targets(targets[0])
+
+r = process_map(process_targets, targets[:30], max_workers=30)
