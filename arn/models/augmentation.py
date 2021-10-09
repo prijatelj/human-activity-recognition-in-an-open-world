@@ -323,9 +323,9 @@ class ColorJitter(StochasticAugmenter):
         # to keep the parameters for the transform, i had to copy it from the forward method Hope it doesn't change :shrug:
         params = self.cj.get_params(self.cj.brightness, self.cj.contrast, self.cj.saturation, self.cj.hue)
 
-        return self.jitter(image,params).permute(1,2,0).numpy(),params
+        return self.aug(image,params).permute(1,2,0).numpy(),params
     @staticmethod
-    def jitter(img, params):
+    def aug(img, params):
         # image in pytorch format
         fn_idx, brightness_factor, contrast_factor, saturation_factor, hue_factor = params
         for fn_id in fn_idx:
@@ -384,7 +384,7 @@ class Blur(StochasticAugmenter):
         params = self.ksize, [sigma, sigma]
         return self.blur(image,params).permute(1,2,0).numpy(),params
     @staticmethod
-    def blur(img,params):
+    def aug(img,params):
         ksize, sigma = params
         return F.gaussian_blur(img, ksize, sigma)
 
@@ -404,7 +404,7 @@ class InvertColor(Augmenter):
         image = torch.tensor(image).permute(2, 0, 1)
         return F.invert(image).permute(1,2,0).numpy(), True
     @staticmethod
-    def InvertColor(image,params):
+    def aug(image,params):
         image = torch.tensor(image).permute(2, 0, 1)
         if params:
             return F.invert(image)
@@ -424,11 +424,11 @@ class PerspectiveTransform(StochasticAugmenter):
         width, height = F._get_image_size(image)
         params = T.RandomPerspective.get_params(width, height, distortion_scale=self.pt.distortion_scale)
         params += (self.pt.p,self.pt.interpolation,self.pt.fill)
-        return self.PerspectiveTransform(image, params).permute(1,2,0).numpy(), params
+        return self.aug(image, params).permute(1,2,0).numpy(), params
 
 
     @staticmethod
-    def PerspectiveTransform(img,params):
+    def aug(img,params):
         # width, height = F._get_image_size(img)
         # startpoints, endpoints = self.get_params(width, height, self.pt.distortion_scale)
         # F.perspective(img, startpoints, endpoints, self.interpolation, fill)
@@ -452,7 +452,7 @@ class Rotation(StochasticAugmenter):
 
 
     @staticmethod
-    def Rotation(img,params):
+    def aug(img,params):
         return F.rotate(img, params[0], params[1], params[2], params[3], params[4])
 
 class Flip(Augmenter):
@@ -478,7 +478,7 @@ class Flip(Augmenter):
 
 
     @staticmethod
-    def flip(img,params):
+    def aug(img,params):
         return torch.flip(img, dims=params)
 
 
