@@ -7,14 +7,18 @@ import logging
 from math import floor
 import os
 import sys
-
+import torchvision.transforms as T
+import torchvision.transforms.functional as F
 import cv2
 import numpy as np
 from scipy.interpolate import griddata
 from torch.utils.data import Dataset # TODO use IterableDataset
+import torch
+from torchvision.transforms.functional import InterpolationMode
 
 from exputils.ml.generic_predictors import Stateful
 
+# TODO tell derek about breaking change adding param output
 
 # TODO make torch DataLoader versions of these that can be chained together.
 #   Perhaps, make a generic class that allows the user to give the function
@@ -101,7 +105,7 @@ class StochasticAugmenter(Augmenter):
     """
     def __init__(
         self,
-        augs_per_item,
+        augs_per_item=1,
         include_original=False,
         rng=None,
         iterable=None,
@@ -294,9 +298,51 @@ class ElasticTransform(StochasticAugmenter):
         )
 
 
+class ColorJitter(StochasticAugmenter):
+    def __init__(self, brightness=0, contrast=0, saturation=0, hue=0, *args, **kwargs):
+        super(ColorJitter, self).__init__(*args, **kwargs)
+        self.brightness = float(brightness)
+        self.contrast = float(contrast)
+        self.saturation = float(saturation)
+        self.hue = float(hue)
+        self.cj = T.ColorJitter(self.brightness, self.contrast, self.saturation, self.hue)
+        #TODO figure out if we care about the random state or it is fine to just record everything
+
+
+    def augment(self, image):
+        # TODO these are probably bad for the purposes of this, since pytorch expects it to be C,H,W instead of H,W,C
+        if len(image.shape) != 3:
+            raise ValueError(
+                f'`image` shape expected to be 3 dims BGR, not {image.shape}'
+            )
+        if image.dtype != 'uint8':
+            raise ValueError(
+                f'`image` dtype expected to be uint8. BGR. not {image.dtype}'
+            )
+        image = torch.tensor(image).permute(2, 0, 1)
+        # to keep the parameters for the transform, i had to copy it from the forward method Hope it doesn't change :shrug:
+        params = self.cj.get_params(self.cj.brightness, self.cj.contrast, self.cj.saturation, self.cj.hue)
+
+        return self.aug(image,params).permute(1,2,0).numpy(),params
+    @staticmethod
+    def aug(img, params):
+        # image in pytorch format
+        fn_idx, brightness_factor, contrast_factor, saturation_factor, hue_factor = params
+        for fn_id in fn_idx:
+            if fn_id == 0 and brightness_factor is not None:
+                img = F.adjust_brightness(img, brightness_factor)
+            elif fn_id == 1 and contrast_factor is not None:
+                img = F.adjust_contrast(img, contrast_factor)
+            elif fn_id == 2 and saturation_factor is not None:
+                img = F.adjust_saturation(img, saturation_factor)
+            elif fn_id == 3 and hue_factor is not None:
+                img = F.adjust_hue(img, hue_factor)
+        return img
+
+
 class Noise(StochasticAugmenter):
     """Add Gaussian noise to the image."""
-    def __init__(self, mean=0, std=10, *args, **kwargs):
+    def __init__(self, mean=0, std=10,*args, **kwargs):
         super(Noise, self).__init__(*args, **kwargs)
 
         # TODO figure out how this object can carry a cv2 RNG object...
@@ -325,21 +371,27 @@ class Noise(StochasticAugmenter):
 
 class Blur(StochasticAugmenter):
     """Gaussian blur the image."""
-    def __init__(self, ksize, sigmaX, sigmaY=0, *args, **kwargs):
+    def __init__(self, ksize, sigma_min, sigma_max, *args, **kwargs):
         super(Blur, self).__init__(*args, **kwargs)
 
         self.ksize = tuple(ksize)
-        self.sigmaX = sigmaX
-        self.sigmaY = sigmaY
+        self.sigma_min = sigma_min
+        self.sigma_max = sigma_max
 
     def augment(self, image):
-        return cv2.GaussianBlur(image, self.ksize, self.sigmaX, self.sigmaY)
+        image = torch.tensor(image).permute(2, 0, 1)
+        sigma = T.GaussianBlur.get_params(self.sigma_min, self.sigma_max)
+        params = self.ksize, [sigma, sigma]
+        return self.blur(image,params).permute(1,2,0).numpy(),params
+    @staticmethod
+    def aug(img,params):
+        ksize, sigma = params
+        return F.gaussian_blur(img, ksize, sigma)
 
 
 class InvertColor(Augmenter):
     def __init__(self, iterable=None):
         super(InvertColor, self).__init__(iterable)
-
     def augment(self, image):
         if len(image.shape) != 3:
             raise ValueError(
@@ -349,131 +401,85 @@ class InvertColor(Augmenter):
             raise ValueError(
                 f'`image` dtype expected to be uint8. BGR. not {image.dtype}'
             )
-        return 255 - image
+        image = torch.tensor(image).permute(2, 0, 1)
+        return F.invert(image).permute(1,2,0).numpy(), True
+    @staticmethod
+    def aug(image,params):
+        image = torch.tensor(image).permute(2, 0, 1)
+        if params:
+            return F.invert(image)
+        else:
+            return image
 
 
-class Reflect(Augmenter):
-    """Generalized reflection class that reflects a 2D matrix."""
-    def __init__(self, axis, iterable=None):
-        super(Reflect, self).__init__(iterable)
-        self.axis = axis
+class PerspectiveTransform(StochasticAugmenter):
+    def __init__(self, distortion_scale=0.5, p=0.5, interpolation=InterpolationMode.BILINEAR, fill=0, *args, **kwargs):
+        super(PerspectiveTransform, self).__init__(*args, **kwargs)
+        if fill == -1:
+            fill = list((255*torch.rand(3)).numpy().astype(np.uint8))
+        self.pt  = T.RandomPerspective(distortion_scale=distortion_scale, p=p, interpolation=interpolation, fill=fill)
 
     def augment(self, image):
-        # TODO make optionally torch flip, based input
-        return np.flip(image, axis=self.axis)
+        image = torch.tensor(image).permute(2, 0, 1)
+        width, height = F._get_image_size(image)
+        params = T.RandomPerspective.get_params(width, height, distortion_scale=self.pt.distortion_scale)
+        params += (self.pt.p,self.pt.interpolation,self.pt.fill)
+        return self.aug(image, params).permute(1,2,0).numpy(), params
 
 
-class Reflect_X(Reflect):
-    def __init__(self, iterable=None):
-        super(Reflect_X, self).__init__(0, iterable)
+    @staticmethod
+    def aug(img,params):
+        # width, height = F._get_image_size(img)
+        # startpoints, endpoints = self.get_params(width, height, self.pt.distortion_scale)
+        # F.perspective(img, startpoints, endpoints, self.interpolation, fill)
+        return F.perspective(img, params[0], params[1], params[3], params[4])
 
 
-class Reflect_Y(Reflect):
-    def __init__(self, iterable=None):
-        super(Reflect_Y, self).__init__(1, iterable)
+
+# def augment(self, distortion_scale=0.5, p=0.5, interpolation=InterpolationMode.BILINEAR, fill=0):
+
+class Rotation(StochasticAugmenter):
+    def __init__( self, degrees, interpolation=InterpolationMode.NEAREST, expand=False, center=None, fill=0, *args, **kwargs):
+        super(Rotation, self).__init__(*args, **kwargs)
+        if fill == -1:
+            fill = list((255 * torch.rand(3)).numpy().astype(np.uint8))
+        self.r = T.RandomRotation(degrees, interpolation=interpolation, expand=expand, center=center, fill=fill)
+
+    def augment(self, image):
+        image = torch.tensor(image).permute(2, 0, 1)
+        params = (self.r.get_params(self.r.degrees),self.r.resample, self.r.expand, self.r.center, self.r.fill)
+        return self.Rotation(image, params).permute(1,2,0).numpy(), params
 
 
-class Antique(StochasticAugmenter):
-    """Given the image, assumed to be grayscale/binary with white background,
-    the text line image is blended with a random selection from a set of
-    background paper images. A slice from the random selected background image
-    that fits the line image is applied to the line image. This is to simulate
-    text on antique papers.
+    @staticmethod
+    def aug(img,params):
+        return F.rotate(img, params[0], params[1], params[2], params[3], params[4])
 
-    Attributes
-    ----------
-    background_images : [np.ndarray]
-        List of background images to use for replacing the background of text
-        images.
-    """
-    def __init__(self, backgrounds_dir, grayscale=True, *args, **kwargs):
-        super(Antique, self).__init__(*args, **kwargs)
+class Flip(Augmenter):
+    def __init__( self, axis=(0,), *args, **kwargs):
+        super(Flip, self).__init__(*args, **kwargs)
+        assert len(axis) <= 3
+        # Have to remap axises, to make it consistent with the otherones, since most of the pytorch ones require a channel, h, w format
+        #  You can "Flip" the colors if you want too, why the hell not.
+        temp = []
+        for x in axis:
+            if x == 0:
+                temp.append(1)
+            elif x == 1:
+                temp.append(2)
+            elif x == 3:
+                temp.append(0)
+        self.axis = tuple(axis)
 
-        # Load the images from the backgrounds directory
-        self.background_images = []
-        for img_path in glob.iglob(os.path.join(backgrounds_dir, '*')):
-            if grayscale:
-                image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    def augment(self, image):
+        image = torch.tensor(image).permute(2, 0, 1)
+        params = self.axis
+        return self.flip(image,params).permute(1,2,0).numpy(), params
 
-                # We by default expect BGR for all other images, thus repeat
-                image = np.repeat(np.expand_dims(image, 2), 3, 2)
-            else:
-                image = cv2.imread(img_path)
 
-            if image is None:
-                raise IOError(
-                    f'Read image is None. Invalid filepath: {img_path}',
-                )
-
-            self.background_images.append(image)
-
-        if not self.background_images:
-            raise ValueError('No images were loaded!')
-
-    def augment(
-        self,
-        image,
-        bg_image_id=None,
-        approach='minimum',
-        color=[255, 255, 255]
-    ):
-        # Set offsets to random part of background
-        if bg_image_id is None:
-            bg_image = self.background_images[
-                self.rng.integers(len(self.background_images))
-            ]
-        else:
-            bg_image = self.background_images[bg_image_id]
-
-        if bg_image.shape[1] >= image.shape[1]:
-            x_offset = int(
-                self.rng.random()
-                * (bg_image.shape[1] - image.shape[1])
-            )
-        else:
-            x_offset = 0
-
-        if bg_image.shape[0] >= image.shape[0]:
-            y_offset = int(
-                self.rng.random()
-                * (bg_image.shape[0] - image.shape[0])
-            )
-        else:
-            y_offset = 0
-
-        bg_image_select = bg_image[
-            y_offset:y_offset + image.shape[0],
-            x_offset:x_offset + image.shape[1],
-            :,
-        ]
-
-        if image.shape[0:2] != bg_image.shape[0:2]:
-            bg_image_select = cv2.resize(
-                bg_image_select,
-                (image.shape[1], image.shape[0]),
-            )
-            blended = np.copy(image)
-
-        for i in range(image.shape[2]):
-            if approach == "minimum":
-                blended[:, :, i] = np.minimum(
-                    image[:, :, i],
-                    bg_image_select[:, :, i],
-                )
-            elif approach == "factor":
-                img = np.copy(image[:, :, i])
-
-                # Darker is letters
-                factor = (255 - img) / 255.0
-                blended[:, :, i] = bg_image_select[:, :, i] \
-                    * (1 - factor) + img * factor
-            else:
-                img = np.copy(image[:, :, i])
-                blended[:, :, i] = bg_image_select[:, :, i]
-                blended[:, :, i][img < 250] = color[i] \
-                    * ((255 - img) / 255.0).astype(np.uint8)[img < 250]
-
-        return blended
+    @staticmethod
+    def aug(img,params):
+        return torch.flip(img, dims=params)
 
 
 class SplitAugmenters(Augmenter):
