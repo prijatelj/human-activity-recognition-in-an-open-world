@@ -7,7 +7,7 @@ from exputils.data.labels import NominalDataEncoder
 from exputils.ml.generic_predictors import SupervisedClassifier
 
 
-class OnlineDetector(SupervisedClassifier):
+class NoveltyDetector(SupervisedClassifier):
     """Abstract class for online supervised learning detectors.
     This will serve as the pipeline that wraps or includes the Pytorch model
     used so any data prep or model prep is handled in the child inheriting from
@@ -39,7 +39,8 @@ class OnlineDetector(SupervisedClassifier):
     # created when first fit occurs (implies unable to predict in this case).
 
     def __init__(self, *args, **kwargs):
-        self.label_enc = self.char_enc
+        #self.label_enc = self.char_enc
+        pass
 
     @abstractmethod
     def fit(self, features, labels):
@@ -52,6 +53,27 @@ class OnlineDetector(SupervisedClassifier):
         # TODO parameterize init, fit, and predict st they may be provided args
         # & kwargs as configs
         raise NotImplementedError()
+
+    def detect(self, features, labels):
+        """Given the current state of the predictor, continue training given
+        the provided data. This uses the existing state of the predictor.
+        """
+
+        # TODO fit in batches
+        # TODO fit incrementally
+        # TODO parameterize init, fit, and predict st they may be provided args
+        # & kwargs as configs
+        raise NotImplementedError()
+
+
+class NoveltyRecognizer(OnlineDetector):
+
+    def init(self, *args, **kwargs):
+        pass
+
+    def recognize(self, features, labels):
+        raise NotImplementedError()
+
 
 class FeatureExtractor(StatefulIterable, Dataset):
     """Feature extraction abstract class."""
@@ -69,6 +91,7 @@ class FeatureExtractor(StatefulIterable, Dataset):
         multiple samples at once.
         """
         raise NotImplementedError()
+
 
 # TODO ANN pretrained (e.g. ResNet50 on ImageNet) repr as an encoding, a
 # generic layer extraction class that access that network's selected layer.

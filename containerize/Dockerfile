@@ -1,16 +1,25 @@
 FROM nvcr.io/nvidia/pytorch:19.02-py3
 
 # Set a working directory for the app
-WORKDIR /tmp/container_workspaces/docker/luke/
+WORKDIR /tmp/container_workspaces/docker/arn/
 
 # Copy all the files to the container
 COPY . .
 
-# TODO intall dependencies
-# TODO conda?
-# TODO python requirements
-# TODO EVM
-# TODO X3D, if not included in this package
-# TODO CLIP, if not included in this package
+# TODO create the virtual environment (Conda?)
 
-# TODO intall this package
+# TODO intall dependencies
+
+# TODO install EVM
+git clone --recurse-submodules https://github.com/Vastlab/vast.git
+pip install timm
+
+# TODO install CLIP
+
+# TODO install other_model
+
+# Install this repo's main package and its dependencies
+python setup.py install
+
+# Install this repo's experiments package and its dependencies
+python experiments/setup.py install

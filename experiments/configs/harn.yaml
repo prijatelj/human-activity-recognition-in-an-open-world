@@ -1,0 +1,104 @@
+# The complete Open World Human Activity Recognition pipeline from beginning to
+# end. This will probably be broken down into smaller chunks for convenience.
+
+pipeline: 'OWLPipeline'
+random_seed: 0
+
+OWLDataPipeline: # Pipeline for the Open World Learning Data process
+  data:
+    Kinetics400:
+      train: '.csv'
+      val: '.csv'
+      image_root_dir: 'image/'
+      labels: 'par.tsv'
+    PARHAR:
+      train: '.csv'
+      val: '.csv'
+      image_root_dir: 'image/'
+      labels: 'par.tsv'
+    Kinetics700:
+      train: '.csv'
+      val: '.csv'
+      image_root_dir: 'image/'
+      labels: 'par.tsv'
+  augmentation: # TODO figure out how to do incremental OWL w/ augs...
+    SplitAugmenters: # No sample duplication
+      known_unknowns: [Reflect_0, Blur]
+      train: # The augmenters to include in training
+        # No Aug is included by default
+        GaussianNoise:
+        GaussianBlur:
+        Reflect_0:
+      val: # Along w/ train, the augmenters to include in validation
+        Reflect_1:
+      test: # Along w/ train & val, the augmenters to include in test
+        InvertColor:
+  increment:
+    0: # initial phase
+      train: Kinetics400.train
+      val: Kinetics400.val
+      test:
+        - Kinetics400.test
+        - PAR.val
+        - PAR.test
+    1: # second phase
+      train: PAR.train
+      val: PAR.val
+      test: PAR.test
+    increment: # Defines sequential incremental phases
+      train:
+        labeled: Kinetics700.train
+        unlabeled:
+      val:
+        data: Kinetics700.val
+        labeled:
+        unlabeled:
+      test:
+        data: Kinetics700.test
+
+OpenWorldHumanActivityRecognizer: # Pipeline for the Open World Agent
+  FeatureRepr:
+    X3D:
+      init:
+        # init params
+      train:
+        learning_rate: 0.01
+      save_path: 'models/X3D/'
+      load_path: 'models/X3D/x3d.pt'
+  NoveltyRecognizer:
+    EVMCluster:
+      EVM:
+        init:
+        tailsize: 0.3
+        cover_threshold: 0.5
+        distance_multiplier: 0.5
+        distance_function: 'cosine'
+      Cluster:
+        HDBSCAN:
+          min_cluster_size: 10
+          metric: 'cosine'
+      save_path: 'evm/evm_hdbscan.hdf5'
+      #feedback:
+
+OWLEval: # Pipeline for evaluation
+  # TODO should eval performance on all data at every increment & the increment
+  # partitions. Though this can be done afterwards!
+  ConfusionMatrix:
+    save: 'location/path.csv'
+    measures:
+      accuracy:
+      mutual_information:
+        normalized: 'arithmetic'
+        base: 2
+      f1:
+      precision:
+      recall:
+      mcc:
+      cluster_purity:
+        k: [3, 5]
+    top:
+      k: [3, 5]
+      measures: measures
+    save_measures: 'location/measures_path.csv'
+  NoveltyDetection:
+    openness:

@@ -1,2 +1,6 @@
 # Requirements for package extras: experiments
-exputils
+arn
+ipython
+
+# TODO: need to fin docker yaml hierarchical parser and fin run w/ file.
+# docstr

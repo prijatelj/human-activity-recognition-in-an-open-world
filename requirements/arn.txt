@@ -1,0 +1,4 @@
+numpy>=1.19.0
+exputils>=0.1.5
+#pytorch>=
+hdbscan
