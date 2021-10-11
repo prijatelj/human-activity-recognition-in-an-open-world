@@ -366,12 +366,14 @@ class Noise(StochasticAugmenter):
         result = (image / 255) + noise
         # Ensure the range [0, 255]
         result = (np.minimum(np.maximum(result, 0), 1) * 255).astype('uint8')
-        return image + result
+        return image + result, result
 
+    def aug(self, image, params):
+        return image + params
 
 class Blur(StochasticAugmenter):
     """Gaussian blur the image."""
-    def __init__(self, ksize, sigma_min, sigma_max, *args, **kwargs):
+    def __init__(self, ksize, sigma_min=0.1, sigma_max=0.2, *args, **kwargs):
         super(Blur, self).__init__(*args, **kwargs)
 
         self.ksize = tuple(ksize)
@@ -382,7 +384,7 @@ class Blur(StochasticAugmenter):
         image = torch.tensor(image).permute(2, 0, 1)
         sigma = T.GaussianBlur.get_params(self.sigma_min, self.sigma_max)
         params = self.ksize, [sigma, sigma]
-        return self.blur(image,params).permute(1,2,0).numpy(),params
+        return self.aug(image,params).permute(1,2,0).numpy(),params
     @staticmethod
     def aug(img,params):
         ksize, sigma = params
