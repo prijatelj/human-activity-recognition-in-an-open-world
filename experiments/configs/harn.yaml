@@ -27,18 +27,10 @@ OWLDataPipeline: # Pipeline for the Open World Learning Data process
       train: # The augmenters to include in training
         # No Aug is included by default
         GaussianNoise:
-          augs_per_item: 1
-          mean: 0
-          std: 10
         GaussianBlur:
-          augs_per_item: 1
-          ksize: [0, 0]
-          sigmaX: 3
         Reflect_0:
-          axis: 0
       val: # Along w/ train, the augmenters to include in validation
         Reflect_1:
-          axis: 1
       test: # Along w/ train & val, the augmenters to include in test
         InvertColor:
   increment:
