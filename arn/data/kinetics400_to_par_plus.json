@@ -103,7 +103,7 @@
   "sanding floor": {"class": "Carpentry", "novelty": "unknown", "perspective": null, "location": null, "relation1": null, "relation2": null},
   "squat": {"class": "Lifting", "novelty": "unknown", "perspective": null, "location": null, "relation1": null, "relation2": null},
   "auctioning": {"class": "Unknown", "novelty": "known", "perspective": null, "location": null, "relation1": null, "relation2": null},
-  "scuba diving": {"class": "Swimming", "novelty": "unknown", "perspective": null, "location": "Outdoor", "relation1": "OpenWater", "relation2": null},
+  "scuba diving": {"class": "Swimming", "novelty": "unknown", "perspective": null, "location": "outdoors", "relation1": "OpenWater", "relation2": null},
   "javelin throw": {"class": "Throwing", "novelty": "known", "perspective": null, "location": null, "relation1": "Unknown", "relation2": null},
   "driving car": {"class": "Riding Machine", "novelty": "unknown", "perspective": null, "location": null, "relation1": "Unknown", "relation2": null},
   "water skiing": {"class": "Skiiing", "novelty": "unknown", "perspective": null, "location": null, "relation1": "Water", "relation2": null},
