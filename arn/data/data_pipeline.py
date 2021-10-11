@@ -39,6 +39,12 @@ Every sample is the following:
         The name of the augmentation applied to a dict of parameter names to
         their values, which is the **kwargs able to be used in the original
         function to get the exact augmentation.
+    feedback: list
+        In PAR's feedback, a list of the top 5 closest Kinetics700 classes are
+        given, where we are uncertain if order matters to tell which is
+        closest.  We intend to also check when the correct class if given back
+        and when given top [3, 5, 10] closest PAR or Kinetics700 classes are
+        given back.
 """
 
 # NOTE, it may be better to have every thing be accessible in the above way,
