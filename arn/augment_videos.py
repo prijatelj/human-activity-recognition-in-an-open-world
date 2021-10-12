@@ -54,7 +54,7 @@ def augment_all(frame_list, aug_func, same=True):
     return frames
 
 def process_targets(target):
-    output_dir = "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Blur/"
+    output_dir = "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Flip/"
     test = target.split("/")[-2:]
     try:
         os.makedirs(output_dir+test[0])
@@ -62,14 +62,13 @@ def process_targets(target):
         exists = True
         # print("test")
     frames, params = my_video_loader(target)
-    frames = augment_all(frames, Blur((5, 9), sigma_min=0.1, sigma_max = 5), same=True)
+    frames = augment_all(frames, Flip(-1), same=True)
     my_video_saver(output_dir+"/".join(test),frames, params)
     return True
 
 # class PerspectiveTransform(StochasticAugmenter):
 # class ColorJitter(StochasticAugmenter):ColorJitter(brightness=.5, hue=.3)
 # class Noise(StochasticAugmenter):
-
 # class Blur(StochasticAugmenter):
 # class InvertColor(Augmenter):
 # class Rotation(StochasticAugmenter):
@@ -84,4 +83,4 @@ targets = glob.glob("/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/va
 out_file_names = []
 # process_targets(targets[0])
 
-r = process_map(process_targets, targets, max_workers=30)
+r = process_map(process_targets, targets, max_workers=16)

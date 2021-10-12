@@ -1,4 +1,5 @@
 """Classes that augment the given image in different ways."""
+import random
 from abc import abstractmethod
 from collections import OrderedDict
 import glob
@@ -407,7 +408,6 @@ class InvertColor(Augmenter):
         return F.invert(image).permute(1,2,0).numpy(), True
     @staticmethod
     def aug(image,params):
-        image = torch.tensor(image).permute(2, 0, 1)
         if params:
             return F.invert(image)
         else:
@@ -450,7 +450,7 @@ class Rotation(StochasticAugmenter):
     def augment(self, image):
         image = torch.tensor(image).permute(2, 0, 1)
         params = (self.r.get_params(self.r.degrees),self.r.resample, self.r.expand, self.r.center, self.r.fill)
-        return self.Rotation(image, params).permute(1,2,0).numpy(), params
+        return self.aug(image, params).permute(1,2,0).numpy(), params
 
 
     @staticmethod
@@ -460,6 +460,14 @@ class Rotation(StochasticAugmenter):
 class Flip(Augmenter):
     def __init__( self, axis=(0,), *args, **kwargs):
         super(Flip, self).__init__(*args, **kwargs)
+        if axis == -1:
+            axis = []
+            for x in range(3):
+                if(random.random()) > .5:
+                    axis.append(x)
+            if len(axis) == 0:
+                axis.append(random.randrange(3))
+        axis = tuple(axis)
         assert len(axis) <= 3
         # Have to remap axises, to make it consistent with the otherones, since most of the pytorch ones require a channel, h, w format
         #  You can "Flip" the colors if you want too, why the hell not.
@@ -471,12 +479,12 @@ class Flip(Augmenter):
                 temp.append(2)
             elif x == 3:
                 temp.append(0)
-        self.axis = tuple(axis)
+        self.axis = tuple(temp)
 
     def augment(self, image):
         image = torch.tensor(image).permute(2, 0, 1)
         params = self.axis
-        return self.flip(image,params).permute(1,2,0).numpy(), params
+        return self.aug(image,params).permute(1,2,0).numpy(), params
 
 
     @staticmethod
