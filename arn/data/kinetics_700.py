@@ -116,8 +116,8 @@ def load_rgb_frames(image_dir, vid, start, num, stride, video_loader):
     return frames
 
 # def make_dataset(split_file, split, root, num_classes=101):
-def make_dataset(split_file, split, root, num_classes=26):
 # def make_dataset(split_file, split, root, num_classes=51):
+def make_dataset(split_file, split, root, num_classes=26):
     print("split ", split)
     dataset = []
     with open(split_file, 'r') as f:
