@@ -1,0 +1,11 @@
+#Lines starting with hashes are ignored
+#Line 1: TA2_ROOT
+/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256/
+#Line 2: TA2_ANNO
+data/kinetics400/validate.json
+#Line 3: TA2_VAL
+par_temp_val.csv
+#Line 4: model_save_path
+models/
+#Line 5: save_txt_dir
+models/
