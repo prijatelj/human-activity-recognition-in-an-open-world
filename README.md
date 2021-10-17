@@ -1,7 +1,71 @@
 ## Formalization and Analysis of Human Activity Recognition with Novelty
 
 Human Activity Recognition (HAR) as a classification task is the task of mapping videos to their corresponding activity label.
-Novelty and open set/world learning in this domain is akin to image classification or any traditional classification task.
+Novelty and open world learning in this domain is akin to the open world learning versions of image classification or any traditional classification task.
+The original paper is available at [TODO URL].
+
+### Installation
+
+This project is containerized using Docker and by extension, Singularity.
+The Docker image is available at Docker Hub and installable via:
+```
+docker  . . . [TODO: INSTALL FROM DOCKER HUB URL ONCE PUBLISHED]
+```
+
+To build this package with Docker, simply run
+```
+docker build . . . TODO
+```
+
+The original paper's research was run in a Singularity container by converting the above Docker image into a Singularity container using the following process.
+```
+singularity . . . TODO
+```
+
+See `containerize/Dockerfile` for the details on how to install this package and its dependencies from source.
+
+### Reproducing the Experimental Results
+
+After installation, the final model states may be downloaded and used in order to reproduce our evaluation results and to be used immediately.
+These model states are available for download at: [TODO URL ONCE PUBLISHED]
+
+#### Reproducing the Training and Experiments
+
+To reproduce the training and experiments the initial pre-training model states need downloaded and the following sequence of commands are required to reproduce the experimental process followed in the paper.
+
+TODO pre-training model states links
+
+##### Experiment 1
+
+TODO
+
+##### Experiment 2
+
+TODO
+
+##### Experiment 3
+
+TODO
+
+
+### License
+
+The license for this repository is incldued in `LICENSE.txt`.
+
+### Citation
+
+If you use our work, please cite us using the following bibtex:
+```
+TODO ONCE PUBLISHED
+```
+
+
+### Acknowledgements
+
+This project was funded by . . .
+
+Thank you to . . .
+
 
 ### Activity Recognition Label Specifity
 
@@ -28,9 +92,9 @@ AR label specificty can be as follows:
 Note that AR relates to Next-Frame Prediction.
 PredNet (cite?) is a model known to perform the task of Next-Frame Prediction.
 
-### Structure
+### Repository Directory Structure
 
-Each directory will have an index.md file to serve as a starting point.
+Each directory will have an index.md file with information about the contents of that directory.
 
 + setup.py
     - basic template to be filled out for the package that will be worked on
