@@ -54,7 +54,7 @@ def augment_all(frame_list, aug_func, same=True):
     return frames
 
 def process_targets(target):
-    output_dir = "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Flip/"
+    output_dir = "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_toy/"
     test = target.split("/")[-2:]
     try:
         os.makedirs(output_dir+test[0])
@@ -83,4 +83,4 @@ targets = glob.glob("/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/va
 out_file_names = []
 # process_targets(targets[0])
 
-r = process_map(process_targets, targets, max_workers=16)
+r = process_map(process_targets, targets, max_workers=2)

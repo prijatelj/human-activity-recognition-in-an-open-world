@@ -124,7 +124,10 @@ def get_video_names_and_annotations(data, subset, source="torrent"):
             # if this_subset == subset:
             start_and_end_times = {}
             if subset == 'testing':
-                video_names.append('test/{}'.format(key))
+                label = value['annotations']['segment']
+                video_names.append('{}_{:06d}_{:06d}.mp4'.format(key,int(label[0]),int(label[1])))
+                annotations.append(value['annotations'])
+                # video_names.append('test/{}'.format(key))
             elif subset == 'train':
                 st = int(value['annotations']['segment'][0])
                 end = int(value['annotations']['segment'][1])

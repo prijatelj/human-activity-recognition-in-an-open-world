@@ -333,6 +333,6 @@ if __name__ == '__main__':
 "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Rotation/",
 "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Flip/"]
 
-    targets = ["/media/sgrieggs/pageparsing/kinetics-dataset-400-val/"]
+    targets = ["/media/sgrieggs/pageparsing/kinetics-dataset-400-test/"]
     for x in targets:
         run(root=x)
