@@ -23,6 +23,7 @@ def load_value_file(file_path):
 
 
 def my_video_loader(seq_path):
+
     frames = []
     # extract frames from the video
     if os.path.exists(seq_path):
@@ -39,7 +40,7 @@ def my_video_loader(seq_path):
     if len(frames) == 0:
         print(seq_path + " is busted")
         shutil.move(seq_path, "/media/sgrieggs/pageparsing/badvideos/"+seq_path.split("/")[-1])
-        frames = [np.zeros((360, 640, 3))]
+        frames = [np.zeros((360, 640, 3)).astype(np.uint8)]
     return frames
 
 def pil_loader(path):
