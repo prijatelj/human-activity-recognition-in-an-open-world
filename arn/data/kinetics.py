@@ -12,6 +12,7 @@ import json
 import copy
 from tqdm import tqdm
 import numpy as np
+import shutil
 
 import torch.nn.functional as F
 
@@ -31,11 +32,14 @@ def my_video_loader(seq_path):
             if ret == False:
                 break
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # convert opencv image to PIL
+            # print(frame.shape)
             frames.append(frame)
     else:
         print('{} does not exist'.format(seq_path))
     if len(frames) == 0:
-        print(seq_path)
+        print(seq_path + " is busted")
+        shutil.move(seq_path, "/media/sgrieggs/pageparsing/badvideos/"+seq_path.split("/")[-1])
+        frames = [np.zeros((360, 640, 3))]
     return frames
 
 def pil_loader(path):
@@ -311,6 +315,7 @@ class Kinetics(data.Dataset):
         if self.target_transform is not None:
             target = self.target_transform(target)
         target = F.one_hot(torch.tensor(self.data[index]['label']), num_classes=len(self.class_names)).float()
+        # print(clips.shape)
         return clips, target
 
 
