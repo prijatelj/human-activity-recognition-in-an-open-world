@@ -20,6 +20,10 @@ install_requires = ''
 with open(f'requirements/{project_name}_docker.txt', 'r') as f:
     install_requires = f.read()
 
+# TODO if possible, install the python deps done in Dockerfile here so it can
+# just be pip installed: vast, CLIP, X3D, TimeSformer. This will simplify the
+# Dockerfile and make it way easier to install this in general via pip or conda
+
 setup(
     name=project_name,
     version=get_property('__version__', project_name),
@@ -47,4 +51,10 @@ setup(
     ],
     #tests_require=['pytest'],
     #setup_requires=['pylint', 'pytest-runner'],
+    # Add the Script Interfce that provides `packagename submodule` similart to
+    # `git pull` or `git push` commands for git and unify them under one alias
+    # TODO implement this ofc, but also consider making it optional?
+    #entry_points={
+    #   `arn=arn.scripts:script_cli`
+    #},
 )
