@@ -235,7 +235,8 @@ class Kinetics(data.Dataset):
         sample_duration=16,
         gamma_tau=5,
         crops=10,
-        get_loader=get_default_video_loader
+        get_loader=get_default_video_loader,
+        randomize_spatial_params=True,
     ):
         self.data, self.class_names = make_dataset(
             root_path,
@@ -255,6 +256,8 @@ class Kinetics(data.Dataset):
         self.crops = crops
         self.sample_duration = sample_duration
         self.frames = sample_duration//gamma_tau
+
+        self.randomize_spatial_params = randomize_spatial_params
 
     def old__getitem__(self, index):
         """
@@ -307,7 +310,8 @@ class Kinetics(data.Dataset):
 
         # clip = self.loader(path, frame_indices)
         if self.spatial_transform is not None:
-            self.spatial_transform.randomize_parameters()
+            if self.randomize_spatial_params:
+                self.spatial_transform.randomize_parameters()
             clip = [self.spatial_transform(Image.fromarray(img)) for img in clip]
         clip = torch.stack(clip, 0).permute(1, 0, 2, 3) # T C H W --> C T H W
 
@@ -321,7 +325,8 @@ class Kinetics(data.Dataset):
                 if clp.shape[1] != self.frames:
                     # if self.frames-clp.shape[1] != 1:
                         # print("interesting... " +str(self.frames-clp.shape[1]) )
-                    p2d = (0, 0, 0, 0, 0, self.frames-clp.shape[1]) # Padding in torch is absolutely bonkers, lol this pads dimension 1
+                    # Padding in torch is absolutely bonkers, lol this pads dimension 1
+                    p2d = (0, 0, 0, 0, 0, self.frames-clp.shape[1])
                     clips[i] = F.pad(clp, p2d, "constant", 0)
 
             clips = torch.stack(clips, 0)
@@ -330,6 +335,7 @@ class Kinetics(data.Dataset):
         if self.target_transform is not None:
             target = self.target_transform(target)
         target = F.one_hot(torch.tensor(self.data[index]['label']), num_classes=len(self.class_names)).float()
+
         # print(clips.shape)
         return clips, target
 
