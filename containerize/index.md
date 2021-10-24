@@ -60,6 +60,6 @@ sudo singularity run arn_latest.sif
 Mounts approach:
 The paper used mounts for the model weights and input data along with a mount for the output results, such as new model states, predictions, etc.
 ```
-sudo singularity run --bind $HOME/absolute_path_to/arn:/tmp/arn arn_latest.sif
+sudo singularity run --bind $HOME/absolute_path_to/arn:/tmp/arn --pwd /tmp/arn arn_latest.sif
 ```
 Once inside the container, you will need to move to that path `cd /tmp/arn`
