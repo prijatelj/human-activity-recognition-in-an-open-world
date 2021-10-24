@@ -9,3 +9,6 @@ torchsummary>=1.5.1
 exputils>=0.1.5
 
 hdbscan
+
+# Requirements for package extras: experiments (now scripts)
+# docstr
