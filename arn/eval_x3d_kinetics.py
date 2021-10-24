@@ -195,7 +195,10 @@ def run(init_lr=INIT_LR, max_epochs=1, root=KINETICS_VAL_ROOT, anno=KINETICS_VAL
 
                 # Iterate over data.
                 print(phase)
-                bar = tqdm.tqdm(enumerate(dataloaders[phase]),total=len(dataloaders[phase]))
+                bar = tqdm.tqdm(
+                    enumerate(dataloaders[phase]),
+                    total=len(dataloaders[phase]),
+                )
                 right = 0
                 for i,data in bar:
                     num_iter += 1
