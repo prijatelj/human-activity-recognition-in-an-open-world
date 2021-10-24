@@ -44,3 +44,7 @@ If you want to have access to a local directory while in the container for ease 
 Mounts approach:
 
 ### Run the Singularity Image
+
+
+Mounts approach:
+The paper used mounts for the model weights and input data along with a mount for the output results, such as new model states, predictions, etc.
