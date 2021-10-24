@@ -104,16 +104,17 @@ def run(init_lr=INIT_LR, max_epochs=1, root=KINETICS_VAL_ROOT, anno=KINETICS_VAL
 
 
     val_dataset = Kinetics_val(
-            root,
-            KINETICS_VAL_ANNO,
-            KINETICS_CLASS_LABELS,
-            'val',
-            spatial_transform = validation_transforms['spatial'],
-            temporal_transform = validation_transforms['temporal'],
-            target_transform = validation_transforms['target'],
-            sample_duration=300,
-            gamma_tau=1,
-            crops=1)
+        root,
+        KINETICS_VAL_ANNO,
+        KINETICS_CLASS_LABELS,
+        'val',
+        spatial_transform = validation_transforms['spatial'],
+        temporal_transform = validation_transforms['temporal'],
+        target_transform = validation_transforms['target'],
+        sample_duration=300,
+        gamma_tau=1,
+        crops=1,
+    )
 
 
     val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=12, pin_memory=True)
