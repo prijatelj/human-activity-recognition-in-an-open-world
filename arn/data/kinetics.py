@@ -202,38 +202,48 @@ def make_dataset(root_path, annotation_path, class_labels, subset, n_samples_for
 
 
 class Kinetics(data.Dataset):
-    """
+    """General Kinetics Torch Dataset. Able to load Kinetics 400, 600, or 700.
     Args:
         root (string): Root directory path.
-        spatial_transform (callable, optional): A function/transform that  takes in an PIL image
+        spatial_transform (callable, optional):
+            A function/transform that takes in an PIL image
             and returns a transformed version. E.g, ``transforms.RandomCrop``
-        temporal_transform (callable, optional): A function/transform that  takes in a list of frame indices
-            and returns a transformed version
-        target_transform (callable, optional): A function/transform that takes in the
-            target and transforms it.
-        loader (callable, optional): A function to load an video given its path and frame indices.
-     Attributes:
+        temporal_transform (callable, optional):
+            A function/transform that  takes in a list of frame indices and
+            returns a transformed version
+        target_transform (callable, optional):
+            A function/transform that takes in the target and transforms it.
+        loader (callable, optional):
+            A function to load an video given its path and frame indices.
+
+    Attributes:
         classes (list): List of the class names.
         class_to_idx (dict): Dict with items (class_name, class_index).
         imgs (list): List of (image path, class_index) tuples
     """
-
-    def __init__(self,
-                 root_path,
-                 annotation_path,
-                 class_labels,
-                 subset,
-                 n_samples_for_each_video=10,
-                 spatial_transform=None,
-                 temporal_transform=None,
-                 target_transform=None,
-                 sample_duration=16,
-                 gamma_tau=5,
-                 crops=10,
-                 get_loader=get_default_video_loader):
+    def __init__(
+        self,
+        root_path,
+        annotation_path,
+        class_labels,
+        subset,
+        n_samples_for_each_video=10,
+        spatial_transform=None,
+        temporal_transform=None,
+        target_transform=None,
+        sample_duration=16,
+        gamma_tau=5,
+        crops=10,
+        get_loader=get_default_video_loader
+    ):
         self.data, self.class_names = make_dataset(
-            root_path, annotation_path, class_labels, subset, n_samples_for_each_video,
-            sample_duration)
+            root_path,
+            annotation_path,
+            class_labels,
+            subset,
+            n_samples_for_each_video,
+            sample_duration,
+        )
         self.subset = subset
         self.samples = n_samples_for_each_video
         self.spatial_transform = spatial_transform
@@ -244,7 +254,6 @@ class Kinetics(data.Dataset):
         self.crops = crops
         self.sample_duration = sample_duration
         self.frames = sample_duration//gamma_tau
-
 
     def old__getitem__(self, index):
         """
@@ -321,7 +330,6 @@ class Kinetics(data.Dataset):
         target = F.one_hot(torch.tensor(self.data[index]['label']), num_classes=len(self.class_names)).float()
         # print(clips.shape)
         return clips, target
-
 
     def __len__(self):
         return len(self.data)
