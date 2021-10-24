@@ -1,20 +1,20 @@
+import copy
+import functools
+import json
+import math
+import os
+import shutil
 from random import random
 
 import cv2
-import torch
-import torchvision
-import torch.utils.data as data
-from PIL import Image
-import os
-import math
-import functools
-import json
-import copy
-from tqdm import tqdm
 import numpy as np
-import shutil
-
+import torch
 import torch.nn.functional as F
+import torch.utils.data as data
+import torchvision
+from PIL import Image
+from tqdm import tqdm
+
 
 def load_value_file(file_path):
     with open(file_path, 'r') as input_file:
@@ -42,6 +42,7 @@ def my_video_loader(seq_path):
         shutil.move(seq_path, "/media/sgrieggs/pageparsing/badvideos/"+seq_path.split("/")[-1])
         frames = [np.zeros((360, 640, 3)).astype(np.uint8)]
     return frames
+
 
 def pil_loader(path):
     with open(path, 'rb') as f:
