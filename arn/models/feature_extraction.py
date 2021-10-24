@@ -1,7 +1,7 @@
 """Feature Representation classes."""
 import torch
 
-class FeatureExtractor(nn.Module):
+class FeatureExtractor(torch.nn.Module):
     """Feature extraction of a layer of a pre-existing PyTorch model.
 
     Attributes
