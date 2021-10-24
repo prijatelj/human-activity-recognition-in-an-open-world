@@ -1,6 +1,8 @@
 """Open World Human Activity Recognition pipeline class."""
 import torch
 
+from exputils.ml.generic_predictors import SupervisedClassifier
+
 from arn.models import generics
 
 class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
@@ -96,7 +98,7 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
             return self.novelty_recognizer.recognize(input_samples)
         raise ValueError('No novelty_recognizer present!')
 
-    def fit_increment(input_samples, labels):
+    def fit_increment(self, input_samples, labels):
         """Incrementally fit the OWHAR."""
         raise NotImplementedError()
-        self.increment_counter += 1
+        self.increment_count += 1

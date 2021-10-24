@@ -1,5 +1,14 @@
 # ARN package Setup.py
 from setuptools import setup
+import re
+
+def get_property(prop, project):
+    """Gets the given property by name in the project's first init file."""
+    result = re.search(
+        r'{}\s*=\s*[\'"]([^\'"]*)[\'"]'.format(prop),
+        open(project + '/__init__.py').read()
+    )
+    return result.group(1)
 
 long_description = ''
 with open('README.md', 'r') as f:
@@ -8,7 +17,7 @@ with open('README.md', 'r') as f:
 project_name = 'arn'
 
 install_requires = ''
-with open('requirements/{project_name}.txt', 'r') as f:
+with open(f'requirements/{project_name}_docker.txt', 'r') as f:
     install_requires = f.read()
 
 setup(

@@ -66,7 +66,7 @@ class NoveltyDetector(SupervisedClassifier):
         raise NotImplementedError()
 
 
-class NoveltyRecognizer(OnlineDetector):
+class NoveltyRecognizer(NoveltyDetector):
 
     def init(self, *args, **kwargs):
         pass

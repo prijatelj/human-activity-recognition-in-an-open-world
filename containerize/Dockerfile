@@ -12,22 +12,22 @@ COPY . .
 RUN mkdir deps
 WORKDIR deps
 
-git clone --recurse-submodules https://github.com/prijatelj/vast
+RUN git clone --recurse-submodules https://github.com/prijatelj/vast
 WORKDIR vast
-python setup.py install
+RUN python setup.py install
 
 WORKDIR ../../
 
 # Install CLIP
 # pytorch, torchvision, and cudatoolkit deps are handled from NVIDIA container
-pip install ftfy regex tqdm
-pip install git+https://github.com/openai/CLIP.git
+RUN pip install ftfy regex tqdm
+RUN pip install git+https://github.com/openai/CLIP.git
 
 # Install this repo's main package and its dependencies
-python setup.py install
+RUN python setup.py install
 
 # Install this repo's experiments package and its dependencies
-python experiments/setup.py install
+#python experiments/setup.py install
 
 
 # Weight Installation can be handled after basic build is finished.
