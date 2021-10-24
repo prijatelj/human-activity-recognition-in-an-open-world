@@ -200,7 +200,7 @@ def main(output_dir, device='cuda', model_path='ViT-B/32', *args, **kwargs):
                 inputs.flatten(0, 1),
             ).reshape(shape)
 
-            # TODO Save Zero-Shot predictions while you're at it
+            # TODO Opt. Save Zero-Shot predictions while you're at it
             # TODO Cosine similarity
             # CLIP paper states the mean of the predictions was used for K700
 
