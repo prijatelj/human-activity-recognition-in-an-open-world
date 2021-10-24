@@ -26,9 +26,6 @@ RUN pip install git+https://github.com/openai/CLIP.git
 # Install this repo's main package and its dependencies
 RUN python setup.py install
 
-# Install this repo's experiments package and its dependencies
-#python experiments/setup.py install
-
 
 # Weight Installation can be handled after basic build is finished.
 # Should just give instuctions in README and tell user to mount the directory
