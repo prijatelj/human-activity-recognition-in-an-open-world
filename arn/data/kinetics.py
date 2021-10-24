@@ -292,6 +292,7 @@ class Kinetics(data.Dataset):
             index (int): Index
         Returns:
             tuple: (image, target) where target is class_index of the target class.
+            TODO specify image type and expected general shape
         """
         path = self.data[index]['video']
         clip = self.loader(path)
