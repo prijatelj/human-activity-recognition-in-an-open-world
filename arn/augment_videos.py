@@ -31,7 +31,7 @@ def my_video_loader(seq_path):
     return frames, (int(width),int(height),int(fps),int(codec))
 
 def my_video_saver(seq_path,frames,params):
-    print(seq_path)
+    # print(seq_path)
     # print(cv2.VideoWriter_fourcc('m', 'p', '4', 'v'))
     width, height, fps, codec = params
     # print(codec)
@@ -49,11 +49,12 @@ def augment_all(frame_list, aug_func, same=True):
     else:
         frames = []
         for frame in frame_list:
-            frames.append(aug_func.augment(frame)[0])
+            temp,params = aug_func.augment(frame)
+            frames.append(temp)
     return frames
 
 def process_targets(target):
-    output_dir = "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Perspective/"
+    output_dir = "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_toy/"
     test = target.split("/")[-2:]
     try:
         os.makedirs(output_dir+test[0])
@@ -61,15 +62,15 @@ def process_targets(target):
         exists = True
         # print("test")
     frames, params = my_video_loader(target)
-    frames = augment_all(frames, PerspectiveTransform(), same=True)
+    frames = augment_all(frames, Flip(-1), same=True)
     my_video_saver(output_dir+"/".join(test),frames, params)
     return True
 
-# class ColorJitter(StochasticAugmenter):
+# class PerspectiveTransform(StochasticAugmenter):
+# class ColorJitter(StochasticAugmenter):ColorJitter(brightness=.5, hue=.3)
 # class Noise(StochasticAugmenter):
 # class Blur(StochasticAugmenter):
 # class InvertColor(Augmenter):
-# class PerspectiveTransform(StochasticAugmenter):
 # class Rotation(StochasticAugmenter):
 # class Flip(Augmenter):
 
@@ -82,4 +83,4 @@ targets = glob.glob("/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/va
 out_file_names = []
 # process_targets(targets[0])
 
-r = process_map(process_targets, targets[:30], max_workers=30)
+r = process_map(process_targets, targets, max_workers=2)
