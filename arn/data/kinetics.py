@@ -162,8 +162,6 @@ def make_dataset(root_path, annotation_path, class_labels, subset, n_samples_for
         for i in tqdm(range(len(video_names))):
             video_path = root_path + video_names[i]
 
-
-
             if not os.path.exists(video_path):
                 continue
 
