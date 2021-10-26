@@ -97,6 +97,7 @@ def get_kinetics_dataloader(
     frames=300,
     gamma_tau=1,
     crops=1,
+    shuffle=True,
 ):
     """Instantiates and returns the Kinetics Dataloader given the params."""
     # TODO all this boiler plate need put into a Kinetics Dataloader wrapper
@@ -128,28 +129,34 @@ def get_kinetics_dataloader(
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=shuffle,
         num_workers=12,
         pin_memory=True,
     )
 
-    #num_steps_per_update = 1 # ACCUMULATE GRADIENT IF NEEDED
-    #cur_iterations = steps * num_steps_per_update
-    # iterations_per_epoch = len(dataset)//batch_size
-    #val_iterations_per_epoch = len(val_dataset)//(batch_size//2)
-    # max_steps = iterations_per_epoch * max_epochs
-
     dataloaders = {'val': val_dataloader}
     datasets = {'val': val_dataset}
     print('val',len(datasets['val']))
-    # print('Total iterations:', max_steps, 'Total epochs:', max_epochs)
     print('datasets created')
 
-    return dataloaders
+    return datasets, dataloaders
 
 
-# TODO ray parallelize the encoding process of images for speed.
-def main(output_dir, device='cuda', model_path='ViT-B/32', *args, **kwargs):
+def main(
+    image_path=None,
+    label_path=None,
+    pred_path=None,
+    device='cuda',
+    model_path='ViT-B/32',
+    load_encoded_labels=True,
+    *args,
+    **kwargs,
+):
+    if image_path is None and label_path is None and pred_path is None:
+        raise ValueError(
+            '`image_path`, `label_path`, and `pred_path` are all None',
+        )
+
     KINETICS_MEAN = [110.63666788 / 255, 103.16065604 / 255, 96.29023126 / 255]
     KINETICS_STD = [38.7568578 / 255, 37.88248729 / 255, 40.02898126 / 255]
 
@@ -175,47 +182,96 @@ def main(output_dir, device='cuda', model_path='ViT-B/32', *args, **kwargs):
         frames = 300
 
     # Get Kinetics Dataloader for specified data
-    dataloader = get_kinetics_dataloader(
+    dataset, dataloader = get_kinetics_dataloader(
         spatial=spatial,
         randomize_spatial_params=False,
         *args,
         **kwargs,
-    )['val']
+    )
+    dataset = dataset['val']
+    dataloader = dataloader['val']
 
-    output_dir = exputils.io.create_filepath(output_dir)
+    # TODO the CLIP Zeroshot and feature repr needs to be a module used by
+    # baseline. Save or reuse whatever boilerplate is around CLIP encoding here
 
-    # TODO Calculate the text encoding of every Kinetics class
+    if load_encoded_labels and label_path:
+        encoded_labels = torch.load(label_path)
+    else:
+        encoded_labels = None
+
+    encoded_images = None
+    preds = None
 
     # Encode the images
     with torch.no_grad():
-        bar = tqdm.tqdm(enumerate(dataloader), total=len(dataloaders))
+        # Calculate & save, or load the label text CLIP features
+        if encoded_labels is None and (label_path or pred_path):
+            # Get the unique text labels and sort them
+            text_labels = sorted({d['label'] for d in dataset.data})
+
+            # Encode the Labels
+            label_encs = model.encode_text(text_labels)
+
+            # Save the encoded text labels.
+            torch.save(exputils.io.create_filepath(label_path), encoded_labels)
+
+        bar = tqdm.tqdm(enumerate(dataloader), total=len(dataloader))
         for i, (inputs, labels) in bar:
-            # Make video frames Batch, Time, Channels, Height, Width, again.
-            inputs = inputs.permute(0, 2, 1, 2, 3)
-            shape = inputs.shape
+            if image_path or pred_path:
+                # Make video frames Batch, Time, Channels, Height, Width,
+                # again.
+                inputs = inputs.permute(0, 2, 1, 2, 3)
+                shape = inputs.shape
 
-            # Flatten batch and time
-            # Encode images and Reconstruct Batch and Time
-            image_encs = model.encode_image(
-                inputs.flatten(0, 1),
-            ).reshape(shape)
+                # Flatten batch and time
+                # Encode images and Reconstruct Batch and Time
+                image_encs = model.encode_image(
+                    inputs.flatten(0, 1),
+                ).reshape(shape)
 
-            # TODO Opt. Save Zero-Shot predictions while you're at it
-            # TODO Cosine similarity
-            # CLIP paper states the mean of the predictions was used for K700
+                if image_path:
+                    # Store the encoded images
+                    if encoded_images is None:
+                        encoded_images = image_encs
+                    else:
+                        encoded_images = torch.stack(
+                            (encoded_images, image_encs),
+                        )
 
-            # Pick the top 5 most similar labels for the image
-            image_enc /= image_enc.norm(dim=-1, keepdim=True)
-            text_features /= text_features.norm(dim=-1, keepdim=True)
-            similarity = (100.0 * image_inc @ text_features.T).softmax(dim=-1)
-            values, indices = similarity[0].topk(5)
+            if pred_path:
+                # Calculate Zero-Shot predictions (Cosine Similarity * 100)
+                # CLIP paper states the mean of the predictions was used for
+                # K700
 
-    # TODO Save the encoded images
-    raise NotImplementedError()
+                # TODO calculate the label similarity per frame thru softmax
+                similarity = (
+                    100.0
+                    * (
+                        image_encs / image_encs.norm(dim=-1, keepdim=True)
+                    ) @ (
+                        encoded_labels
+                        / encoded_labels.norm(dim=-1, keepdim=True)
+                    ).T
+                ).softmax(dim=-1)
+
+                # TODO Save the averaging of the resulting prob vector
+                if preds is None:
+                    preds = similarity
+                else:
+                    preds = torch.stack((preds, similarity))
+
+    if image_path:
+        # Save the encoded images
+        torch.save(exputils.io.create_filepath(image_path), encoded_images)
+    if pred_path:
+        # Save the encoded images
+        torch.save(exputils.io.create_filepath(pred_path), preds)
 
 
 if __name__ == '__main__':
     targets = ["/media/sgrieggs/pageparsing/kinetics-dataset-400-test/"]
+
+    # TODO Pay attention to main param defaults and set shuffle to False
 
     for x in targets:
         main(root=x)
