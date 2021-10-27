@@ -1,39 +1,25 @@
 """Script that encodes and saves the given Kinetics images use CLIP."""
 import argparse
-import copy
 import logging
 import os
-import pdb
-import sys
 import warnings
 
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-import torchvision
+from torchvision.transforms import (
+    CenterCrop,
+    Compose,
+    Normalize,
+    Resize,
+)
+#from torchvision.transforms.functional.InterpolationMode import BICUBIC
 import tqdm
-from torch.autograd import Variable
-from torch.optim import lr_scheduler
-from torchvision import datasets, transforms
 
 import clip
 from arn.data.kinetics import Kinetics
-import arn.x3d as resnet_x3d
-from transforms.spatial_transforms_old import (
-    CenterCrop,
-    CenterCropScaled,
-    Compose,
-    MultiScaleRandomCrop,
-    MultiScaleRandomCropMultigrid,
-    Normalize,
-    RandomHorizontalFlip,
-    ToTensor,
-)
-from transforms.target_transforms import ClassLabel
-from transforms.temporal_transforms import TemporalRandomCrop
-from utils.apmeter import APMeter
+from arn.transforms.target_transforms import ClassLabel
+from arn.transforms.temporal_transforms import TemporalRandomCrop
+from arn.utils.apmeter import APMeter
 
 import exputils
 
@@ -54,6 +40,7 @@ BS_UPSCALE = 2
 INIT_LR = 0.0002 * BS_UPSCALE
 GPUS = 1
 
+"""
 X3D_VERSION = 'M'
 
 with open(args.config, "r") as f:
@@ -67,6 +54,9 @@ KINETICS_VAL_ANNO = lines[1][:-1]
 # KINETICS_VAL = lines[2][:-1]
 model_save_path = lines[3][:-1]
 save_txt_dir = lines[4][:-1]
+"""
+KINETICS_VAL_ROOT = 'pie'
+KINETICS_VAL_ANNO = 'cake'
 
 
 def clip_transform_image_frames(
@@ -76,7 +66,7 @@ def clip_transform_image_frames(
 ):
     """Transforms video frames from Kinetics output to CLIP expectation."""
     return Compose([
-        Resize(n_px, interpolation=BICUBIC),
+        Resize(n_px, interpolation='BICUBIC'),
         CenterCrop(n_px),
         Normalize(means, stds),
     ])
@@ -163,10 +153,10 @@ def text_zeroshot_encoding(model, label_texts, templates):
     """
     with torch.no_grad():
         zeroshot_weights = []
-        for label_text in tqdm(label_texts):
+        for label_text in label_texts:
             # Place the class label text inside each template text and tokenize
             texts = clip.tokenize(
-                [template.format(label_text) for template in templates]
+                [template.format(label_text.lower()) for template in templates]
             ).cuda()
 
             # CLIP Encode the text, normalize dividing by L1 norm
