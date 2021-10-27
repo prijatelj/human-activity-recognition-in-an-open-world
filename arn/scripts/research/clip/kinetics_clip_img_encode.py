@@ -21,7 +21,6 @@ from torchvision import datasets, transforms
 import clip
 from arn.data.kinetics import Kinetics
 import arn.x3d as resnet_x3d
-from torchsummary import summary
 from transforms.spatial_transforms_old import (
     CenterCrop,
     CenterCropScaled,
@@ -142,6 +141,47 @@ def get_kinetics_dataloader(
     return datasets, dataloaders
 
 
+def text_zeroshot_encoding(model, label_texts, templates):
+    """Given the classes and the provided templates, the CLIP text encoding for
+    each class using all templtes for each class is returned.
+
+    Args
+    ----
+    model : clip.model.CLIP
+        CLIP model used for text encoding the given labels with their templates
+    label_texts : list(str)
+        The labels' text to be encoded with the given text templates
+    templates : list(str)
+        The text templates that every label text is inserted into and used to
+        obtain the CLIP text encoding representation of that label text.
+
+    Returns
+    -------
+    torch.Tensor
+        The CLIP model's text encoding of each label text using the given
+        templates in order. Shape =
+    """
+    with torch.no_grad():
+        zeroshot_weights = []
+        for label_text in tqdm(label_texts):
+            # Place the class label text inside each template text and tokenize
+            texts = clip.tokenize(
+                [template.format(label_text) for template in templates]
+            ).cuda()
+
+            # CLIP Encode the text, normalize dividing by L1 norm
+            label_embeddings = model.encode_text(texts)
+            label_embeddings /= label_embeddings.norm(dim=-1, keepdim=True)
+
+            # Obtain normalized mean as label encoding, again divide by L1 norm
+            label_embedding = label_embeddings.mean(dim=0)
+            label_embedding /= label_embedding.norm()
+
+            zeroshot_weights.append(label_embedding)
+
+    return torch.stack(zeroshot_weights, dim=1).cuda()
+
+
 def main(
     image_path=None,
     label_path=None,
@@ -202,19 +242,19 @@ def main(
     encoded_images = None
     preds = None
 
-    # Encode the images
+    # Calculate & save, or load the label text CLIP features
+    if encoded_labels is None and (label_path or pred_path):
+        # Get the unique text labels and sort them
+        label_texts = sorted({d['label'] for d in dataset.data})
+
+        # Encode the Labels
+        encoded_labels = text_zeroshot_encoding(label_texts, templates)
+
+        # Save the encoded text labels.
+        torch.save(exputils.io.create_filepath(label_path), encoded_labels)
+
+    # Encode the images, optionally get preds
     with torch.no_grad():
-        # Calculate & save, or load the label text CLIP features
-        if encoded_labels is None and (label_path or pred_path):
-            # Get the unique text labels and sort them
-            text_labels = sorted({d['label'] for d in dataset.data})
-
-            # Encode the Labels
-            label_encs = model.encode_text(text_labels)
-
-            # Save the encoded text labels.
-            torch.save(exputils.io.create_filepath(label_path), encoded_labels)
-
         bar = tqdm.tqdm(enumerate(dataloader), total=len(dataloader))
         for i, (inputs, labels) in bar:
             if image_path or pred_path:
