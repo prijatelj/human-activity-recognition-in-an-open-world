@@ -23,40 +23,6 @@ from arn.utils.apmeter import APMeter
 
 import exputils
 
-warnings.filterwarnings("ignore")
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-gpu', default='0', type=str)
-parser.add_argument('-task', default='class', type=str)
-parser.add_argument('-config', default="config.txt", type=str)
-parser.add_argument('-id', default="", type=str)
-KINETICS_CLASS_LABELS = 'data/kinetics400_labels.txt'
-args = parser.parse_args()
-os.environ["CUDA_VISIBLE_DEVICES"]=args.gpu
-ID = args.id
-# set_batch_size
-BS = 1 # 6
-BS_UPSCALE = 2
-INIT_LR = 0.0002 * BS_UPSCALE
-GPUS = 1
-
-"""
-X3D_VERSION = 'M'
-
-with open(args.config, "r") as f:
-    raw_lines = f.readlines()
-lines = []
-for x in raw_lines:
-    if x[0] != "#":
-        lines.append(x)
-KINETICS_VAL_ROOT = lines[0][:-1]
-KINETICS_VAL_ANNO = lines[1][:-1]
-# KINETICS_VAL = lines[2][:-1]
-model_save_path = lines[3][:-1]
-save_txt_dir = lines[4][:-1]
-"""
-KINETICS_VAL_ROOT = 'pie'
-KINETICS_VAL_ANNO = 'cake'
 
 
 def clip_transform_image_frames(
@@ -73,11 +39,10 @@ def clip_transform_image_frames(
 
 
 def get_kinetics_dataloader(
-    init_lr=INIT_LR,
+    root,
+    anno,
+    class_labels,
     max_epochs=1,
-    root=KINETICS_VAL_ROOT,
-    anno=KINETICS_VAL_ANNO,
-    val_anno=KINETICS_VAL_ANNO,
     batch_size=BS*BS_UPSCALE,
     task="class",
     transform=None,
@@ -103,8 +68,8 @@ def get_kinetics_dataloader(
 
     val_dataset = Kinetics(
         root,
-        KINETICS_VAL_ANNO,
-        KINETICS_CLASS_LABELS,
+        anno,
+        class_labels,
         'val',
         spatial_transform = validation_transforms['spatial'],
         temporal_transform = validation_transforms['temporal'],
@@ -215,6 +180,7 @@ def main(
     dataset, dataloader = get_kinetics_dataloader(
         spatial=spatial,
         randomize_spatial_params=False,
+        shuffle=False,
         *args,
         **kwargs,
     )
@@ -299,9 +265,52 @@ def main(
 
 
 if __name__ == '__main__':
-    targets = ["/media/sgrieggs/pageparsing/kinetics-dataset-400-test/"]
+    warnings.filterwarnings("ignore")
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-gpu', default='0', type=str)
+    parser.add_argument('-task', default='class', type=str)
+    parser.add_argument('-config', default="config.txt", type=str)
+    parser.add_argument('-id', default="", type=str)
+
+    # Must give these args:
+    parser.add_argument('kinetics_root', help='Root of images.')
+    parser.add_argument('kinetics_anno', help='Path to annotations.')
+    parser.add_argument(
+        'kinetics_class_labels',
+        help='Path to Kinetics class labels txt ',
+        #default='data/kinetics400_labels.txt',
+    )
+    parser.add_argument('model_path', help='Provide path to clip model.')
+
+    parser.add_argument('--image_path', default=None)
+    parser.add_argument(
+        '--label_path',
+        default=None,
+        help='Path to encoded labels',
+    )
+    parser.add_argument('--pred_path', default=None)
+
+    args = parser.parse_args()
+
+    #os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+
+    # set_batch_size
+    BS = 1 # 6
+    BS_UPSCALE = 2
+
+    #targets = ["/media/sgrieggs/pageparsing/kinetics-dataset-400-test/"]
 
     # TODO Pay attention to main param defaults and set shuffle to False
 
     for x in targets:
-        main(root=x)
+        main(
+            image_path=args.image_path,
+            label_path=args.label_path,
+            pred_path=args.pred_path,
+            device='cuda',
+            model_path=args.model_path,
+            root=args.kinetics_root,
+            anno=args.kinetics_anno,
+            class_labels=args.kinetics_class_labels,
+        )
