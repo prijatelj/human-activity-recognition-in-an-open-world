@@ -236,10 +236,13 @@ def disjoint_samples(
 # TODO Get all samples whose splits are different across Kinetics datasets
 
 def get_unique_label_pairs(df, col_1, col_2):
-    """Return the unique pairs of labels from col_1 to col_2 without NAs."""
+    """Get the unique label pairs of col_1 to col_2 with counts without NAs."""
     no_nas = df[(pd.isna(df[col_1]) ^ 1) & (pd.isna(df[col_2]) ^ 1)]
     diff_labels = no_nas[no_nas[col_1] != no_nas[col_2]]
-    return {(row[0], row[1]) for row in diff_labels[[col_1, col_2]].values}
+    #return {(row[0], row[1]) for row in diff_labels[[col_1, col_2]].values}
+    return Counter(
+        [(row[0], row[1]) for row in diff_labels[[col_1, col_2]].values]
+    )
 
 # TODO Unify the labeling scheme if there are labels that are just
 # typos/characters off. Otherwise, make it a 1, 2, or 3 hot encoding,
