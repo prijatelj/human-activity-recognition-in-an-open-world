@@ -7,6 +7,7 @@ Kinetics400:
     split_reused_youtube_ids: 0
     expected_video_duration_seconds: 10
     missing_videos:
+    disjoint_to_other_kinetics: 17363
   val:
     src_file: 'data/kinetics400/validate.csv'
     unique_classes: 400
@@ -15,6 +16,7 @@ Kinetics400:
     split_reused_youtube_ids: 0
     expected_video_duration_seconds: 10
     missing_videos:
+    disjoint_to_other_kinetics: 1635
   test:
     src_file: 'data/kinetics400/test.csv'
     unique_classes: 400
@@ -23,11 +25,52 @@ Kinetics400:
     split_reused_youtube_ids: 0
     expected_video_duration_seconds: 10
     missing_videos:
+    disjoint_to_other_kinetics: 3274
 
 Kinetics600:
   train:
+    src_file: 'data/kinetics600/train.csv'
+    unique_classes: 600
+    sample_count: 371354
+    unique_youtube_ids: 370582
+    split_reused_youtube_ids:
+    missing_videos:
+    disjoint_to_other_kinetics: 107594
+    new_to_kinetics400:
+      new_known_class_samples:
+      new_unknown_class_samples:
   val:
+    src_file: 'data/kinetics600/validate.csv'
+    unique_classes: 600
+    sample_count: 28318
+    unique_youtube_ids: 28313
+    disjoint_to_other_kinetics: 0
+    new_to_kinetics400:
+      new_known_class_samples:
+      new_unknown_class_samples:
   test:
+    src_file: 'data/kinetics600/test.csv'
+    unique_classes: 600
+    sample_count: 56618
+    unique_youtube_ids: 56618
+    disjoint_to_other_kinetics: 15524
+    new_to_kinetics400:
+      new_known_class_samples:
+      new_unknown_class_samples:
+  same_sample_label_changes:
+    # Unique label changes to samples, but _NOT_ changes to existing labels.
+    'opening bottle': 'opening bottle (not wine)'
+    'balloon blowing': 'inflating balloons'
+    'throwing ball': 'throwing ball (not baseball or American football)'
+    'changing wheel': 'changing wheel (not on bike)'
+    'making bed': 'making the bed'
+    'cooking sausages': 'cooking sausages (not on barbeque)'
+    'baby waking up': 'waking up'
+    'hugging': 'hugging (not baby)'
+    'passing American football (not in game)': 'passing american football (not in game)'
+    'dying hair': 'dyeing hair'
+    'tying tie': 'tying necktie'
+    'garbage collecting': 'person collecting garbage'
 
 Kinetics700: # 2020 update
   train:
@@ -60,6 +103,7 @@ Kinetics700: # 2020 update
       8: 7
       9: 3
     missing_videos:
+    disjoint_to_other_kinetics: 225112
   val:
     src_file: 'data/kinetics700_2020/validate.csv'
     unique_classes: 700
@@ -73,6 +117,7 @@ Kinetics700: # 2020 update
       8: 1
       9: 2
     missing_videos:
+    disjoint_to_other_kinetics: 0
   test:
     src_file: 'data/kinetics700_2020/test.csv'
     unique_classes: None
@@ -87,6 +132,90 @@ Kinetics700: # 2020 update
       8: 7
       9: 4
     missing_videos:
+    disjoint_to_other_kinetics: 0 # No labels though.
+  same_sample_label_changes:
+    # Unique label changes to samples, but _NOT_ changes to existing labels.
+    from_kinetics400:
+      'throwing ball': 'throwing ball (not baseball or American football)'
+      'opening bottle': 'opening wine bottle'
+      'making bed': 'making the bed'
+      'cooking sausages': 'cooking sausages (not on barbeque)'
+      'catching or throwing baseball': 'throwing ball (not baseball or American football)'
+      'baby waking up': 'waking up'
+      'spray painting': 'spraying'
+      'shooting goal (soccer)': 'kicking soccer ball'
+      'tying tie': 'tying necktie'
+      'opening bottle': 'opening bottle (not wine)'
+      'pushing car': 'pushing cart'
+      'canoeing or kayaking': 'catching fish'
+      'garbage collecting': 'person collecting garbage'
+      'balloon blowing': 'inflating balloons'
+      'cleaning floor': 'brushing floor'
+      'hugging': 'hugging baby'
+      'mopping floor': 'brushing floor'
+      'picking fruit': 'picking apples'
+      'tossing salad': 'preparing salad'
+      'changing wheel': 'changing wheel (not on bike)'
+      'cleaning floor': 'mopping floor'
+      'sweeping floor': 'brushing floor'
+      'hugging': 'hugging (not baby)'
+      'dying hair': 'dyeing hair'
+      'side kick': 'kicking soccer ball'
+    from_kinetics600:
+      'cracking neck': 'cracking back'
+      'hugging (not baby)': 'hugging baby'
+      'passing American football (in game)': 'playing american football'
+      'planing wood': 'chiseling wood'
+      'catching or throwing baseball': 'throwing ball (not baseball or American football)'
+      'cracking knuckles': 'cracking neck'
+      'extinguishing fire': 'lighting fire'
+      'playing keyboard': 'playing piano'
+      'shooting goal (soccer)': 'kicking soccer ball'
+      'tasting wine': 'pouring wine'
+      'using circular saw': 'sawing wood'
+      'cooking scallops': 'frying vegetables'
+      'chiseling wood': 'sawing wood'
+      'swing dancing': 'dancing charleston'
+      'falling off bike': 'riding a bike'
+      'juggling soccer ball': 'juggling balls'
+      'tying bow tie': 'tying necktie'
+      'skiing mono': 'ski ballet'
+      'sanding floor': 'sanding wood'
+      'pushing car': 'pushing cart'
+      'laying stone': 'chiseling stone'
+      'weaving fabric': 'yarn spinning'
+      'brushing hair': 'combing hair'
+      'laying stone': 'laying bricks'
+      'planing wood': 'sawing wood'
+      'hand washing clothes': 'doing laundry'
+      'peeling apples': 'cutting apple'
+      'applauding': 'clapping'
+      'wood burning (art)': 'treating wood'
+      'waking up': 'baby waking up'
+      'spray painting': 'brush painting'
+      'using a sledge hammer': 'tobogganing'
+      'massaging neck': 'massaging back'
+      'laying bricks': 'laying stone'
+      'mopping floor': 'brushing floor'
+      'bathing dog': 'grooming dog'
+      'swimming butterfly stroke': 'swimming breast stroke'
+      'playing blackjack': 'dealing cards'
+      'opening wine bottle': 'uncorking champagne'
+      'picking fruit': 'picking apples'
+      'tying bow tie': 'tying knot (not on a tie)'
+      'driving car': 'steering car'
+      'fixing bicycle': 'repairing puncture'
+      'chiseling stone': 'chiseling wood'
+      'luge': 'bobsledding'
+      'carving ice': 'carving pumpkin'
+      'sweeping floor': 'brushing floor'
+      'passing american football (not in game)': 'passing American football (not in game)'
+      'sawing wood': 'using circular saw'
+      'clapping': 'applauding'
+      'opening door': 'closing door'
+      'chiseling stone': 'carving marble'
+      'combing hair': 'brushing hair'
+      'swimming breast stroke': 'swimming front crawl'
 
 KineticsAVA:
   train:
