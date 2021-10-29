@@ -1,0 +1,94 @@
+Kinetics400:
+  train:
+    src_file: 'data/kinetics400/train.csv'
+    unique_classes: 400
+    sample_count: 219782 # sample count == number of rows
+    unique_youtube_ids: 219782
+    split_reused_youtube_ids: 0
+    expected_video_duration_seconds: 10
+    missing_videos:
+  val:
+    src_file: 'data/kinetics400/validate.csv'
+    unique_classes: 400
+    sample_count: 18035
+    unique_youtube_ids: 18035
+    split_reused_youtube_ids: 0
+    expected_video_duration_seconds: 10
+    missing_videos:
+  test:
+    src_file: 'data/kinetics400/test.csv'
+    unique_classes: 400
+    sample_count: 35357
+    unique_youtube_ids: 35357
+    split_reused_youtube_ids: 0
+    expected_video_duration_seconds: 10
+    missing_videos:
+
+Kinetics600:
+  train:
+  val:
+  test:
+
+Kinetics700: # 2020 update
+  train:
+    src_file: 'data/kinetics700_2020/train.csv'
+    unique_classes: 700
+    sample_count: 544823
+    unique_youtube_ids: 542352
+    split_reused_youtube_ids:
+      total_samples_with_reused_ids: 4916
+      unique_reused_ids: 2445
+      total_reused_ids_overlapping_timesteps: 982
+      total_reused_ids_separate_timesteps: 1463
+      num_samples_with_overlapping_durations:
+        0: 52 # Same second overlaps for start and end
+        1: 37
+        2: 72
+        3: 55
+        4: 76
+        5: 88
+        6: 87
+        7: 124
+        8: 147
+        9: 249
+        10: 0 # identical videos
+    expected_video_duration_seconds: 10
+    unexpected_video_duration_seconds_counts:
+      5: 6
+      6: 5
+      7: 6
+      8: 7
+      9: 3
+    missing_videos:
+  val:
+    src_file: 'data/kinetics700_2020/validate.csv'
+    unique_classes: 700
+    sample_count: 34178
+    unique_youtube_ids: 34125
+    split_reused_youtube_ids: 53
+    expected_video_duration_seconds: 10
+    unexpected_video_duration_seconds_counts:
+      5: 2
+      7: 1
+      8: 1
+      9: 2
+    missing_videos:
+  test:
+    src_file: 'data/kinetics700_2020/test.csv'
+    unique_classes: None
+    sample_count: 67722
+    unique_youtube_ids: 67433
+    split_reused_youtube_ids: 289
+    expected_video_duration_seconds: 10
+    unexpected_video_duration_seconds_counts:
+      5: 3
+      6: 6
+      7: 4
+      8: 7
+      9: 4
+    missing_videos:
+
+KineticsAVA:
+  train:
+  val:
+  test:
