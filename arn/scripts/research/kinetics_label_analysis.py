@@ -155,16 +155,20 @@ def merge_kinetics_splits(dset_id, train_path, val_path, test_path):
         pd.read_csv(train_path)
         .append(pd.read_csv(val_path))
         .append(pd.read_csv(test_path))
-        .rename(columns={
-            'label': f'label_kinetics{dset_id}',
-            'split': f'split_kinetics{dset_id}',
-        })
     )
 
 
 def align_kinetics_csvs(k400, k600, k700_2020):
     """Align the Kinetics CSVs such that repeat samples across datasets are
     tracked.
+
+    Returns
+    -------
+    pd.DataFrame
+        The DataFrame that consists of the Kinetics datasets merged by
+        youtube_id, time_start, and time_end columns. This is the dataframe
+        typically expected as input to the following functions as it represents
+        all changes between the different Kinetics datasets.
     """
     # Align all data frames
     k4all = merge_kinetics_splits('400', k400.train, k400.val, k400.test)
@@ -175,13 +179,84 @@ def align_kinetics_csvs(k400, k600, k700_2020):
         k700_2020.val,
         k700_2020.test,
     )
-    # TODO be aware of time step changing!
+    # TODO be aware of time step possibly changing across Kinetics Datasets!
     return k4all.merge(
         k6all,
         on=['youtube_id', 'time_start', 'time_end'],
         how='outer',
+        suffixes=('_kinetics400', '_kinetics600'),
     ).merge(
-        k7all,
+        k7all.rename(columns={
+            'label': 'label_kinetics700_2020',
+            'split': 'split_kinetics700_2020',
+        }),
         on=['youtube_id', 'time_start', 'time_end'],
         how='outer',
     )
+
+
+def check_all_uniques(
+    df,
+    columns=[
+        'label_kinetics400',
+        'label_kinetics600',
+        'label_kinetics700_2020',
+    ],
+    nan=np.NaN,
+    nan_replace=None,
+    *args,
+    **kwargs,
+):
+    """Convenience function to get uniques across multiple columns."""
+    return np.unique(
+        df[columns].replace(nan, nan_replace).values,
+        *args,
+        **kargs,
+    )
+
+def disjoint_samples(
+    df,
+    columns=[
+        'label_kinetics400',
+        'label_kinetics600',
+        'label_kinetics700_2020',
+    ],
+):
+    """Returns the disjoint samples whose values are not in any other column.
+    Used to get the disjoint unique labels in each Kinetics dataset.
+    """
+    isna = [pd.isna(df[c]).values for c in columns]
+    return [
+        df[np.logical_and.reduce(isna[:i] + [isna[i] ^ 1] + isna[i + 1:])]
+        for i in range(len(columns))
+    ]
+
+# TODO Get all samples that originate from K400 and K600
+# TODO Get all samples whose labels are different across Kinetics datasets
+# TODO Get all samples whose splits are different across Kinetics datasets
+
+def get_unique_label_pairs(df, col_1, col_2):
+    """Return the unique pairs of labels from col_1 to col_2 without NAs."""
+    no_nas = df[(pd.isna(df[col_1]) ^ 1) & (pd.isna(df[col_2]) ^ 1)]
+    diff_labels = no_nas[no_nas[col_1] != no_nas[col_2]]
+    return {(row[0], row[1]) for row in diff_labels[[col_1, col_2]].values}
+
+# TODO Unify the labeling scheme if there are labels that are just
+# typos/characters off. Otherwise, make it a 1, 2, or 3 hot encoding,
+# optionally weighting the dataset's labels by priority.
+
+# TODO visualize label's samples across datasets w/ histogram of each dataset
+# compared to each other.
+
+
+# TODO Kinetics Torch Dataset(s) /  Dataloader(s) / Manager
+
+# TODO For labels, use the latest version of the label, keeping parents and
+# children as necessary. If able to determine a hierarchy from those that
+# changed, then do so.
+
+# TODO Get all Kinetics400 train, val, & test
+# TODO Get subset of Kinetics600 train, val, & test, ignoring that which was
+# taken already
+# TODO Get subset of Kinetics700_2020 train, val, & test, ignoring that which
+# was taken already
