@@ -149,14 +149,15 @@ def get_overlaps_of_n_seconds(df, n=10):
             if vval == n: match.append(key)
     return match
 
+
 def merge_kinetics_splits(dset_id, train_path, val_path, test_path):
     return (
         pd.read_csv(train_path)
         .append(pd.read_csv(val_path))
         .append(pd.read_csv(test_path))
         .rename(columns={
-            'label': f'kinetics{dset_id}',
-            'split': f'kinetics{dset_id}_split',
+            'label': f'label_kinetics{dset_id}',
+            'split': f'split_kinetics{dset_id}',
         })
     )
 
@@ -174,10 +175,13 @@ def align_kinetics_csvs(k400, k600, k700_2020):
         k700_2020.val,
         k700_2020.test,
     )
-
-    kall = pd.merge(
-        k4all,
+    # TODO be aware of time step changing!
+    return k4all.merge(
         k6all,
+        on=['youtube_id', 'time_start', 'time_end'],
+        how='outer',
+    ).merge(
+        k7all,
         on=['youtube_id', 'time_start', 'time_end'],
         how='outer',
     )
