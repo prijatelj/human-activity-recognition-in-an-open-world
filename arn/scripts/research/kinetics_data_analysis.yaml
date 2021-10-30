@@ -11,7 +11,7 @@ Kinetics400:
     split_reused_youtube_ids: 0
     expected_video_duration_seconds: 10
     missing_videos:
-    disjoint_samples_to_other_kinetics: 17363
+    disjoint_samples_by_labels_to_other_kinetics: 17363
   val:
     src_file: 'data/kinetics400/validate.csv'
     unique_classes: 400
@@ -20,7 +20,7 @@ Kinetics400:
     split_reused_youtube_ids: 0
     expected_video_duration_seconds: 10
     missing_videos:
-    disjoint_samples_to_other_kinetics: 1635
+    disjoint_samples_by_labels_to_other_kinetics: 1635
   test:
     src_file: 'data/kinetics400/test.csv'
     unique_classes: 400
@@ -29,7 +29,7 @@ Kinetics400:
     split_reused_youtube_ids: 0
     expected_video_duration_seconds: 10
     missing_videos:
-    disjoint_samples_to_other_kinetics: 3274
+    disjoint_samples_by_labels_to_other_kinetics: 3274
 
 Kinetics600:
   train:
@@ -39,7 +39,7 @@ Kinetics600:
     unique_youtube_ids: 370582
     split_reused_youtube_ids:
     missing_videos:
-    disjoint_samples_to_other_kinetics: 107594
+    disjoint_samples_by_labels_to_other_kinetics: 107594
     new_to_kinetics400:
       new_known_class_samples:
       new_unknown_class_samples:
@@ -48,7 +48,7 @@ Kinetics600:
     unique_classes: 600
     sample_count: 28318
     unique_youtube_ids: 28313
-    disjoint_samples_to_other_kinetics: 0
+    disjoint_samples_by_labels_to_other_kinetics: 0
     new_to_kinetics400:
       new_known_class_samples:
       new_unknown_class_samples:
@@ -57,7 +57,7 @@ Kinetics600:
     unique_classes: 600
     sample_count: 56618
     unique_youtube_ids: 56618
-    disjoint_samples_to_other_kinetics: 15524
+    disjoint_samples_by_labels_to_other_kinetics: 15524
     new_to_kinetics400:
       new_known_class_samples:
       new_unknown_class_samples:
@@ -120,7 +120,7 @@ Kinetics700_2020:
       8: 7
       9: 3
     missing_videos:
-    disjoint_samples_to_other_kinetics: 225112
+    disjoint_samples_by_labels_to_other_kinetics: 225112
   val:
     src_file: 'data/kinetics700_2020/validate.csv'
     unique_classes: 700
@@ -134,7 +134,7 @@ Kinetics700_2020:
       8: 1
       9: 2
     missing_videos:
-    disjoint_samples_to_other_kinetics: 0
+    disjoint_samples_by_labels_to_other_kinetics: 0
   test:
     src_file: 'data/kinetics700_2020/test.csv'
     unique_classes: None
