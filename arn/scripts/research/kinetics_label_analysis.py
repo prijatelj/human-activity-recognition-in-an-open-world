@@ -115,25 +115,6 @@ def overlapping_samples(df, inclusive=True):
 
     return overlapping_ids
 
-"""
-len(bad_idx)
-bad_idx_euqals = bad_idx
-
-bad_idx = []
-redund = {}
-for i in k7train.iloc[hmm].iloc:
-    if i['youtube_id'] not in redund:
-        redund[i['youtube_id']] = [{'start': i['time_start'], 'end': i['time_end']}]
-        continue
-    for x in redund[i['youtube_id']]:
-        if (i['time_start'] > x['start'] and i['time_start'] < x['end']) \
-            or (i['time_end'] > x['start'] and i['time_end'] < x['end']):
-            bad_idx.append(i['youtube_id'])
-    redund[i['youtube_id']] = [{'start': i['time_start'], 'end': i['time_end']}]
-len(bad_idx)
-len(bad_idx_euquals)
-"""
-
 # zy4M--DmT6U : hugging baby and hugging (not baby) have 3 second overlap.
 # 978 samples in bad_idx_equals, 974 unique youtube_ids with overlap.
 # 927 samples in bad_idx, 923 unique youtube_ids with overlap.
@@ -225,7 +206,12 @@ def disjoint_samples(
     """Returns the disjoint samples whose values are not in any other column.
     Used to get the disjoint unique labels in each Kinetics dataset.
     """
+    # Get Boolean mask of elements that are NaN for each column
     isna = [pd.isna(df[c]).values for c in columns]
+    # Use that to determine when a sample belongs to only one of the columns
+    # When applied to label columns, this ignores that it may be a repeated
+    # youtube_id that occurs in other datasets but with different time start
+    # and end.
     return [
         df[np.logical_and.reduce(isna[:i] + [isna[i] ^ 1] + isna[i + 1:])]
         for i in range(len(columns))
@@ -235,11 +221,13 @@ def disjoint_samples(
 # TODO Get all samples whose labels are different across Kinetics datasets
 # TODO Get all samples whose splits are different across Kinetics datasets
 
-def get_unique_label_pairs(df, col_1, col_2):
-    """Get the unique label pairs of col_1 to col_2 with counts without NAs."""
+def get_unique_pairs(df, col_1, col_2):
+    """Get the unique label pairs of col_1 to col_2 with counts without NAs.
+    Good for checking samples with label changes or when samples shifted to
+    different splits in later versions.
+    """
     no_nas = df[(pd.isna(df[col_1]) ^ 1) & (pd.isna(df[col_2]) ^ 1)]
     diff_labels = no_nas[no_nas[col_1] != no_nas[col_2]]
-    #return {(row[0], row[1]) for row in diff_labels[[col_1, col_2]].values}
     return Counter(
         [(row[0], row[1]) for row in diff_labels[[col_1, col_2]].values]
     )
@@ -263,3 +251,15 @@ def get_unique_label_pairs(df, col_1, col_2):
 # taken already
 # TODO Get subset of Kinetics700_2020 train, val, & test, ignoring that which
 # was taken already
+
+# For youtube ids and which dset and split they belong, order by the following
+# to determine the precedence of when the samples will first occur:
+#   Dataset order by earliest first: K400 -> K600 -> K700
+#   Split order: train -> val -> test
+
+# For the labels of samples order precedence by following:
+#   Newer datasets take priority: K700 -> K600 -> K400
+#   This means that if a label changed to from K400 to K700, then use the K700
+#   label. This esp. applies to when labels get "corrected", such as typo fixes
+#   or lowercasing the label text.
+# If a hierarchy of action labels is apparent, then use it for factor analysis.
