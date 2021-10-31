@@ -18,8 +18,6 @@ import tqdm
 import clip
 from arn.data.kinetics import Kinetics
 from arn.transforms.target_transforms import ClassLabel
-from arn.transforms.temporal_transforms import TemporalRandomCrop
-from arn.utils.apmeter import APMeter
 
 import exputils
 
@@ -61,7 +59,7 @@ def get_kinetics_dataloader(
 
     validation_transforms = {
         'spatial':  spatial,
-        'temporal': TemporalRandomCrop(frames, gamma_tau),
+        #'temporal': TemporalRandomCrop(frames, gamma_tau),
         'target':   ClassLabel()
     }
 
@@ -71,7 +69,7 @@ def get_kinetics_dataloader(
         class_labels,
         'val',
         spatial_transform = validation_transforms['spatial'],
-        temporal_transform = validation_transforms['temporal'],
+        #temporal_transform = validation_transforms['temporal'],
         target_transform = validation_transforms['target'],
         sample_duration=frames,
         gamma_tau=gamma_tau,
