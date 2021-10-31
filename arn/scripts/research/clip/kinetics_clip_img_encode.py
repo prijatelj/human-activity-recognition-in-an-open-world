@@ -40,7 +40,7 @@ def get_kinetics_dataloader(
     anno,
     class_labels,
     max_epochs=1,
-    batch_size=BS*BS_UPSCALE,
+    batch_size=2,
     task="class",
     transform=None,
     spatial=None,
@@ -290,11 +290,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    #os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-
     # set_batch_size
     BS = 1 # 6
-    BS_UPSCALE = 2
+    BS_UPSCALE = 2 # TODO What is this for and why???? X3D artifiact?
 
     #targets = ["/media/sgrieggs/pageparsing/kinetics-dataset-400-test/"]
 
