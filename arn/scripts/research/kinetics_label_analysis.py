@@ -232,6 +232,39 @@ def get_unique_pairs(df, col_1, col_2):
         [(row[0], row[1]) for row in diff_labels[[col_1, col_2]].values]
     )
 
+def get_label_series_pref_later_kinetics(df, label_csv):
+    """Returns a pd.Series of the labels per sample using the combined Kinetics
+    csv pd.DataFrame. This unified labeling prioritizes more recent Kinetics
+    datasets, so 700_2020, then 600, then 400. The default mapping used is thus
+    Kinetics 700. The samples who values have changed between Kinetics Datasets
+    prefer to use the appropriate Kinetics700 labeling for that sample. If the
+    sample was not in Kinetics 700, then its most recent label (Kinetics 600,
+    then Kinetics 400) is used to convert to the approriate Kinetics700 label.
+    This process provides the unified Kinetics labeling based on preference for
+    the most recent label.
+
+    Args
+    ----
+    df : pd.DataFrame
+        The pandas dataframe of the combined Kinetics datasets merged such that
+        youtube_id, time_start, and time_end serve as unique samples (rows).
+    label_csv : str
+        Path to the label csv that contains the mapping of Kinetics 400 to 600
+        to 700_2020. This unified labeling is the macro default labeling to aid
+        this function in ensuring that all Kinetics 400 and 600 older labels
+        are updated to the most recent Kinetics700 label.
+
+    Note
+    ----
+        This label scheme ignores any structural of hierarchial information
+        between the labels and also ignores the possibility of soft labels
+        based on a sample's different labelings across the Kinetics dataset
+        releases. This process puts faith into the original designers of
+        Kinetics 700_2020.
+    """
+
+    return
+
 # TODO Unify the labeling scheme if there are labels that are just
 # typos/characters off. Otherwise, make it a 1, 2, or 3 hot encoding,
 # optionally weighting the dataset's labels by priority.
