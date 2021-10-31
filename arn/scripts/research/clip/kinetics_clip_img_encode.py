@@ -40,7 +40,7 @@ def get_kinetics_dataloader(
     anno,
     class_labels,
     max_epochs=1,
-    batch_size=2,
+    batch_size=1,
     task="class",
     transform=None,
     spatial=None,
