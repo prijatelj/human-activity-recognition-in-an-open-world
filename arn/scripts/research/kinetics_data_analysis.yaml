@@ -49,6 +49,19 @@ Kinetics600:
     new_to_kinetics400:
       new_known_class_samples:
       new_unknown_class_samples:
+    new_to_kinetics400_train:
+      total_disjoint_samples: 203275
+      new_known_class_samples:
+      new_unknown_class_samples:
+      k400:
+        from_k400_validate: 0
+        from_k400_test: 0
+        not_from_k400: 203275 # ALL
+      k700:
+        in_k700_train: 95602
+        in_k700_validate: 79
+        in_k700_test: 3
+        not_in_k700: 107591
   val:
     src_file: 'data/kinetics600/validate.csv'
     unique_classes: 600
@@ -128,6 +141,18 @@ Kinetics700_2020:
       9: 3
     missing_videos:
     disjoint_samples_by_labels_to_other_kinetics: 225112
+    new_to_kinetics400_and_600_train:
+      total_disjoint_samples: 281248
+      new_known_class_samples:
+      new_unknown_class_samples:
+      k400:
+        from_k400_validate: 22267
+        from_k400_test: 13427
+        not_from_k400: 245554
+      k600:
+        from_k600_validate: 17307
+        from_k600_test: 30068
+        not_from_k600: 233873
   val:
     src_file: 'data/kinetics700_2020/validate.csv'
     unique_classes: 700
