@@ -24,7 +24,6 @@ from arn.utils.apmeter import APMeter
 import exputils
 
 
-
 def clip_transform_image_frames(
     n_px,
     means=(0.48145466, 0.4578275, 0.40821073),
