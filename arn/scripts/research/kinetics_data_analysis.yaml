@@ -10,7 +10,13 @@ Kinetics400:
     unique_youtube_ids: 219782
     split_reused_youtube_ids: 0
     expected_video_duration_seconds: 10
+
+    # It is important to note the samples that are missing or replaced!
+    # Need to ensure that the classes have roughly similar sample counts and
+    # assuming the prior data was representative of the class, any new samples
+    # should be "equally" representative of those they replace.
     missing_videos:
+
     disjoint_samples_by_labels_to_other_kinetics: 17363
   val:
     src_file: 'data/kinetics400/validate.csv'
@@ -55,7 +61,8 @@ Kinetics600:
   test:
     src_file: 'data/kinetics600/test.csv'
     unique_classes: 600
-    sample_count: 56618
+    sample_count: 56618 # CVDF tar gave 59606 files, 2988 more than this count.
+    missing_videos:
     unique_youtube_ids: 56618
     disjoint_samples_by_labels_to_other_kinetics: 15524
     new_to_kinetics400:
