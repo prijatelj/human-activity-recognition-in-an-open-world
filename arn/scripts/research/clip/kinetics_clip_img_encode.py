@@ -216,7 +216,7 @@ def main(
                 # Make video frames Batch, Time, Channels, Height, Width,
                 # again. Just transpose the two dims:
                 image_encs = model.encode_image(
-                    inputs.squeeze().transpose(0,1)
+                    inputs.squeeze().transpose(0,1).cuda()
                 )
 
                 # The following is for batch size greater than 1:
