@@ -214,15 +214,19 @@ def main(
         for i, (inputs, labels) in bar:
             if image_path or pred_path:
                 # Make video frames Batch, Time, Channels, Height, Width,
-                # again.
-                inputs = inputs.permute(0, 2, 1, 2, 3)
-                shape = inputs.shape
+                # again. Just transpose the two dims:
+                image_encs = model.encode_image(
+                    inputs.squeeze().transpose(0,1)
+                )
 
+                # The following is for batch size greater than 1:
+                #inputs = inputs.transpose(0, 2, 1, 2, 3)
+                #shape = inputs.shape
                 # Flatten batch and time
                 # Encode images and Reconstruct Batch and Time
-                image_encs = model.encode_image(
-                    inputs.flatten(0, 1),
-                ).reshape(shape)
+                #image_encs = model.encode_image(
+                #    inputs.flatten(0, 1),
+                #).reshape(shape)
 
                 if image_path:
                     # Store the encoded images
