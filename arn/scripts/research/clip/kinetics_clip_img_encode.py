@@ -232,7 +232,7 @@ def main(
                     # Store the encoded images
                     if encoded_images is None:
                         encoded_images = image_encs
-                    elif encoded_images.shape[0] == 2:
+                    elif encoded_images.shape[0] == 1:
                         encoded_images = torch.stack(
                             (encoded_images, image_encs),
                         )
