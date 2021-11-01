@@ -143,6 +143,7 @@ def main(
     device='cuda',
     model_path='ViT-B/32',
     load_encoded_labels=True,
+    model_repr_dim=512,
     *args,
     **kwargs,
 ):
@@ -217,8 +218,7 @@ def main(
             encoded_images = torch.empty([
                 len(bar),
                 frames,
-                model.visual.input_resolution,
-                model.visual.input_resolution,
+                model_repr_dim,
             ])
 
         for i, (inputs, labels) in bar:
