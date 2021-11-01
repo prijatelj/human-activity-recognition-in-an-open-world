@@ -217,7 +217,7 @@ def main(
                 # again. Just transpose the two dims:
                 image_encs = model.encode_image(
                     inputs.squeeze().transpose(0,1).cuda()
-                ).unsqueeze(0)
+                )
 
                 # The following is for batch size greater than 1:
                 #inputs = inputs.transpose(0, 2, 1, 2, 3)
@@ -234,7 +234,7 @@ def main(
                         encoded_images = image_encs
                     else:
                         encoded_images = torch.stack(
-                            (encoded_images, image_encs),
+                            (encoded_images, image_encs.unsqueeze(0)),
                         )
 
             if pred_path:
