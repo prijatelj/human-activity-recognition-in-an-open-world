@@ -36,6 +36,15 @@ Kinetics400:
     expected_video_duration_seconds: 10
     missing_videos:
     disjoint_samples_by_labels_to_other_kinetics: 3274
+    train_in_future_kinetics:
+      k600:
+        in_train: 168079
+        in_val: 737
+        in_test: 0
+      k700:
+        in_train: 167973
+        in_val: 325
+        in_test: 75
 
 Kinetics600:
   train:
