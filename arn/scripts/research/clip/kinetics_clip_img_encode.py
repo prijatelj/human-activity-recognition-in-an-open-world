@@ -232,14 +232,8 @@ def main(
                     # Store the encoded images
                     if encoded_images is None:
                         encoded_images = image_encs
-                    elif encoded_images.shape[0] == 1:
-                        encoded_images = torch.stack(
-                            (encoded_images, image_encs),
-                        )
                     else:
-                        encoded_images = torch.stack(
-                            (encoded_images, image_encs.unsqueeze(0)),
-                        )
+                        encoded_images.append(image_encs)
 
             if pred_path:
                 # Calculate Zero-Shot predictions (Cosine Similarity * 100)
