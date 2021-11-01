@@ -211,6 +211,16 @@ def main(
     # Encode the images, optionally get preds
     with torch.no_grad():
         bar = tqdm.tqdm(enumerate(dataloader), total=len(dataloader))
+
+        # Prealocate encoded images, memory efficient
+        if image_path:
+            encoded_images = torch.empty([
+                len(bar),
+                frames,
+                model.visual.input_resolution,
+                model.visual.input_resolution,
+            ])
+
         for i, (inputs, labels) in bar:
             if image_path or pred_path:
                 # Make video frames Batch, Time, Channels, Height, Width,
@@ -230,10 +240,7 @@ def main(
 
                 if image_path:
                     # Store the encoded images
-                    if encoded_images is None:
-                        encoded_images = image_encs
-                    else:
-                        encoded_images.append(image_encs)
+                    encoded_images[i] = image_encs
 
             if pred_path:
                 # Calculate Zero-Shot predictions (Cosine Similarity * 100)
