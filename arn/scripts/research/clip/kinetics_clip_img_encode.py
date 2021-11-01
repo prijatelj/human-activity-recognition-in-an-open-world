@@ -11,6 +11,7 @@ from torchvision.transforms import (
     Compose,
     Normalize,
     Resize,
+    ToTensor,
 )
 from torchvision.transforms.functional import InterpolationMode
 import tqdm
@@ -31,6 +32,7 @@ def clip_transform_image_frames(
     return Compose([
         Resize(n_px, interpolation=InterpolationMode('bicubic')),
         CenterCrop(n_px),
+        ToTensor(),
         Normalize(means, stds),
     ])
 
