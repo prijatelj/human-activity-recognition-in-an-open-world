@@ -298,14 +298,14 @@ if __name__ == '__main__':
 
     # TODO Pay attention to main param defaults and set shuffle to False
 
-    for x in targets:
-        main(
-            image_path=args.image_path,
-            label_path=args.label_path,
-            pred_path=args.pred_path,
-            device='cuda',
-            model_path=args.model_path,
-            root=args.kinetics_root,
-            anno=args.kinetics_anno,
-            class_labels=args.kinetics_class_labels,
-        )
+    #for x in targets:
+    main(
+        image_path=args.image_path,
+        label_path=args.label_path,
+        pred_path=args.pred_path,
+        device='cuda',
+        model_path=args.model_path,
+        root=args.kinetics_root,
+        anno=args.kinetics_anno,
+        class_labels=args.kinetics_class_labels,
+    )
