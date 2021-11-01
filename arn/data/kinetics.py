@@ -39,7 +39,7 @@ def my_video_loader(seq_path):
         print('{} does not exist'.format(seq_path))
     if len(frames) == 0:
         print(seq_path + " is busted")
-        shutil.move(seq_path, "/media/sgrieggs/pageparsing/badvideos/"+seq_path.split("/")[-1])
+        #shutil.move(seq_path, "/media/sgrieggs/pageparsing/badvideos/"+seq_path.split("/")[-1])
         frames = [np.zeros((360, 640, 3)).astype(np.uint8)]
     return frames
 
