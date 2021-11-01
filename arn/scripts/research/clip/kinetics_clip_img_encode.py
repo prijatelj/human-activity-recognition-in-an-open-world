@@ -12,7 +12,7 @@ from torchvision.transforms import (
     Normalize,
     Resize,
 )
-#from torchvision.transforms.functional.InterpolationMode import BICUBIC
+from torchvision.transforms.functional import InterpolationMode
 import tqdm
 
 import clip
@@ -29,7 +29,7 @@ def clip_transform_image_frames(
 ):
     """Transforms video frames from Kinetics output to CLIP expectation."""
     return Compose([
-        Resize(n_px, interpolation='BICUBIC'),
+        Resize(n_px, interpolation=InterpolationMode('bicubic')),
         CenterCrop(n_px),
         Normalize(means, stds),
     ])
