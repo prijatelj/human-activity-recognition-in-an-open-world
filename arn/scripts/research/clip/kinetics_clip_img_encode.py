@@ -143,6 +143,7 @@ def main(
     device='cuda',
     model_path='ViT-B/32',
     load_encoded_labels=True,
+    load_encoded_images=False,
     model_repr_dim=512,
     *args,
     **kwargs,
@@ -207,7 +208,7 @@ def main(
         encoded_labels = text_zeroshot_encoding(label_texts, templates)
 
         # Save the encoded text labels.
-        torch.save(exputils.io.create_filepath(label_path), encoded_labels)
+        torch.save(encoded_labels, exputils.io.create_filepath(label_path))
 
     # Encode the images, optionally get preds
     with torch.no_grad():
@@ -266,10 +267,10 @@ def main(
 
     if image_path:
         # Save the encoded images
-        torch.save(exputils.io.create_filepath(image_path), encoded_images)
+        torch.save(encoded_images, exputils.io.create_filepath(image_path))
     if pred_path:
         # Save the encoded images
-        torch.save(exputils.io.create_filepath(pred_path), preds)
+        torch.save(preds, exputils.io.create_filepath(pred_path))
 
 
 if __name__ == '__main__':
