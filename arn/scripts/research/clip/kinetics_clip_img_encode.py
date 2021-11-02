@@ -196,7 +196,11 @@ def main(
     else:
         encoded_labels = None
 
-    encoded_images = None
+    if load_encoded_images and image_path:
+        encoded_images = torch.load(image_path)
+    else:
+        encoded_images = None
+
     preds = None
 
     # Calculate & save, or load the label text CLIP features
@@ -215,55 +219,66 @@ def main(
         bar = tqdm.tqdm(enumerate(dataloader), total=len(dataloader))
 
         # Prealocate encoded images, memory efficient
-        if image_path:
+        if encoded_images is None and (image_path or pred_path):
             encoded_images = torch.empty([
                 len(bar),
                 frames,
                 model_repr_dim,
             ])
 
-        for i, (inputs, labels) in bar:
-            if image_path or pred_path:
-                # Make video frames Batch, Time, Channels, Height, Width,
-                # again. Just transpose the two dims:
-                image_encs = model.encode_image(
-                    inputs.squeeze().transpose(0,1).cuda()
-                )
+            # Get the image encodings
+            for i, (inputs, labels) in bar:
+                if image_path or pred_path:
+                    # Make video frames Batch, Time, Channels, Height, Width,
+                    # again. Just transpose the two dims:
+                    image_encs = model.encode_image(
+                        inputs.squeeze().transpose(0,1).cuda()
+                    )
 
-                # The following is for batch size greater than 1:
-                #inputs = inputs.transpose(0, 2, 1, 2, 3)
-                #shape = inputs.shape
-                # Flatten batch and time
-                # Encode images and Reconstruct Batch and Time
-                #image_encs = model.encode_image(
-                #    inputs.flatten(0, 1),
-                #).reshape(shape)
+                    # The following is for batch size greater than 1:
+                    #inputs = inputs.transpose(0, 2, 1, 2, 3)
+                    #shape = inputs.shape
+                    # Flatten batch and time
+                    # Encode images and Reconstruct Batch and Time
+                    #image_encs = model.encode_image(
+                    #    inputs.flatten(0, 1),
+                    #).reshape(shape)
 
-                if image_path:
-                    # Store the encoded images
-                    encoded_images[i] = image_encs
+                    if image_path:
+                        # Store the encoded images
+                        encoded_images[i] = image_encs
+        elif not isinstnace(encoded_images, torch.Tensor) and (pred_path):
+            # No encoded images despite pred path existing (preds to get)
+            raise TypeError(' '.join([
+                'No encoded images despite predictions to get and save at',
+                'pred_path',
+            ]))
 
-            if pred_path:
-                # Calculate Zero-Shot predictions (Cosine Similarity * 100)
-                # CLIP paper states the mean of the predictions was used for
-                # K700
+        if pred_path:
+            # Calculate Zero-Shot predictions (Cosine Similarity * 100)
+            # CLIP paper states the mean of the predictions was used for
+            # K700
 
-                # TODO calculate the label similarity per frame thru softmax
-                similarity = (
-                    100.0
-                    * (
-                        image_encs / image_encs.norm(dim=-1, keepdim=True)
-                    ) @ (
-                        encoded_labels
-                        / encoded_labels.norm(dim=-1, keepdim=True)
-                    ).T
-                ).softmax(dim=-1)
+            # Calculate the label similarity per frame thru softmax
+            # The similarity they used is essentially the "unnormalized"
+            # Cosine Similarity and is proportional to Cosine Similrity.
+            # Simply mat mul the 2 vectors because if you are taking the
+            # max then the normalization is irrelevant as a scaling factor.
+            similarity = (
+                100.0
+                * (
+                    encoded_images / encoded_images.norm(dim=-1, keepdim=True)
+                ) @ (
+                    encoded_labels
+                    / encoded_labels.norm(dim=-1, keepdim=True)
+                ).T
+            ).softmax(dim=-1)
 
-                # TODO Save the averaging of the resulting prob vector
-                if preds is None:
-                    preds = similarity
-                else:
-                    preds = torch.stack((preds, similarity))
+            # TODO Save the averaging of the resulting prob vector
+            if preds is None:
+                preds = similarity
+            else:
+                preds = torch.stack((preds, similarity))
 
     if image_path:
         # Save the encoded images
