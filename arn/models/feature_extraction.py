@@ -15,6 +15,14 @@ import torch
 # as long as it works as expected and doesn't cause Out of Memory issues or is
 # abysmally slow. However, please make it importable ``` from
 # arn.models.wherever import whatever ```
+
+# NOTE Sam, that our feature extractors are probably going to remain frozen for
+# times sake and we just use a small (like 5 layered max) fuly connected
+# network for fine tuning.
+
+# TODO Please make the torch.nn.Module for that N layer fully connected
+# network for classification. We will probably use either 2 layers or 5, no
+# more. This is trivial in torch.
 class FeatureExtractor(torch.nn.Module):
     """Feature extraction of a layer of a pre-existing PyTorch model.
 
