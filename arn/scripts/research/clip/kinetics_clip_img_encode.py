@@ -259,6 +259,8 @@ def main(
             # CLIP paper states the mean of the predictions was used for
             # K700
 
+            # Flatten samples and frames into one dim, but save original shape
+
             # Calculate the label similarity per frame thru softmax
             # The similarity they used is essentially the "unnormalized"
             # Cosine Similarity and is proportional to Cosine Similrity.
@@ -273,6 +275,8 @@ def main(
                     / encoded_labels.norm(dim=-1, keepdim=True)
                 ).T
             ).softmax(dim=-1)
+
+            # Reshape result into original shape to save the probabilities.
 
             # TODO Save the averaging of the resulting prob vector
             if preds is None:
