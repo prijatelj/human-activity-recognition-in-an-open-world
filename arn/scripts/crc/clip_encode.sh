@@ -2,7 +2,7 @@
 
 #$ -pe smp 4
 #$ -N k4clipEncCVRL
-#$ -q gpu@@cvrl_gpu
+#$ -q gpu
 #$ -o $HOME/scratch_48/har/kinetics/clip_encode_pred/logs/
 #$ -e $HOME/scratch_48/har/kinetics/clip_encode_pred/logs/
 #$ -t 1-19
