@@ -296,7 +296,9 @@ def main(
         # Save the encoded images
         torch.save(encoded_images, exputils.io.create_filepath(image_path))
         with open(
-            f'{os.path.splitext(image_path)[0]}_video_paths.txt',
+            exputils.io.create_filepath(
+                f'{os.path.splitext(image_path)[0]}_video_paths.txt',
+            ),
             'w',
         ) as openf:
             openf.write('\n'.join(video_paths))
@@ -331,6 +333,18 @@ if __name__ == '__main__':
         help='Path to encoded labels',
     )
     parser.add_argument('--pred_path', default=None)
+    parser.add_argument(
+        '--load_encoded_images',
+        action='store_true',
+        help='If given, expects image_path is a Tensor of image encodings.',
+    )
+    parser.add_argument(
+        '--encode_labels',
+        action='store_false',
+        help='If given, expects label_path is a Tensor of image encodings.',
+        dest='load_encoded_labels',
+    )
+
 
     args = parser.parse_args()
 
@@ -352,4 +366,6 @@ if __name__ == '__main__':
         root=args.kinetics_root,
         anno=args.kinetics_anno,
         class_labels=args.kinetics_class_labels,
+        load_encoded_labels=args.load_encoded_labels,
+        load_encoded_images=args.load_encoded_images,
     )
