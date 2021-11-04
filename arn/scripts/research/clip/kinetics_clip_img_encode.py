@@ -262,15 +262,17 @@ def main(
             # Calculate Zero-Shot predictions (Cosine Similarity * 100)
             # CLIP paper states the mean of the predictions was used for
             # K700
+            shape = encoded_images.shape
 
             # Flatten samples and frames into one dim, but save original shape
+            encoded_images = encoded_images.flatten(0, 1).to('cuda')
 
             # Calculate the label similarity per frame thru softmax
             # The similarity they used is essentially the "unnormalized"
             # Cosine Similarity and is proportional to Cosine Similrity.
             # Simply mat mul the 2 vectors because if you are taking the
             # max then the normalization is irrelevant as a scaling factor.
-            similarity = (
+            preds = (
                 100.0
                 * (
                     encoded_images / encoded_images.norm(dim=-1, keepdim=True)
@@ -278,15 +280,13 @@ def main(
                     encoded_labels
                     / encoded_labels.norm(dim=-1, keepdim=True)
                 ).T
-            ).softmax(dim=-1)
+            ).softmax(dim=-1).reshape(
+                [shape[0], shape[1], encoded_labels.shape[0]],
+            )
 
-            # Reshape result into original shape to save the probabilities.
-
-            # TODO Save the averaging of the resulting prob vector
-            if preds is None:
-                preds = similarity
-            else:
-                preds = torch.stack((preds, similarity))
+            if image_path:
+                # Reshape images into original shape to save the probabilities.
+                encoded_images = encoded_images.reshape(shape)
 
     if image_path:
         # Save the encoded images
