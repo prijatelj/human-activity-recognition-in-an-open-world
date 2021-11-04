@@ -33,6 +33,7 @@ setup(
         project_name,
         f'{project_name}.data',
         f'{project_name}.models',
+        f'{project_name}.transforms',
         #f'{project_name}.visuals',
     ],
     #scripts
