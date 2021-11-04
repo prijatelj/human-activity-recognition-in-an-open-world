@@ -1,11 +1,19 @@
 #!/bin/bash
 
 #$ -pe smp 4
-#$ -N k4clipEnc
-#$ -q gpu
+#$ -N k4clipEncCVRL
+#$ -q gpu@@cvrl_gpu
 #$ -o $HOME/scratch_48/har/kinetics/clip_encode_pred/logs/
 #$ -e $HOME/scratch_48/har/kinetics/clip_encode_pred/logs/
 #$ -t 1-19
+
+# Check if given an arg
+if [[ "$#" -eq 1 ]]; then
+    SGE_TASK_ID=$1
+    echo "Given an argument and thus set SGE_TASK_ID to $SGE_TASK_ID"
+fi
+
+echo "SGE_TASK_ID = $SGE_TASK_ID"
 
 # Set up environment
 module add conda
