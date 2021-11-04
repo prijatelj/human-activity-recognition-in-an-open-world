@@ -198,7 +198,7 @@ def main(
         encoded_labels = None
 
     if load_encoded_images and image_path:
-        encoded_images = torch.load(image_path)
+        encoded_images = torch.load(image_path).type(torch.float32)
     else:
         encoded_images = None
         video_paths = []
@@ -211,7 +211,11 @@ def main(
         label_texts = sorted({d['label'] for d in dataset.data})
 
         # Encode the Labels
-        encoded_labels = text_zeroshot_encoding(label_texts, templates)
+        encoded_labels = text_zeroshot_encoding(
+            model,
+            label_texts,
+            templates,
+        ).type(torch.float32)
 
         # Save the encoded text labels.
         torch.save(encoded_labels, exputils.io.create_filepath(label_path))
