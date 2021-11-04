@@ -199,6 +199,7 @@ def main(
 
     if load_encoded_images and image_path:
         encoded_images = torch.load(image_path)
+        video_paths = None
     else:
         encoded_images = None
         video_paths = []
@@ -288,11 +289,11 @@ def main(
                 [shape[0], shape[1], encoded_labels.shape[0]],
             )
 
-            if image_path:
+            if image_path and video_paths is not None:
                 # Reshape images into original shape to save the probabilities.
                 encoded_images = encoded_images.reshape(shape)
 
-    if image_path:
+    if image_path and video_paths is not None:
         # Save the encoded images
         torch.save(encoded_images, exputils.io.create_filepath(image_path))
         with open(
