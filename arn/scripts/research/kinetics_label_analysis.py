@@ -9,6 +9,20 @@ class OrderedCounter(Counter, OrderedDict):
     pass
 
 
+def get_filename(
+    df,
+    col='youtube_id',
+    start='time_start',
+    end='time_end',
+    ext='.mp4',
+    zfill=6,
+):
+    """Given the DataFrame, return the Kinetics filename, expecting `.mp4`."""
+    if ext is None:
+        # No extention
+        return [f'{col}_{start:0{zfill}}_{end:0{zfill}}' for i in df.index]
+    return [f'{col}_{start:0{zfill}}_{end:0{zfill}}{ext}' for i in df.index]
+
 def get_unique_youtube_ids(df):
     """Obtains the unique youtube_ids in the given DataFrame and also finds the
     indices in the dataframe where those unique youtube_ids occur that have a
