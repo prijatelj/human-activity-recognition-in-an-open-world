@@ -9,7 +9,7 @@
 
 # Check if given an arg
 if [[ "$#" -eq 1 ]]; then
-    SGE_TASK_ID=$1
+    SGE_TASK_ID="$1"
     echo "Given an argument and thus set SGE_TASK_ID to $SGE_TASK_ID"
 fi
 
@@ -109,10 +109,6 @@ else
     echo "ERROR: Unexpected SGE_TASK_ID: $SGE_TASK_ID"
     exit 1
 fi
-
-mkdir -p "$BASE/$SPLIT/"
-
-cd "$BASE/tar_$SPLIT/"
 
 python3 "$BASE/arn/arn/scripts/research/clip/kinetics_clip_img_encode.py" \
     "$VIDS" \
