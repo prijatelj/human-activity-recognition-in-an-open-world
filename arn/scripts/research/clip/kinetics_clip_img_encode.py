@@ -263,6 +263,17 @@ def main(
                 'pred_path',
             ]))
 
+        if image_path and video_paths is not None:
+            # Save the encoded images
+            torch.save(encoded_images, exputils.io.create_filepath(image_path))
+            with open(
+                exputils.io.create_filepath(
+                    f'{os.path.splitext(image_path)[0]}_video_paths.txt',
+                ),
+                'w',
+            ) as openf:
+                openf.write('\n'.join(video_paths))
+
         if pred_path:
             # Calculate Zero-Shot predictions (Cosine Similarity * 100)
             # CLIP paper states the mean of the predictions was used for
@@ -289,20 +300,6 @@ def main(
                 [shape[0], shape[1], encoded_labels.shape[0]],
             )
 
-            if image_path and video_paths is not None:
-                # Reshape images into original shape to save the probabilities.
-                encoded_images = encoded_images.reshape(shape)
-
-    if image_path and video_paths is not None:
-        # Save the encoded images
-        torch.save(encoded_images, exputils.io.create_filepath(image_path))
-        with open(
-            exputils.io.create_filepath(
-                f'{os.path.splitext(image_path)[0]}_video_paths.txt',
-            ),
-            'w',
-        ) as openf:
-            openf.write('\n'.join(video_paths))
     if pred_path:
         # Save the encoded images
         torch.save(preds, exputils.io.create_filepath(pred_path))
