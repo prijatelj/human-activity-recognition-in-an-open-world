@@ -117,7 +117,7 @@ class FeatureExtractor(torch.nn.Module):
 
         x = self.model(x)
 
-    @static_method
+    @staticmethod
     def load(filepath):
         """Given a filepath(s), load the pre-calculated feature extractions.
 
