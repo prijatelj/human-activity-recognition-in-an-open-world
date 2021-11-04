@@ -145,6 +145,7 @@ def main(
     load_encoded_labels=True,
     load_encoded_images=False,
     model_repr_dim=512,
+    templates=None,
     *args,
     **kwargs,
 ):
@@ -200,6 +201,7 @@ def main(
         encoded_images = torch.load(image_path)
     else:
         encoded_images = None
+        video_paths = []
 
     preds = None
 
@@ -227,27 +229,29 @@ def main(
             ])
 
             # Get the image encodings
-            for i, (inputs, labels) in bar:
+            for i, (images, labels) in bar:
                 if image_path or pred_path:
                     # Make video frames Batch, Time, Channels, Height, Width,
                     # again. Just transpose the two dims:
                     image_encs = model.encode_image(
-                        inputs.squeeze().transpose(0,1).cuda()
+                        images.squeeze().transpose(0,1).cuda()
                     )
 
                     # The following is for batch size greater than 1:
-                    #inputs = inputs.transpose(0, 2, 1, 2, 3)
-                    #shape = inputs.shape
+                    #images = images.transpose(0, 2, 1, 2, 3)
+                    #shape = images.shape
                     # Flatten batch and time
                     # Encode images and Reconstruct Batch and Time
                     #image_encs = model.encode_image(
-                    #    inputs.flatten(0, 1),
+                    #    images.flatten(0, 1),
                     #).reshape(shape)
+
+                    video_paths.append(dataset.data[i]['video'])
 
                     if image_path:
                         # Store the encoded images
                         encoded_images[i] = image_encs
-        elif not isinstnace(encoded_images, torch.Tensor) and (pred_path):
+        elif not isinstance(encoded_images, torch.Tensor) and (pred_path):
             # No encoded images despite pred path existing (preds to get)
             raise TypeError(' '.join([
                 'No encoded images despite predictions to get and save at',
@@ -287,6 +291,11 @@ def main(
     if image_path:
         # Save the encoded images
         torch.save(encoded_images, exputils.io.create_filepath(image_path))
+        with open(
+            f'{os.path.splitext(image_path)[0]}_video_paths.txt',
+            'w',
+        ) as openf:
+            openf.write('\n'.join(video_paths))
     if pred_path:
         # Save the encoded images
         torch.save(preds, exputils.io.create_filepath(pred_path))
