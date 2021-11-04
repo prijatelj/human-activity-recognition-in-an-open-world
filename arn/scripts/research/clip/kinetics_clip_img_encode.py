@@ -193,12 +193,12 @@ def main(
     # baseline. Save or reuse whatever boilerplate is around CLIP encoding here
 
     if load_encoded_labels and label_path:
-        encoded_labels = torch.load(label_path)
+        encoded_labels = torch.load(label_path).type(torch.float32)
     else:
         encoded_labels = None
 
     if load_encoded_images and image_path:
-        encoded_images = torch.load(image_path).type(torch.float32)
+        encoded_images = torch.load(image_path)
     else:
         encoded_images = None
         video_paths = []
