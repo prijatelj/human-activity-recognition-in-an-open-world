@@ -41,15 +41,21 @@ parser.add_argument('-config', default="config.txt", type=str)
 parser.add_argument('-id', default="", type=str)
 KINETICS_CLASS_LABELS = 'data/kinetics400_labels.txt'
 args = parser.parse_args()
-os.environ["CUDA_VISIBLE_DEVICES"]=args.gpu
 ID = args.id
 # set_batch_size
-BS = 6
-BS_UPSCALE = 2
+BS = 4
+BS_UPSCALE = 1
 INIT_LR = 0.0002 * BS_UPSCALE
-GPUS = 1
-
+GPUS = 2
+print(torch.cuda.device_count())
+print(os.environ.get('CUDA_VISIBLE_DEVICES'))
+gpus=os.environ.get('CUDA_VISIBLE_DEVICES').split(',')
+GPUS = len(gpus)
 X3D_VERSION = 'M'
+BS *= GPUS
+for x in range(len(gpus)):
+    gpus[x] = int(x)
+print(gpus)
 
 with open(args.config, "r") as f:
     raw_lines = f.readlines()
@@ -126,7 +132,7 @@ def run(init_lr=INIT_LR, max_epochs=1, root=KINETICS_VAL_ROOT, anno=KINETICS_VAL
     val_iterations_per_epoch = len(val_dataset)//(batch_size//2)
     # max_steps = iterations_per_epoch * max_epochs
 
-    big_dumps = "/home/sgrieggs/big_dumps/" + root.split("/")[-2] + "/"
+    big_dumps = "/scratch365/sgrieggs/big_dumps_x3d/" + root.split("/")[-2] + "/"
 
     try:
         os.makedirs(big_dumps)
@@ -341,25 +347,17 @@ def print_stats(long_ind, batch_size, stats, gamma_tau, bn_splits, lr):
 
 
 if __name__ == '__main__':
-    #
-#     targets = ["/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_normal/",
-# "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Perspective/",
-# "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_jitter/",
-# "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Noise/",
-# "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Blur/",
-# "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Invert/",
-# "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Rotation/",
-# "/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Flip/"]
 
-    # "/media/scratch_crc/kinetics-dataset-400-test-normal/",
-    # "/media/scratch_crc/kinetics-dataset-400-test-blur/",
-    # "/media/scratch_crc/kinetics-dataset-400-test-flip/",
-    # "/media/scratch_crc/kinetics-dataset-400-test-invert/",
-    targets = [
-               "/media/sgrieggs/scratch365/kinetics-dataset-400-test-noise/",
-               "/media/sgrieggs/scratch365/kinetics-dataset-400-test-perspective/",
-               "/media/sgrieggs/scratch365/kinetics-dataset-400-test-rotation/",
-               "/media/sgrieggs/scratch365/kinetics-dataset-400-test-jitter/"]
+    targets = ["/scratch365/sgrieggs/kinetics-dataset-400-val-normal/",
+    "/scratch365/sgrieggs/kinetics-dataset-400-val-blur/",
+    "/scratch365/sgrieggs/kinetics-dataset-400-val-flip/",
+    "/scratch365/sgrieggs/kinetics-dataset-400-val-invert/",
+    "/scratch365/sgrieggs/kinetics-dataset-400-val-noise/",
+    "/scratch365/sgrieggs/kinetics-dataset-400-val-perspective/",
+    "/scratch365/sgrieggs/kinetics-dataset-400-val-rotation/",
+    "/scratch365/sgrieggs/kinetics-dataset-400-val-jitter/"]
+
+
 
     for x in targets:
         run(root=x)
