@@ -79,6 +79,14 @@ def get_kinetics_dataloader(
         randomize_spatial_params=randomize_spatial_params,
     )
 
+
+    # TODO make it easier to batch this process cuz it can be a pain when not
+    # enough VRAM.
+    #if start_idx:
+    #    val_dataset.data
+    #if end_idx:
+    #    val_dataset = val_dataset[:]
+
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=batch_size,
@@ -342,6 +350,22 @@ if __name__ == '__main__':
         help='If given, expects label_path is a Tensor of image encodings.',
         dest='load_encoded_labels',
     )
+
+    # TODO for partial/batch completion of this process when VRAM not enough
+    """
+    parser.add_argument(
+        '--start_idx',
+        default=None,
+        type=int,
+        help='The inclusive index of data to start process at',
+    )
+    parser.add_argument(
+        '--end_idx',
+        default=None,
+        type=int,
+        help='The exclusive index of data to end process at',
+    )
+    """
 
 
     args = parser.parse_args()
