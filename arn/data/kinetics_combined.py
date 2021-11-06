@@ -13,6 +13,7 @@ import copy
 from tqdm import tqdm
 import numpy as np
 import shutil
+import pandas as pd
 
 import torch.nn.functional as F
 
@@ -84,8 +85,8 @@ def get_default_video_loader():
 
 
 def load_annotation_data(data_file_path):
-    with open(data_file_path, 'r') as data_file:
-        return json.load(data_file)
+    df = pd.read_csv(data_file_path)
+    return df.where(df.notnull(), None)
 
 
 def get_class_labels(data):
@@ -98,46 +99,106 @@ def get_class_labels(data):
     return class_labels_map
 
 
-def get_video_names_and_annotations(data, subset, source="torrent"):
+def get_video_names_and_annotations(data, subset, waste, root="/media/scratch_crc/dprijate/osr/har/data/kinetics/"):
     video_names = []
     annotations = []
-    if source == "torrent":
-        for key, value in data.items():
-            this_subset = value['subset']
-            # if this_subset == subset:
-            start_and_end_times = {}
-            if subset == 'testing':
-                video_names.append('test/{}'.format(key))
-            elif subset == 'train':
-                st = int(value['annotations']['segment'][0])
-                end = int(value['annotations']['segment'][1])
-                label = value['annotations']['label'].replace(' ','_')
-                video_names.append('{}/{}_{}_{}'.format(label, key, str(st).zfill(6), str(end).zfill(6)))
-                annotations.append(value['annotations'])
+    bar = tqdm(data.iterrows(), total=len(data.index))
+    bad  = 0
+    bad_list = []
+    for i, row in bar:
+        # print(row)
+        id = row['youtube_id']
+        start = row['time_start']
+        end = row['time_end']
+        video_name = '{}_{:06d}_{:06d}.mp4'.format(id, int(start), int(end))
+        temp = "/media/scratch_crc/dprijate/osr/har/data/kinetics/"
+        k400s = row['split_kinetics400']
+        k600s = row['split_kinetics600']
+        k700s = row['split_kinetics700_2020']
+        if k400s is not None:
+            if k400s == 'train':
+                target = "/media/scratch_crc/sgrieggs/kinetics-dataset-400-train/"+video_name
+            elif k400s == 'validate':
+                target = "/media/scratch_crc/sgrieggs/kinetics-dataset-400-val/"+video_name
+            elif k400s == 'test':
+                target = "/media/scratch_crc/sgrieggs/kinetics-dataset-400-test/"+video_name
             else:
-                label = value['annotations']['label'].replace(' ','_').replace('(','-').replace(')','-').replace("'",'-')
-                video_names.append('{}/{}.mp4'.format(label, key.lstrip('-')))
-                annotations.append(value['annotations'])
-    elif source == "cdvf":
-        for key, value in data.items():
-            this_subset = value['subset']
-            # if this_subset == subset:
-            start_and_end_times = {}
-            if subset == 'testing':
-                label = value['annotations']['segment']
-                video_names.append('{}_{:06d}_{:06d}.mp4'.format(key,int(label[0]),int(label[1])))
-                annotations.append(value['annotations'])
-                # video_names.append('test/{}'.format(key))
-            elif subset == 'train':
-                st = int(value['annotations']['segment'][0])
-                end = int(value['annotations']['segment'][1])
-                label = value['annotations']['label'].replace(' ','_')
-                video_names.append('{}/{}_{}_{}'.format(label, key, str(st).zfill(6), str(end).zfill(6)))
-                annotations.append(value['annotations'])
+                print(k400s)
+                print("BAD! c")
+        elif k600s is not None:
+            if k600s == 'train':
+                target = root + "kinetics600/videos/train/"+video_name
+            elif k600s == 'validate':
+                target = root + "kinetics600/videos/validate/"+video_name
+            elif k600s == 'test':
+                target = root + "kinetics600/videos/test/"+video_name
             else:
-                label = value['annotations']['segment']
-                video_names.append('{}_{:06d}_{:06d}.mp4'.format(key,int(label[0]),int(label[1])))
-                annotations.append(value['annotations'])
+                print(k600s)
+                print("BAD! b")
+        elif k700s is not None:
+            if k700s == 'train':
+                target = root + "kinetics700_2020/videos/train/" + row['label_kinetics700_2020'] +'/' + video_name
+            elif k700s == 'validate':
+                target = root + "kinetics700_2020/videos/validate/"+ row['label_kinetics700_2020'] +'/' +video_name
+            elif k700s == 'test':
+                target = root + "kinetics700_2020/videos/test/"+video_name
+            else:
+                print(k700s)
+                print("BAD! a")
+        else:
+            print(row)
+        if os.path.exists(target):
+            bar.set_description(str(bad) + "/" +str(i) + " are bad")
+            continue
+        else:
+            # print(target + " is bad")
+            bad +=1
+            bar.set_description(str(bad) + "/" + str(i) + " are bad")
+            bad_list.append(target + '\n')
+            # assert False
+
+    with open("/home/sgrieggs/badlist.txt", 'w') as f:
+        f.writelines(bad_list)
+    assert False
+        # video_names.append('{}_{:06d}_{:06d}.mp4'.format(id, int(start), int(end)))
+
+    # if source == "torrent":
+    #     for key, value in data.items():
+    #         this_subset = value['subset']
+    #         # if this_subset == subset:
+    #         start_and_end_times = {}
+    #         if subset == 'testing':
+    #             video_names.append('test/{}'.format(key))
+    #         elif subset == 'train':
+    #             st = int(value['annotations']['segment'][0])
+    #             end = int(value['annotations']['segment'][1])
+    #             label = value['annotations']['label'].replace(' ','_')
+    #             video_names.append('{}/{}_{}_{}'.format(label, key, str(st).zfill(6), str(end).zfill(6)))
+    #             annotations.append(value['annotations'])
+    #         else:
+    #             label = value['annotations']['label'].replace(' ','_').replace('(','-').replace(')','-').replace("'",'-')
+    #             video_names.append('{}/{}.mp4'.format(label, key.lstrip('-')))
+    #             annotations.append(value['annotations'])
+    # elif source == "cdvf":
+    #     for key, value in data.items():
+    #         this_subset = value['subset']
+    #         # if this_subset == subset:
+    #         start_and_end_times = {}
+    #         if subset == 'testing':
+    #             label = value['annotations']['segment']
+    #             video_names.append('{}_{:06d}_{:06d}.mp4'.format(key,int(label[0]),int(label[1])))
+    #             annotations.append(value['annotations'])
+    #             # video_names.append('test/{}'.format(key))
+    #         elif subset == 'train':
+    #             st = int(value['annotations']['segment'][0])
+    #             end = int(value['annotations']['segment'][1])
+    #             label = value['annotations']['label'].replace(' ','_')
+    #             video_names.append('{}/{}_{}_{}'.format(label, key, str(st).zfill(6), str(end).zfill(6)))
+    #             annotations.append(value['annotations'])
+    #         else:
+    #             label = value['annotations']['segment']
+    #             video_names.append('{}_{:06d}_{:06d}.mp4'.format(key,int(label[0]),int(label[1])))
+    #             annotations.append(value['annotations'])
 
     return video_names, annotations
 
@@ -326,4 +387,10 @@ class Kinetics(data.Dataset):
     def __len__(self):
         return len(self.data)
 
+
+def main():
+    print("Hello World!")
+if __name__ == "__main__":
+    scratch365root = "/media/scratch_crc/"
+    test = make_dataset(scratch365root+"dprijate/osr/har/data/kinetics/", "/home/sgrieggs/Downloads/kinetics_400_600_700_2020.csv", None, None, None, None)
 
