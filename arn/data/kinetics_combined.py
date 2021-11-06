@@ -84,9 +84,16 @@ def get_default_video_loader():
     return functools.partial(my_video_loader)
 
 
-def load_annotation_data(data_file_path):
+def load_annotation_data(data_file_path, subset):
     df = pd.read_csv(data_file_path)
+    if isinstance(subset, int):
+        index = len(df.index) // 50
+        if subset == 50:
+            df = df[index * (subset-1):]
+        else:
+            df = df[index * (subset-1): index*subset]
     return df.where(df.notnull(), None)
+
 
 
 def get_class_labels(data):
@@ -99,19 +106,18 @@ def get_class_labels(data):
     return class_labels_map
 
 
-def get_video_names_and_annotations(data, subset, waste, root="/media/scratch_crc/dprijate/osr/har/data/kinetics/"):
+def get_video_names_and_annotations(data, root="/media/scratch_crc/dprijate/osr/har/data/kinetics/"):
     video_names = []
     annotations = []
     bar = tqdm(data.iterrows(), total=len(data.index))
-    bad  = 0
-    bad_list = []
+    # bad  = 0
+    # bad_list = []
     for i, row in bar:
         # print(row)
         id = row['youtube_id']
         start = row['time_start']
         end = row['time_end']
         video_name = '{}_{:06d}_{:06d}.mp4'.format(id, int(start), int(end))
-        temp = "/media/scratch_crc/dprijate/osr/har/data/kinetics/"
         k400s = row['split_kinetics400']
         k600s = row['split_kinetics600']
         k700s = row['split_kinetics700_2020']
@@ -147,19 +153,21 @@ def get_video_names_and_annotations(data, subset, waste, root="/media/scratch_cr
                 print("BAD! a")
         else:
             print(row)
-        if os.path.exists(target):
-            bar.set_description(str(bad) + "/" +str(i) + " are bad")
-            continue
-        else:
-            # print(target + " is bad")
-            bad +=1
-            bar.set_description(str(bad) + "/" + str(i) + " are bad")
-            bad_list.append(target + '\n')
-            # assert False
+        video_names.append(target)
+        annotations.append({"id":'{}_{:06d}_{:06d}'.format(id, int(start), int(end)),"segment":(start,end)})
+        # if os.path.exists(target):
+        #     bar.set_description(str(bad) + "/" +str(i) + " are bad")
+        #     continue
+        # else:
+        #     # print(target + " is bad")
+        #     bad +=1
+        #     bar.set_description(str(bad) + "/" + str(i) + " are bad")
+        #     bad_list.append(target + '\n')
+        #     # assert False
 
-    with open("/home/sgrieggs/badlist.txt", 'w') as f:
-        f.writelines(bad_list)
-    assert False
+    # with open("/home/sgrieggs/badlist.txt", 'w') as f:
+    #     f.writelines(bad_list)
+    # assert False
         # video_names.append('{}_{:06d}_{:06d}.mp4'.format(id, int(start), int(end)))
 
     # if source == "torrent":
@@ -203,63 +211,61 @@ def get_video_names_and_annotations(data, subset, waste, root="/media/scratch_cr
     return video_names, annotations
 
 
-def make_dataset(root_path, annotation_path, class_labels, subset, n_samples_for_each_video, sample_duration):
-    print("----------------------------------------------------")
-    print(root_path)
-    data = load_annotation_data(annotation_path)
-    video_names, annotations = get_video_names_and_annotations(data, subset,"cdvf")
-    class_to_idx = get_class_labels(class_labels)
-    idx_to_class = {}
-    for name, label in class_to_idx.items():
-        idx_to_class[label] = name
+def make_dataset(root_path, annotation_path, subset=50, n_samples_for_each_video=1, sample_duration=10,outpath="/scratch365/sgrieggs/humongous_big_dumps"):
+    # print("----------------------------------------------------")
+    # print(root_path)
+    data = load_annotation_data(annotation_path,subset)
+    video_names, annotations = get_video_names_and_annotations(data, root_path)
+    # class_to_idx = get_class_labels(class_labels)
+    # idx_to_class = {}
+    # for name, label in class_to_idx.items():
+    #     idx_to_class[label] = name
 
-    pre_saved_dataset = os.path.join(root_path, 'labeldata_80.npy')
-    if os.path.exists(pre_saved_dataset):
-        print('{} exists'.format(pre_saved_dataset))
-        dataset = np.load(pre_saved_dataset, allow_pickle=True)
-    else:
-        dataset = []
-        for i in tqdm(range(len(video_names))):
-            video_path = root_path + video_names[i]
-
-
-
-            if not os.path.exists(video_path):
+    # pre_saved_dataset = os.path.join(root_path, 'labeldata_80.npy')
+    # if os.path.exists(pre_saved_dataset):
+    #     print('{} exists'.format(pre_saved_dataset))
+    #     dataset = np.load(pre_saved_dataset, allow_pickle=True)
+    # else:
+    dataset = []
+    for i in tqdm(range(len(video_names))):
+        video_path = video_names[i]
+        if not os.path.exists(video_path):
+            continue
+        if os.path.exists(outpath+annotations[i]['id']+"_logits.pt"):
+            if os.path.exists(outpath+annotations[i]['id']+"_feat.pt"):
+                print(outpath+annotations[i]['id']+"_feat.pt and " + outpath+annotations[i]['id']+"_logits.pt are already there")
                 continue
 
-            sample = {
-                'video': video_path,
-                'segment': annotations[i]['segment'],
-            }
-            # 'video_id': video_names[i].split('/')[1].split('.mp4')[0]
-            if len(annotations) != 0:
-                sample['label'] = class_to_idx[annotations[i]['label']]
-            else:
-                sample['label'] = -1
-            num_frames = 0
-            # cap = cv2.VideoCapture(video_path)
-            # while (cap.isOpened()):
-            #     ret, frame = cap.read()
-            #     if ret == False:
-            #         break
-            #     # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert opencv image to PIL
-            #     # frames.append(frame)
-            #     num_frames += 1
+        sample = {
+            'video': video_path,
+            'segment': annotations[i]['segment'],
+        }
+        # 'video_id': video_names[i].split('/')[1].split('.mp4')[0]
+        sample['label'] = annotations[i]['id']
+        num_frames = 0
+        # cap = cv2.VideoCapture(video_path)
+        # while (cap.isOpened()):
+        #     ret, frame = cap.read()
+        #     if ret == False:
+        #         break
+        #     # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert opencv image to PIL
+        #     # frames.append(frame)
+        #     num_frames += 1
 
-            # num_frames = int(data['database'][video_names[i]]['annotations']['segment'][1])
-            # if num_frames > 0:
-            #     num_frames = max(2 * 80 + 2, num_frames)
-            # else:
-            #     continue
-            #
-            # label = np.zeros((len(), num_frames), np.float32)
-            # cur_class_idx = class_to_idx[annotations[i]]
-            # label[cur_class_idx, :] = 1
-            # dataset.append((video_path, label, num_frames))
-            dataset.append(sample)
+        # num_frames = int(data['database'][video_names[i]]['annotations']['segment'][1])
+        # if num_frames > 0:
+        #     num_frames = max(2 * 80 + 2, num_frames)
+        # else:
+        #     continue
+        #
+        # label = np.zeros((len(), num_frames), np.float32)
+        # cur_class_idx = class_to_idx[annotations[i]]
+        # label[cur_class_idx, :] = 1
+        # dataset.append((video_path, label, num_frames))
+        dataset.append(sample)
         # np.save(pre_saved_dataset, dataset)
 
-    return dataset, idx_to_class
+    return dataset
 
 
 class Kinetics(data.Dataset):
@@ -291,10 +297,11 @@ class Kinetics(data.Dataset):
                  sample_duration=16,
                  gamma_tau=5,
                  crops=10,
-                 get_loader=get_default_video_loader):
-        self.data, self.class_names = make_dataset(
-            root_path, annotation_path, class_labels, subset, n_samples_for_each_video,
-            sample_duration)
+                 get_loader=get_default_video_loader,
+                 outpath="/home/sgrieggs/bigger_dumps/"):
+        self.data = make_dataset(
+            root_path, annotation_path, subset, n_samples_for_each_video,
+            sample_duration, outpath)
         self.subset = subset
         self.samples = n_samples_for_each_video
         self.spatial_transform = spatial_transform
@@ -379,7 +386,7 @@ class Kinetics(data.Dataset):
         target = self.data[index]
         if self.target_transform is not None:
             target = self.target_transform(target)
-        target = F.one_hot(torch.tensor(self.data[index]['label']), num_classes=len(self.class_names)).float()
+        target = self.data[index]['label']
         # print(clips.shape)
         return clips, target, path
 
@@ -388,9 +395,9 @@ class Kinetics(data.Dataset):
         return len(self.data)
 
 
-def main():
-    print("Hello World!")
-if __name__ == "__main__":
-    scratch365root = "/media/scratch_crc/"
-    test = make_dataset(scratch365root+"dprijate/osr/har/data/kinetics/", "/home/sgrieggs/Downloads/kinetics_400_600_700_2020.csv", None, None, None, None)
+# def main():
+#     print("Hello World!")
+# if __name__ == "__main__":
+#     scratch365root = "/media/scratch_crc/"
+#     test = make_dataset(scratch365root+"dprijate/osr/har/data/kinetics/", "/home/sgrieggs/Downloads/kinetics_400_600_700_2020.csv", 50, 50, None, None)
 
