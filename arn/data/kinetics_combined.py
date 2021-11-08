@@ -40,7 +40,6 @@ def my_video_loader(seq_path):
         print('{} does not exist'.format(seq_path))
     if len(frames) == 0:
         print(seq_path + " is busted")
-        # shutil.move(seq_path, "/media/sgrieggs/pageparsing/badvideos/"+seq_path.split("/")[-1])
         frames = [np.zeros((360, 640, 3)).astype(np.uint8)]
     return frames
 
@@ -155,77 +154,15 @@ def get_video_names_and_annotations(data, root="/media/scratch_crc/dprijate/osr/
             print(row)
         video_names.append(target)
         annotations.append({"id":'{}_{:06d}_{:06d}'.format(id, int(start), int(end)),"segment":(start,end)})
-        # if os.path.exists(target):
-        #     bar.set_description(str(bad) + "/" +str(i) + " are bad")
-        #     continue
-        # else:
-        #     # print(target + " is bad")
-        #     bad +=1
-        #     bar.set_description(str(bad) + "/" + str(i) + " are bad")
-        #     bad_list.append(target + '\n')
-        #     # assert False
-
-    # with open("/home/sgrieggs/badlist.txt", 'w') as f:
-    #     f.writelines(bad_list)
-    # assert False
-        # video_names.append('{}_{:06d}_{:06d}.mp4'.format(id, int(start), int(end)))
-
-    # if source == "torrent":
-    #     for key, value in data.items():
-    #         this_subset = value['subset']
-    #         # if this_subset == subset:
-    #         start_and_end_times = {}
-    #         if subset == 'testing':
-    #             video_names.append('test/{}'.format(key))
-    #         elif subset == 'train':
-    #             st = int(value['annotations']['segment'][0])
-    #             end = int(value['annotations']['segment'][1])
-    #             label = value['annotations']['label'].replace(' ','_')
-    #             video_names.append('{}/{}_{}_{}'.format(label, key, str(st).zfill(6), str(end).zfill(6)))
-    #             annotations.append(value['annotations'])
-    #         else:
-    #             label = value['annotations']['label'].replace(' ','_').replace('(','-').replace(')','-').replace("'",'-')
-    #             video_names.append('{}/{}.mp4'.format(label, key.lstrip('-')))
-    #             annotations.append(value['annotations'])
-    # elif source == "cdvf":
-    #     for key, value in data.items():
-    #         this_subset = value['subset']
-    #         # if this_subset == subset:
-    #         start_and_end_times = {}
-    #         if subset == 'testing':
-    #             label = value['annotations']['segment']
-    #             video_names.append('{}_{:06d}_{:06d}.mp4'.format(key,int(label[0]),int(label[1])))
-    #             annotations.append(value['annotations'])
-    #             # video_names.append('test/{}'.format(key))
-    #         elif subset == 'train':
-    #             st = int(value['annotations']['segment'][0])
-    #             end = int(value['annotations']['segment'][1])
-    #             label = value['annotations']['label'].replace(' ','_')
-    #             video_names.append('{}/{}_{}_{}'.format(label, key, str(st).zfill(6), str(end).zfill(6)))
-    #             annotations.append(value['annotations'])
-    #         else:
-    #             label = value['annotations']['segment']
-    #             video_names.append('{}_{:06d}_{:06d}.mp4'.format(key,int(label[0]),int(label[1])))
-    #             annotations.append(value['annotations'])
 
     return video_names, annotations
 
 
 def make_dataset(root_path, annotation_path, subset=50, n_samples_for_each_video=1, sample_duration=10,outpath="/scratch365/sgrieggs/humongous_big_dumps"):
-    # print("----------------------------------------------------")
-    # print(root_path)
+
     data = load_annotation_data(annotation_path,subset)
     video_names, annotations = get_video_names_and_annotations(data, root_path)
-    # class_to_idx = get_class_labels(class_labels)
-    # idx_to_class = {}
-    # for name, label in class_to_idx.items():
-    #     idx_to_class[label] = name
 
-    # pre_saved_dataset = os.path.join(root_path, 'labeldata_80.npy')
-    # if os.path.exists(pre_saved_dataset):
-    #     print('{} exists'.format(pre_saved_dataset))
-    #     dataset = np.load(pre_saved_dataset, allow_pickle=True)
-    # else:
     dataset = []
     for i in tqdm(range(len(video_names))):
         video_path = video_names[i]
@@ -272,33 +209,37 @@ class Kinetics(data.Dataset):
     """
     Args:
         root (string): Root directory path.
-        spatial_transform (callable, optional): A function/transform that  takes in an PIL image
-            and returns a transformed version. E.g, ``transforms.RandomCrop``
-        temporal_transform (callable, optional): A function/transform that  takes in a list of frame indices
-            and returns a transformed version
-        target_transform (callable, optional): A function/transform that takes in the
-            target and transforms it.
-        loader (callable, optional): A function to load an video given its path and frame indices.
+        spatial_transform (callable, optional):
+            A function/transform that takes in an PIL image and returns a
+            transformed version. E.g, ``transforms.RandomCrop``
+        temporal_transform (callable, optional):
+            A function/transform that takes in a list of frame indices and
+            returns a transformed version target_transform (callable,
+            optional):
+            A function/transform that takes in the target and transforms it.
+        loader (callable, optional):
+            A function to load an video given its path and frame indices.
      Attributes:
         classes (list): List of the class names.
         class_to_idx (dict): Dict with items (class_name, class_index).
         imgs (list): List of (image path, class_index) tuples
     """
-
-    def __init__(self,
-                 root_path,
-                 annotation_path,
-                 class_labels,
-                 subset,
-                 n_samples_for_each_video=10,
-                 spatial_transform=None,
-                 temporal_transform=None,
-                 target_transform=None,
-                 sample_duration=16,
-                 gamma_tau=5,
-                 crops=10,
-                 get_loader=get_default_video_loader,
-                 outpath="/home/sgrieggs/bigger_dumps/"):
+    def __init__(
+        self,
+        root_path,
+        annotation_path,
+        class_labels,
+        subset,
+        n_samples_for_each_video=10,
+        spatial_transform=None,
+        temporal_transform=None,
+        target_transform=None,
+        sample_duration=16,
+        gamma_tau=5,
+        crops=10,
+        get_loader=get_default_video_loader,
+        outpath="/home/sgrieggs/bigger_dumps/"
+    ):
         self.data = make_dataset(
             root_path, annotation_path, subset, n_samples_for_each_video,
             sample_duration, outpath)
