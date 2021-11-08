@@ -1,24 +1,24 @@
-import torch
-import torch.utils.data as data_utl
-from torch.utils.data.dataloader import default_collate
-
-import numpy as np
-import json
+"""Dataloader for PAR provided data."""
 import csv
-import h5py
-import random
+import functools
+import json
 import os
 import os.path
-import functools
-import pandas as pd
-from tqdm import tqdm
+import pdb
+import random
+import sys
 
+import cv2
+import h5py
+import numpy as np
+import pandas as pd
+import torch
+import torch.utils.data as data_utl
 import torchvision
 from PIL import Image
-import pdb
-import cv2
+from torch.utils.data.dataloader import default_collate
+from tqdm import tqdm
 from utils.transform import Transforms
-import sys
 
 
 def pil_loader(path):
