@@ -101,27 +101,7 @@ def make_dataset(root_path, annotation_path, class_labels, subset, n_samples_for
             else:
                 sample['label'] = -1
             num_frames = 0
-            # cap = cv2.VideoCapture(video_path)
-            # while (cap.isOpened()):
-            #     ret, frame = cap.read()
-            #     if ret == False:
-            #         break
-            #     # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert opencv image to PIL
-            #     # frames.append(frame)
-            #     num_frames += 1
-
-            # num_frames = int(data['database'][video_names[i]]['annotations']['segment'][1])
-            # if num_frames > 0:
-            #     num_frames = max(2 * 80 + 2, num_frames)
-            # else:
-            #     continue
-            #
-            # label = np.zeros((len(), num_frames), np.float32)
-            # cur_class_idx = class_to_idx[annotations[i]]
-            # label[cur_class_idx, :] = 1
-            # dataset.append((video_path, label, num_frames))
             dataset.append(sample)
-        # np.save(pre_saved_dataset, dataset)
 
     return dataset, idx_to_class
 
