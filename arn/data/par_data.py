@@ -204,21 +204,16 @@ class PAR(data_utl.Dataset):
             tuple: (image, target) where target is class_index of the target
             class.
         """
-
         if self.test_phase:
             if self.is_feedback:
                 self.split = "feedback_set"
             else:
                 self.split = "test_set"
-
         else:
             if self.crops > 1:
                 self.split = 'validation'
 
         vid, label, nf = self.data[index]
-        # print("index", index)
-
-        # print("@" *
 
         if (self.split == "validation") or \
             (self.split == "feedback_set") or \
@@ -230,9 +225,6 @@ class PAR(data_utl.Dataset):
             start_f = random.randint(1,nf-(self.frames+1))
 
         stride_f = self.gamma_tau
-        # print("@" * 20)
-        # print(self.root)
-        # print("@" * 20)
         imgs = load_rgb_frames(self.root, vid, start_f, frames, stride_f, self.loader)
 
         label = label[:, start_f-1:start_f-1+frames:1] #stride_f
@@ -240,7 +232,6 @@ class PAR(data_utl.Dataset):
         if self.task == 'class':
             label = torch.max(label, dim=1)[0] # C T --> C
         if self.spatial_transform is not None:
-            # print(self.spatial_transform )
             self.spatial_transform.randomize_parameters(224)
             imgs_l = [self.spatial_transform(Image.fromarray(img)) for img in imgs]
         imgs_l = torch.stack(imgs_l, 0).permute(1, 0, 2, 3) # T C H W --> C T H W
@@ -253,23 +244,11 @@ class PAR(data_utl.Dataset):
             if step == 0:
                 clips = [imgs_l[:,:self.frames//self.gamma_tau,...] for i in range(self.crops)]
                 clips = torch.stack(clips, 0)
-                # print("clips when step == 0")
-                # print(clips.shape)
             else:
                 clips = [imgs_l[:,i:i+self.frames//self.gamma_tau,...] for i in range(0, step*self.crops, step)]
                 clips = torch.stack(clips, 0)
-                # print("clips when step != 0")
-                # print(clips.shape)
         else:
             clips = imgs_l
-        #
-        # print(label.shape)
-        # print(label)
-
-        # for i in range(label.shape[0]):
-        #     one_hot_label = label[i]
-        #     # one_label = torch.argmax(one_hot_label)
-        #     print("[data loader] one_label in for loop", one_label)
 
         return clips, label
 
