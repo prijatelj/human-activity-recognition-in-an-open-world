@@ -159,14 +159,28 @@ def make_dataset(split_file, split, root, predict="class"):
 
 
 class PAR(data_utl.Dataset):
-
-    def __init__(self, split_file, split,
-                 root, num_classes=88, spatial_transform=None,
-                 task='class', frames=80, gamma_tau=5, crops=1,
-                 test_phase=False, is_feedback=False, prediction_target="class"):
-    # def __init__(self, split_file, split, root, num_classes=101, spatial_transform=None, task='class', frames=80, gamma_tau=5, crops=1):
-
-        self.data,self.no_classes = make_dataset(split_file, split, root, prediction_target)
+    """PAR Dataloader."""
+    def __init__(
+        self,
+        split_file,
+        split,
+        root,
+        num_classes=88,
+        spatial_transform=None,
+        task='class',
+        frames=80,
+        gamma_tau=5,
+        crops=1,
+        test_phase=False,
+        is_feedback=False,
+        prediction_target="class",
+    ):
+        self.data,self.no_classes = make_dataset(
+            split_file,
+            split,
+            root,
+            prediction_target,
+        )
         self.split_file = split_file
         self.root = root
         self.frames = frames * 2
@@ -178,12 +192,6 @@ class PAR(data_utl.Dataset):
         self.task = task
         self.test_phase = test_phase
         self.is_feedback = is_feedback
-
-        # This part is correct
-        # print("&" * 20)
-        # print(self.data[100][1])
-        # print("&" * 20)
-        # sys.exit()
 
     def get_no_classes(self):
         return self.no_classes
