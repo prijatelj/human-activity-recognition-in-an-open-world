@@ -1,21 +1,21 @@
+import copy
+import functools
+import json
+import math
+import os
+import shutil
 from random import random
 
 import cv2
-import torch
-import torchvision
-import torch.utils.data as data
-from PIL import Image
-import os
-import math
-import functools
-import json
-import copy
-from tqdm import tqdm
 import numpy as np
-import shutil
 import pandas as pd
-
+import torch
 import torch.nn.functional as F
+import torch.utils.data as data
+import torchvision
+from PIL import Image
+from tqdm import tqdm
+
 
 def load_value_file(file_path):
     with open(file_path, 'r') as input_file:
@@ -341,4 +341,3 @@ class Kinetics(data.Dataset):
 # if __name__ == "__main__":
 #     scratch365root = "/media/scratch_crc/"
 #     test = make_dataset(scratch365root+"dprijate/osr/har/data/kinetics/", "/home/sgrieggs/Downloads/kinetics_400_600_700_2020.csv", 50, 50, None, None)
-
