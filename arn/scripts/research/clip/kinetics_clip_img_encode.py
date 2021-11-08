@@ -19,11 +19,8 @@ import tqdm
 import clip
 from arn.data.kinetics import Kinetics
 from arn.transforms.target_transforms import ClassLabel
-from arn.scripts.research.get_dataloaders import (
-    get_kinetics_dataloader,
-    #get_unified_kinetics_dataloader,
-    #get_par_dataloader,
-)
+from arn.data.kinetics import Kinetics
+from arn.data.kinetics_combined import Kinetics_Unified
 
 import exputils
 
@@ -84,6 +81,9 @@ def text_zeroshot_encoding(model, label_texts, templates):
 
 
 def main(
+    root,
+    anno,
+    class_labels,
     image_path=None,
     label_path=None,
     pred_path=None,
@@ -93,18 +93,20 @@ def main(
     load_encoded_images=False,
     model_repr_dim=512,
     templates=None,
-    *args,
-    **kwargs,
+    batch_size=1,
+    sample_duration=300,
+    gamma_tau=1,
+    crops=1,
+    frames=300,
+    unified_split=None,
+    feature_extract_outpath=None,
 ):
     if image_path is None and label_path is None and pred_path is None:
         raise ValueError(
             '`image_path`, `label_path`, and `pred_path` are all None',
         )
 
-    KINETICS_MEAN = [110.63666788 / 255, 103.16065604 / 255, 96.29023126 / 255]
-    KINETICS_STD = [38.7568578 / 255, 37.88248729 / 255, 40.02898126 / 255]
-
-    # TODO Load in CLIP Pre-trained
+    # Load in CLIP Pre-trained
     model, preprocess = clip.load(model_path, device)
 
     # Preprocess images: Go from Kinetics form to CLIP preprocess expectation
@@ -115,26 +117,57 @@ def main(
     # CLIP expects them as (B, C, H, W), so B for T
     spatial = clip_transform_image_frames(
         model.visual.input_resolution,
-        KINETICS_MEAN,
-        KINETICS_STD,
+        means=[110.63666788 / 255, 103.16065604 / 255, 96.29023126 / 255],
+        stds=[38.7568578 / 255, 37.88248729 / 255, 40.02898126 / 255],
     )
 
-    # Extract useful vars from kwargs
-    if 'frames' in kwargs:
-        frames = kwargs['frames']
-    else:
-        frames = 300
+    # TODO make it easier to batch this process cuz it can be a pain when not
+    # enough VRAM.
+    #if start_idx:
+    #    val_dataset.data
+    #if end_idx:
+    #    val_dataset = val_dataset[:]
 
     # Get Kinetics Dataloader for specified data
-    dataset, dataloader = get_kinetics_dataloader(
-        spatial=spatial,
-        randomize_spatial_params=False,
+    if unified_split is None:
+        # Use old single kinetics dataset loader for 400 and 600
+        dataset = Kinetics(
+            root,
+            anno,
+            class_labels,
+            'val',
+            spatial_transform = spatial,
+            target_transform = ClassLabel(),
+            sample_duration=frames,
+            gamma_tau=gamma_tau,
+            crops=crops,
+            randomize_spatial_params=False,
+        )
+    else: # Use unified kinetics dataloader
+        dataset = Kinetics_Unified(
+            root,
+            anno,
+            class_labels,
+            unified_split,
+            spatial_transform = spatial,
+            target_transform = ClassLabel(),
+            sample_duration=sample_duration,
+            gamma_tau=gamma_tau,
+            crops=crops,
+            randomize_spatial_params=False,
+            outpath=feature_extract_outpath,
+        )
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
         shuffle=False,
-        *args,
-        **kwargs,
+        num_workers=12,
+        pin_memory=True,
     )
-    dataset = dataset['val']
-    dataloader = dataloader['val']
+
+    print('dataset samples:', len(dataset))
+    print('datasets created')
 
     # TODO the CLIP Zeroshot and feature repr needs to be a module used by
     # baseline. Save or reuse whatever boilerplate is around CLIP encoding here
