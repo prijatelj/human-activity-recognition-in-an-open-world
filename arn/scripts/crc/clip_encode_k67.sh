@@ -20,6 +20,9 @@ echo "SGE_TASK_ID = $SGE_TASK_ID"
 module add conda
 conda activate arn
 
+# Profile the CRC Job on the node in which it is running.
+crc_profile
+
 # Path variables
 BASE="/scratch365/dprijate/osr/har"
 

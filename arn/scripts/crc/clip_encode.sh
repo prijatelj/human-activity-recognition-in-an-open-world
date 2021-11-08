@@ -14,11 +14,12 @@ if [[ "$#" -eq 1 ]]; then
     echo "Given an argument and thus set SGE_TASK_ID to $SGE_TASK_ID"
 fi
 
-echo "SGE_TASK_ID = $SGE_TASK_ID"
-
-# Set up environment
+# Set up python environment
 module add conda
 conda activate arn
+
+# Profile the CRC Job on the node in which it is running.
+crc_profile
 
 # Path variables
 BASE="/scratch365/dprijate/osr/har"
