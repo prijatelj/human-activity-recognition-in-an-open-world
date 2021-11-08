@@ -175,9 +175,9 @@ def main(
     # Kinetics dataloader outputs clips as (Channels, Timeframe, Height, Width)
     # CLIP expects them as (B, C, H, W), so B for T
     spatial = clip_transform_image_frames(
-            model.visual.input_resolution,
-            KINETICS_MEAN,
-            KINETICS_STD,
+        model.visual.input_resolution,
+        KINETICS_MEAN,
+        KINETICS_STD,
     )
 
     # Extract useful vars from kwargs
