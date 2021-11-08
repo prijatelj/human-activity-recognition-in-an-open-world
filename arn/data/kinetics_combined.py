@@ -88,7 +88,7 @@ def get_video_names_and_annotations(
 
 def make_dataset(root_path, annotation_path, subset=50, n_samples_for_each_video=1, sample_duration=10,outpath="/scratch365/sgrieggs/humongous_big_dumps"):
 
-    data = load_annotation_data(annotation_path,subset)
+    data = load_annotation_data(annotation_path, subset)
     video_names, annotations = get_video_names_and_annotations(data, root_path)
 
     dataset = []
