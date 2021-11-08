@@ -1,12 +1,8 @@
 """Dataloader for PAR provided data."""
-import csv
 import functools
-import json
 import os
 import os.path
-import pdb
 import random
-import sys
 
 import cv2
 import h5py
@@ -20,29 +16,11 @@ from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 from utils.transform import Transforms
 
-
-def pil_loader(path):
-    with open(path, 'rb') as f:
-        with Image.open(f) as img:
-            return img.convert('RGB')
-
-
-def accimage_loader(path):
-    try:
-        import accimage
-        return accimage.Image(path)
-    except IOError:
-        # Potentially a decoding problem, fall back to PIL.Image
-        return pil_loader(path)
-
-
-def get_default_image_loader():
-    torchvision.set_image_backend('accimage')
-    from torchvision import get_image_backend
-    if get_image_backend() == 'accimage':
-        return accimage_loader
-    else:
-        return pil_loader
+from arn.data.dataloder_utils import (
+    load_value_file,
+    pil_loader,
+    get_default_image_loader,
+)
 
 
 def video_loader(video_dir_path, vid, frame_indices, image_loader):
@@ -67,23 +45,22 @@ def my_video_loader(seq_path, frame_indices):
     # extract frames from the video
     if os.path.exists(seq_path):
         cap = cv2.VideoCapture(seq_path)
-        cnt = 0
         while(cap.isOpened()):
             ret, frame = cap.read()
             if ret == False:
                 break
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # convert opencv image to PIL
+            # convert opencv image to PIL
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frames.append(frame)
         test = min(len(frames)-1, max(frame_indices)-1)
-        #print(seq_path, len(frames), min(frame_indices), max(frame_indices), test)
         clip_frames = [frames[min(len(frames)-1, cnt-1)] for cnt in frame_indices]
-
     else:
-        print('{} does not exist'.format(seq_path))
+        print(f'{seq_path} does not exist')
 
     return clip_frames
 
-def get_class_labels(data,predict):
+
+def get_class_labels(data, predict):
     class_labels_map = {}
     index = 0
     classes = set()
@@ -95,6 +72,7 @@ def get_class_labels(data,predict):
         class_labels_map[x] = index
         index += 1
     return class_labels_map
+
 
 def get_video_names_and_annotations(data, subset, predict):
     video_names = []
@@ -120,7 +98,7 @@ def load_rgb_frames(image_dir, vid, start, num, stride, video_loader):
 
     return frames
 
-# def make_dataset(split_file, split, root, num_classes=101):
+
 def make_dataset(split_file, split, root, predict="class"):
     print("split ", split)
     dataset = []
@@ -215,7 +193,8 @@ class PAR(data_utl.Dataset):
         Args:
             index (int): Index
         Returns:
-            tuple: (image, target) where target is class_index of the target class.
+            tuple: (image, target) where target is class_index of the target
+            class.
         """
 
         if self.test_phase:
