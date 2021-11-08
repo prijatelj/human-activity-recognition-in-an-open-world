@@ -23,8 +23,8 @@ def my_video_loader(seq_path):
             ret, frame = cap.read()
             if ret == False:
                 break
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # convert opencv image to PIL
-            # print(frame.shape)
+            # convert opencv image to PIL
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frames.append(frame)
     else:
         print('{} does not exist'.format(seq_path))
