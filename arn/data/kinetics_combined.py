@@ -1,18 +1,10 @@
-import copy
-import functools
-import json
-import math
+"""Kinetics dataloader for the unified Kinetics labels CSV."""
 import os
-import shutil
-from random import random
 
-import cv2
-import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
 import torch.utils.data as data
-import torchvision
 from PIL import Image
 from tqdm import tqdm
 
@@ -20,7 +12,6 @@ from arn.data.dataloder_utils import (
     load_value_file,
     my_video_loader,
     pil_loader,
-    accimage_loader,
     get_default_image_loader,
     video_loader,
     get_default_video_loader,

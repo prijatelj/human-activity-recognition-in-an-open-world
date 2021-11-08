@@ -1,4 +1,12 @@
-"""Consolidating the reused data function."""
+"""Consolidating the reused data functions."""
+import os
+import functools
+
+import cv2
+import numpy as np
+import torchvision
+from PIL import Image
+
 
 def load_value_file(file_path):
     with open(file_path, 'r') as input_file:
@@ -7,7 +15,6 @@ def load_value_file(file_path):
 
 
 def my_video_loader(seq_path):
-
     frames = []
     # extract frames from the video
     if os.path.exists(seq_path):
@@ -25,6 +32,7 @@ def my_video_loader(seq_path):
         print(seq_path + " is busted")
         frames = [np.zeros((360, 640, 3)).astype(np.uint8)]
     return frames
+
 
 def pil_loader(path):
     with open(path, 'rb') as f:
