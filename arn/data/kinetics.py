@@ -1,17 +1,11 @@
-import copy
-import functools
+"""Kinetics Dataloader for a single Kinetics dataset, 400 or 600. Not 700."""
 import json
-import math
 import os
-#import shutil
-from random import random
 
-import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.utils.data as data
-import torchvision
 from PIL import Image
 from tqdm import tqdm
 
@@ -19,7 +13,6 @@ from arn.data.dataloder_utils import (
     load_value_file,
     my_video_loader,
     pil_loader,
-    accimage_loader,
     get_default_image_loader,
     video_loader,
     get_default_video_loader,
