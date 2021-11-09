@@ -37,10 +37,8 @@ def get_video_names_and_annotations(
     video_names = []
     annotations = []
     bar = tqdm(data.iterrows(), total=len(data.index))
-    # bad  = 0
-    # bad_list = []
+
     for i, row in bar:
-        # print(row)
         id = row['youtube_id']
         start = row['time_start']
         end = row['time_end']
@@ -80,8 +78,12 @@ def get_video_names_and_annotations(
                 print("BAD! a")
         else:
             print(row)
+
         video_names.append(target)
-        annotations.append({"id":'{}_{:06d}_{:06d}'.format(id, int(start), int(end)),"segment":(start,end)})
+        annotations.append({
+            "id":'{}_{:06d}_{:06d}'.format(id, int(start), int(end)),
+            "segment": (start, end),
+        })
 
     return video_names, annotations
 
@@ -171,56 +173,23 @@ class Kinetics(data.Dataset):
 
         self.randomize_spatial_params = randomize_spatial_params
 
-
-    def old__getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is class_index of the target class.
-        """
-        path = self.data[index]['video']
-        clip = self.loader(path)
-        if self.spatial_transform is not None:
-            self.spatial_transform.randomize_parameters()
-            clip = [self.spatial_transform(Image.fromarray(img)) for img in clip]
-        else:
-            clip = [Image.fromarray(img) for img in clip]
-
-        clip = torch.stack(clip, 0).permute(1, 0, 2, 3) # T C H W --> C T H W
-
-        # # if step == 0:
-        # clips = [clip[:,:self.frames,...] for i in range(self.crops)]
-        # clips = torch.stack(clips, 0)
-        # else:
-        clips = [clip[:,i:i+self.frames,...] for i in range(0, step*self.crops, step)]
-        clips = torch.stack(clips, 0)
-        target = F.one_hot(torch.tensor(self.data[index]['label']), num_classes=len(self.class_names)).float()
-        # if self.target_transform is not None:
-        #     target = self.target_transform(target)
-        # if clips.shape[2] != 16:
-        #     print(path)
-        return clips, target
-
     def __getitem__(self, index):
         """
         Args:
             index (int): Index
         Returns:
-            tuple: (image, target) where target is class_index of the target class.
+            tuple: (image, target) where target is class_index of the target
+            class.
         """
         path = self.data[index]['video']
         clip = self.loader(path)
         frame_indices = list(range(0, len(clip)))
-        #if self.temporal_transform is not None:
-        #    frame_indices = self.temporal_transform(frame_indices)
 
         # FOR MULTI-CROP TESTING
         frame_indices = frame_indices[::self.gamma_tau]
         clip = [clip[i] for i in frame_indices]
         step = int((len(frame_indices) -  self.frames)//(self.crops))
 
-        # clip = self.loader(path, frame_indices)
         if self.spatial_transform is not None:
             if self.randomize_spatial_params:
                 self.spatial_transform.randomize_parameters()
@@ -231,13 +200,15 @@ class Kinetics(data.Dataset):
             clips = [clip[:,:self.frames,...] for i in range(self.crops)]
             clips = torch.stack(clips, 0)
         else:
-            clips = [clip[:,i:i+self.frames,...] for i in range(0, step*self.crops, step)]
+            clips = [
+                clip[:,i:i+self.frames,...]
+                for i in range(0, step*self.crops, step)
+            ]
             for i in range(len(clips)):
                 clp = clips[i]
                 if clp.shape[1] != self.frames:
-                    # if self.frames-clp.shape[1] != 1:
-                        # print("interesting... " +str(self.frames-clp.shape[1]) )
-                    # Padding in torch is absolutely bonkers, lol this pads dimension 1
+                    # Padding in torch is absolutely bonkers, lol this pads
+                    # dimension 1
                     p2d = (0, 0, 0, 0, 0, self.frames-clp.shape[1])
                     clips[i] = F.pad(clp, p2d, "constant", 0)
 
@@ -249,7 +220,6 @@ class Kinetics(data.Dataset):
         target = self.data[index]['label']
         # print(clips.shape)
         return clips, target, path
-
 
     def __len__(self):
         return len(self.data)
