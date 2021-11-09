@@ -1,10 +1,12 @@
 """Dataset for the sample aligned Kinetics 400, 600, and 700_2020 datasets."""
-from dataclasses import dataclass
+from collections import namedtuple
+from dataclasses import dataclass, InitVar
 import os
 
 import pandas as pd
 from PIL import Image
 import torch
+import torchvision
 from tqdm import tqdm
 
 from arn.data.dataloder_utils import (
@@ -55,7 +57,18 @@ class KineticsRootDirs(object):
         ext='.mp4',
         zfill=6,
     ):
-        """Create filepath for every video, preferring older versions first."""
+        """Create filepath for every video, preferring older versions first.
+        Args
+        ----
+        df : pd.DataFrame
+            The Kinetics Unified DataFrame.
+
+        Returns
+        -------
+        pd.Series
+            A Pandas Series of the filepaths to each sample's video where the
+            earlier Kinetics datasets' videos are prioritized.
+        """
         # Save when each sample is present in each dataset
         not_null = 1 ^ pd.isnull(df[[
             'split_kinetics400',
@@ -74,6 +87,10 @@ class KineticsRootDirs(object):
             (not_null['split_kinetics400'] | not_null['split_kinetics600'])
             & not_null['split_kinetics700_2020']
         )) & not_null['split_kinetics700_2020']
+
+        # TODO include support for replacing videos that were corrupted in
+        # earlier versions with those that are available and working in later
+        # Kinetics versions.
 
         return (
             self.kinetics400_dir
@@ -105,7 +122,7 @@ class KineticsUnified(torch.utils.data):
     annotation_path : str
         Path to the annotations of the unified Kinetics datasets.
     kinetics_class_map_path : str
-    class_labels : list(str)
+        This serves the role of older unique `class_labels`.
     annotation_view : slice = None
         The view of the annotation samples as seen by this dataset class. This
         is either a slice, list of int indices, or bool array of len(data).
@@ -127,29 +144,73 @@ class KineticsUnified(torch.utils.data):
 
         This is probably not needed.
     """
-    image_dirs : KineticsRootDirs
-    annotation_path : str
-    kinetics_class_map_path : str
-    class_labels : list(str)
-    kinetics400_dir : str
-    kinetics600_dir : str
-    kinetics700_2020_dir : str
-    annotation_view : object = None
+    annotation_path : InitVar[str]
+    kinetics_class_map :  InitVar[str]
+    image_dirs : KineticsRootDirs = None
+    annotation_view : torch.Tensor = None
     spatial_transform : torchvision.transforms.Compose = None
     temporal_transform : torchvision.transforms.Compose = None
     video_loader : callable = get_default_video_loader
     gamma_tau : int = 5
     crops : int = 10
     randomize_spatial_params : bool = True
-    target_label = 'KineticsUnifiedPref700'
+    target_label : str = 'KineticsUnifiedPref700'
+    collect_bad_samples : InitVar[bool] = False
+    bad_samples : list(str) = None
 
-    def __post_init__(self):
-        # TODO self.data = ...
+    def __post_init__(
+        self,
+        annotation_path,
+        kinetics_class_map,
+        collect_bad_samples,
+    ):
+        if isinstance(kinetics_class_map, str):
+            ext = os.path.splitext(kinetics_class_map)[-1]
+            if ext == '.csv':
+                self.kinetics_class_map = pd.read_csv(kinetics_class_map)
+            elif ext == '.json':
+                self.kinetics_class_map = pd.read_json(kinetics_class_map)
+            else:
+                raise ValueError(' '.join([
+                    'Expected `kinetics_class_map` as a str to have',
+                    f'extention, ".csv" or ".json", not `{ext}`',
+                ]))
+        elif isinstance(kinetics_class_map, pd.DataFrame):
+            self.kinetics_class_map = kinetics_class_map
+        else:
+            raise TypeError(' '.join([
+                '`kinetics_class_map` expected to be str or pd.DataFrame, but',
+                f'recieved type: type(kinetics_class_map)',
+            ]))
+
+        # TODO consider something like Dask for parallel reading of csvs
+        self.data = pd.read_csv(
+            annotation_path,
+            dtype={
+                'label_kinetics400': str,
+                'label_kinetics600': str,
+                'label_kinetics700_2020': str,
+                'split_kinetics400': str,
+                'split_kinetics600': str,
+                'split_kinetics700_2020': str,
+            },
+        )
+
+        if 'video_path' not in self.data:
+            if self.image_dirs is None:
+                raise ValueError(' '.join([
+                    '`video_path` column must be in annotation data or',
+                    'image_dirs is given to generate the video paths.',
+                ]))
+            self.data['video_path'] = self.image_dirs.get_path(self.data)
 
         self.sample_tuple = namedtuple(
             'kinetics_unified_sample',
-            self.data.columns,
+            ['video'] + self.data.columns.tolist(),
         )
+
+        if collect_bad_samples:
+            self.bad_samples = []
 
     def __len__(self):
         # TODO handle len of slice, sum of boolean array, len of int indices
@@ -174,8 +235,8 @@ class KineticsUnified(torch.utils.data):
 
         # TODO Apply temporal transform to video frames, if any
 
-        return self.sample_tuple(video_frames)
+        return self.sample_tuple(video_frames, *row)
 
-    def __del__(self):
-        """Deconstructor to close any open files upon deletion."""
-        self.data.close()
+    #def __del__(self):
+    #    """Deconstructor to close any open files upon deletion."""
+    #    self.data.close()
