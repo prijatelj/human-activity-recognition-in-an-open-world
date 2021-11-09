@@ -241,8 +241,9 @@ class KineticsUnified(torch.utils.data):
     frame_step_size : int = 5
         The step size used to select frames from the video to represent that
         video in the sample. Named gamma tau in the X3D paper.
-    crops : int = 10
-        The total temporal crops of each video.
+    time_crops : int = 10
+        The total temporal crops of each video. This is specifically for use in
+        X3D.
     randomize_spatial_params : bool = True
         If True, randomizes the spatial transforms parameters.
     sample_tuple : namedtuple
@@ -256,8 +257,8 @@ class KineticsUnified(torch.utils.data):
     subset :  InitVar[KineticsUnifiedSubset] = None
     spatial_transform : torchvision.transforms.Compose = None
     video_loader : callable = status_video_frame_loader
-    frame_step_size : int = 5
-    crops : int = 10
+    frame_step_size : int = 1
+    time_crops : int = 1
     randomize_spatial_params : bool = True
     collect_bad_samples : InitVar[bool] = False
     corrupt_samples : list(BadVideoSample) = None
@@ -302,18 +303,23 @@ class KineticsUnified(torch.utils.data):
             },
         )
 
-        # Include subset feature to make this dataset instance pertain to
-        # only a subset of all of the Kinetics unified data.
+        # Using subset config, prune the undesired samples from this dataset
+        # instance, leaving only a subset of all of the Kinetics unified data.
         if subset is not None:
             # Keep the parts of the dataframe specified by the subset config
             self.data = subset_kinetics_unified(self.data, subset)
+
+            # Label Config determines the data column to use for labels.
+            # This way, if any masking occurs, it does not change the source
+            # the dataframe column which can then be used for evaluation.
+            self.data[['labels']] = self.data[[subset.labels.name]]
 
             if subset.labels is not None:
                 # Mask the unknowns and unlabeled samples.
                 if subset.labels.unknowns is not None:
                     self.data[subset.labels.name][np.logical_or.reduce(
                         [
-                            self.data[subset.labels.name] == label
+                            self.data['labels'] == label
                             for label in subset.labels.unknown
                         ],
                         axis=1,
@@ -322,7 +328,7 @@ class KineticsUnified(torch.utils.data):
                 if subset.labels.unlabeled is not None:
                     self.data[subset.labels.name][np.logical_or.reduce(
                         [
-                            self.data[subset.labels.name] == label
+                            self.data['labels'] == label
                             for label in subset.labels.unknown
                         ],
                         axis=1,
@@ -381,7 +387,8 @@ class KineticsUnified(torch.utils.data):
         video = [
             video[i] for i in range(0, len(video))[::self.frame_step_size]
         ]
-        step = int((len(video) - self.frames)//(self.crops))
+        # For multi-crop testing
+        step = int((len(video) - self.frames)//(self.time_crops))
 
         # Apply spatial transform to video frames, if any
         if self.spatial_transform is not None:
@@ -394,19 +401,20 @@ class KineticsUnified(torch.utils.data):
         # Permute the video tensor such that its dimensions: T C H W -> C T H W
         video = torch.stack(video, 0).permute(1, 0, 2, 3)
 
+        # This is related to X3D, where it wants multiple temporal crops.
         # Trim all videos in the batch to a maxium of self.frames and
         # temporal crop. . .?
         if step == 0:
-            # TODO [explain with comment here] Why range crops?
+            # TODO [explain with comment here] Why range time_crops?
             video = torch.stack(
-                [video[:, :self.frames, ...] for i in range(self.crops)],
+                [video[:, :self.frames, ...] for i in range(self.time_crops)],
                 0,
             )
         else:
             # TODO [explain with comment here]
             video = [
                 video[:, i:i + self.frames, ...]
-                for i in range(0, step * self.crops, step)
+                for i in range(0, step * self.time_crops, step)
             ]
 
             # For every video, ensure the frames are padded with zeros.
