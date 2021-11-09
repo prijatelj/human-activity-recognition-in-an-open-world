@@ -34,6 +34,44 @@ def my_video_loader(seq_path):
     return frames
 
 
+def status_video_frame_loader(path):
+    """Loads the frames of the video, logs video errors, returns status.
+    Args
+    ----
+    path : str
+        The filepath to the video whose frames are to be loaded.
+
+    Returns
+    -------
+    (list(np.array), str)
+        The list of video frames as images and a string representing the status
+        of the associated video frames as 'path_dne' for when the filepath does
+        not exist, 'bad_video' for when the video loaded improperly, and
+        'loaded' for when the video frames loaded as expected.
+    """
+    frames = []
+
+    # Extract the frames from the video
+    if os.path.exists(path):
+        cap = cv2.VideoCapture(path)
+        while(cap.isOpened()):
+            ret, frame = cap.read()
+            if ret == False:
+                break
+            # convert opencv image to PIL
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frames.append(frame)
+    else:
+        logging.warning('%s does not exist', path)
+        return [np.zeros((360, 640, 3)).astype(np.uint8)], 'path_dne'
+
+    if len(frames) == 0:
+        logging.warning("%s is busted", path)
+        return [np.zeros((360, 640, 3)).astype(np.uint8)], 'bad_video'
+
+    return frames, 'loaded'
+
+
 def pil_loader(path):
     with open(path, 'rb') as f:
         with Image.open(f) as img:
