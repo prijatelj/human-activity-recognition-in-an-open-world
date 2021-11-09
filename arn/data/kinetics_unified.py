@@ -187,17 +187,14 @@ class KineticsUnified(torch.utils.data):
     ----------
     data : pd.DataFrame
         A DataFrame whose rows represents each sample's annotation data.
-    annotation_path : str
-        Path to the annotations of the unified Kinetics datasets.
-    kinetics_class_map_path : str
-        This serves the role of older unique `class_labels`.
-    annotation_view : slice = None
-        The view of the annotation samples as seen by this dataset class. This
-        is either a slice, list of int indices, or bool array of len(data).
-
-        This may not be necessary in the Dataset itself?
+    kinetics_class_map : pd.DataFrame
+        A mapping of the unique classes in each Kinetics dataset to one
+        another. May include other mappings as well. This serves the role of
+        older unique `class_labels`.
     spatial_transform : torchvision.transforms.Compose = None
+        An image transformation that is applied to every video frame.
     video_loader : callable = status_video_frame_loader
+        A callable that given a path loads the video frames from disk.
     frame_step_size : int = 5
         The step size used to select frames from the video to represent that
         video in the sample. Named gamma tau in the X3D paper.
