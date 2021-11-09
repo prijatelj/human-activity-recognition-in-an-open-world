@@ -54,26 +54,44 @@ class KineticsRootDirs(object):
         end='time_end',
         ext='.mp4',
         zfill=6,
-        prioritize_first=True,
     ):
-        # Construct the image paths for every sample.
-        not_null = pd.isnull(df[[
-            'label_kinetics400',
-            'label_kinetics600',
-            'label_kinetics700_2020',
-        ]]) ^ 1
-        if prioritize_first:
-            return [
-                os.path.join(
-                    f'{self.kinetics400_dir}{os.path.sep}kinetics-dataset-400-{df.iloc[i].split_kinetics400}'
-                    if not_null.iloc[i]['label_kinetics400'] else
-                    f'{self.kinetics600_dir}{os.path.sep}{df.iloc[i].split_kinetics600}'
-                    if not_null.iloc[i]['label_kinetics600'] else
-                    f'{self.kinetics700_2020_dir}{os.path.sep}{df.iloc[i].split_kinetics700_2020}{os.path.sep}{df.iloc[i].label_kinetics700_2020}',
-                    f'{df.iloc[i][id]}_{df.iloc[i][start]:0{zfill}}_{df.iloc[i][end]:0{zfill}}{ext}',
-                )
-                for i in df.index
-            ]
+        """Create filepath for every video, preferring older versions first."""
+        # Save when each sample is present in each dataset
+        not_null = 1 ^ pd.isnull(df[[
+            'split_kinetics400',
+            'split_kinetics600',
+            'split_kinetics700_2020',
+        ]])
+
+        # Save when a Kinetics 600 sample is not in Kinetics 400
+        k600_not_in_400 = (1 ^ (
+            not_null['split_kinetics400']
+            & not_null['split_kinetics600']
+        )) & not_null['split_kinetics600']
+
+        # Save when a Kinetics 700_2020 sample is not in either prior Kinetics
+        k700_not_in_others = (1 ^ (
+            (not_null['split_kinetics400'] | not_null['split_kinetics600'])
+            & not_null['split_kinetics700_2020']
+        )) & not_null['split_kinetics700_2020']
+
+        return (
+            self.kinetics400_dir
+            + f'{os.path.sep}kinetics-dataset-400-'
+            + df["split_kinetics400"][not_null['split_kinetics400']]
+        ).append(
+            self.kinetics600_dir
+            + os.path.sep
+            + df['split_kinetics600'][k600_not_in_400]
+        ).append(
+            self.kinetics700_2020_dir
+            + os.path.sep
+            + df['split_kinetics700_2020'][k700_not_in_others]
+            + os.path.sep
+            + df['label_kinetics700_2020'][k700_not_in_others]
+        ) \
+        + df[id] + '_' + df[start].astype(str).str.zfill(zfill) \
+        + '_' + df[end].astype(str).str.zfill(zfill) + ext
 
 
 @dataclass
