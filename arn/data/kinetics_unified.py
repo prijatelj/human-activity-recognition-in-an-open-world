@@ -10,7 +10,6 @@ from PIL import Image
 import torch
 import torch.nn.functional as F
 import torchvision
-from tqdm import tqdm
 
 from arn.data.dataloder_utils import status_video_frame_loader
 
@@ -118,26 +117,59 @@ class KineticsSplitConfig(NamedTuple):
     NaN: bool = False
 
 
+class LabelConfig(NamedTuple):
+    """A Label Configuration that specifies the details about the labels.  This
+    configuration informs which samples are kept based on their labels and any
+    types of masking of labels that occur for certain types of labels.
+
+    Attributes
+    ----------
+    name : str
+        The name of the label set expressed by this label configuration.
+    known : list
+        The known labels whose symbols are used as is.
+    unknown : list
+        The labels that are kept but whose symbols are masked as `unknown`.
+    unlabeled : list
+        The labels that are kept but whose symbols are masked as `None`. This
+        differs from unknown because unknown may be used to represent samples
+        whose labels are certain to be different from the known labels.
+    """
+    name : str
+    known : list
+    unknown : list = None
+    unlabeled : list = None
+
+
 class KineticsUnifiedSubset(NamedTuple):
     kinetics400: KineticsSplitConfig = None
     kinetics600: KineticsSplitConfig = None
     kinetics700_2020: KineticsSplitConfig = None
+    labels : LabelConfig = None
 
 
 def update_subset_mask(df, mask, split_config, col):
     if split_config.train:
-        mask |= df[df['split_kinetics400'] == 'train']
+        mask |= df[df[col] == 'train']
     if split_config.validate:
-        mask |= df[df['split_kinetics400'] == 'validate']
+        mask |= df[df[col] == 'validate']
     if split_config.test:
-        mask |= df[df['split_kinetics400'] == 'test']
+        mask |= df[df[col] == 'test']
     if split_config.NaN:
-        mask |= np.isna(df['split_kinetics400'])
+        mask |= np.isna(df[col])
     return mask
 
 
 def subset_kinetics_unified(df, subset):
     """Provides a subset of the given DataFrame based on the subset object.
+    Args
+    ----
+    df : pd.DataFrame
+        Kinetics Unified DataFrame
+    subset : KineticsUnifiedSubset
+        The subset configuration that informs what to keep from the original
+        DataFrame.
+
     Note
     ----
     This is inefficient as it expects the DataFrame to be loaded into
@@ -173,6 +205,17 @@ def subset_kinetics_unified(df, subset):
             mask,
             subset.kinetics700_2020,
             'split_kinetics700_2020',
+        )
+
+    if subset.labels is not None:
+        # Update the mask to exlude all samples whose labels are not in config
+        mask &= np.logical_or.reduce(
+            [df[subset.labels.name] == label for label in
+                set(subset.labels.known)
+                + set(subset.labels.unknown)
+                + set(subset.labels.unlabeled)
+            ],
+            axis=1,
         )
 
     return df[mask]
@@ -259,15 +302,31 @@ class KineticsUnified(torch.utils.data):
             },
         )
 
-
         # Include subset feature to make this dataset instance pertain to
         # only a subset of all of the Kinetics unified data.
         if subset is not None:
             # Keep the parts of the dataframe specified by the subset config
             self.data = subset_kinetics_unified(self.data, subset)
 
-            # TODO add label subset logic for controlling when samples from
-            # certain labels get included in this dataset instance.
+            if subset.labels is not None:
+                # Mask the unknowns and unlabeled samples.
+                if subset.labels.unknowns is not None:
+                    self.data[subset.labels.name][np.logical_or.reduce(
+                        [
+                            self.data[subset.labels.name] == label
+                            for label in subset.labels.unknown
+                        ],
+                        axis=1,
+                    )] = 'unknown'
+
+                if subset.labels.unlabeled is not None:
+                    self.data[subset.labels.name][np.logical_or.reduce(
+                        [
+                            self.data[subset.labels.name] == label
+                            for label in subset.labels.unknown
+                        ],
+                        axis=1,
+                    )] = None
 
         if 'video_path' not in self.data:
             if self.image_dirs is None:
