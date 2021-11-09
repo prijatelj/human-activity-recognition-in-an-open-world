@@ -2,22 +2,17 @@
 from collections import namedtuple
 from dataclasses import dataclass, InitVar
 import os
+from typing import NamedTuple
 
+import numpy as np
 import pandas as pd
 from PIL import Image
 import torch
+import torch.nn.functional as F
 import torchvision
 from tqdm import tqdm
 
-from arn.data.dataloder_utils import (
-    load_value_file,
-    my_video_loader,
-    pil_loader,
-    get_default_image_loader,
-    video_loader,
-    get_default_video_loader,
-    get_class_labels,
-)
+from arn.data.dataloder_utils import status_video_frame_loader
 
 
 class KineticsRootDirs(object):
@@ -111,6 +106,78 @@ class KineticsRootDirs(object):
         + '_' + df[end].astype(str).str.zfill(zfill) + ext
 
 
+class BadVideoSample(NamedTuple):
+    index: int
+    video_path: str
+
+
+class KineticsSplitConfig(NamedTuple):
+    train: bool = False
+    validate: bool = False
+    test: bool = False
+    NaN: bool = False
+
+
+class KineticsUnifiedSubset(NamedTuple):
+    kinetics400: KineticsSplitConfig = None
+    kinetics600: KineticsSplitConfig = None
+    kinetics700_2020: KineticsSplitConfig = None
+
+
+def update_subset_mask(df, mask, split_config, col):
+    if split_config.train:
+        mask |= df[df['split_kinetics400'] == 'train']
+    if split_config.validate:
+        mask |= df[df['split_kinetics400'] == 'validate']
+    if split_config.test:
+        mask |= df[df['split_kinetics400'] == 'test']
+    if split_config.NaN:
+        mask |= np.isna(df['split_kinetics400'])
+    return mask
+
+
+def subset_kinetics_unified(df, subset):
+    """Provides a subset of the given DataFrame based on the subset object.
+    Note
+    ----
+    This is inefficient as it expects the DataFrame to be loaded into
+    memory already, and so if this is the case, then it may be better to use
+    Dask or some file reader to read the parts of the csv that are to be
+    kept, although this only matters for large csvs.
+    """
+    if not isinstance(subset, KineticsUnifiedSubset):
+        raise TypeError(' '.join([
+            'Expected subset to be `KineticsUnifiedSubset`, not',
+            f'{type(subset)}',
+        ]))
+
+    mask = pd.Series(False * len(df))
+
+    if subset.kinetics400 is not None:
+        mask = update_subset_mask(
+            df,
+            mask,
+            subset.kinetics400,
+            'split_kinetics400',
+        )
+    if subset.kinetics600 is not None:
+        mask = update_subset_mask(
+            df,
+            mask,
+            subset.kinetics600,
+            'split_kinetics600',
+        )
+    if subset.kinetics700_2020 is not None:
+        mask = update_subset_mask(
+            df,
+            mask,
+            subset.kinetics700_2020,
+            'split_kinetics700_2020',
+        )
+
+    return df[mask]
+
+
 @dataclass
 class KineticsUnified(torch.utils.data):
     """The dataset for the sample aligned Kinetics 400, 600, and 700_2020
@@ -118,7 +185,8 @@ class KineticsUnified(torch.utils.data):
 
     Attributes
     ----------
-    image_dirs : KineticsRootDirs
+    data : pd.DataFrame
+        A DataFrame whose rows represents each sample's annotation data.
     annotation_path : str
         Path to the annotations of the unified Kinetics datasets.
     kinetics_class_map_path : str
@@ -129,39 +197,37 @@ class KineticsUnified(torch.utils.data):
 
         This may not be necessary in the Dataset itself?
     spatial_transform : torchvision.transforms.Compose = None
-    temporal_transform : torchvision.transforms.Compose = None
-    video_loader : callable = get_default_video_loader
-    gamma_tau : int = 5
-        Artifact naming from the X3D.
+    video_loader : callable = status_video_frame_loader
+    frame_step_size : int = 5
+        The step size used to select frames from the video to represent that
+        video in the sample. Named gamma tau in the X3D paper.
     crops : int = 10
+        The total temporal crops of each video.
     randomize_spatial_params : bool = True
+        If True, randomizes the spatial transforms parameters.
     sample_tuple : namedtuple
         A namedtuple of the Kinetics Unified csv column names and serves to
         contain a single sample (row) of the DataFrame with the loaded video
-        frames and labels.
-    target_label : str = 'KineticsUnifiedPref700'
-        The column which serves as the primary target label.
-
-        This is probably not needed.
+        frames and annotations.
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str]
     image_dirs : KineticsRootDirs = None
-    annotation_view : torch.Tensor = None
+    subset :  InitVar[KineticsUnifiedSubset] = None
     spatial_transform : torchvision.transforms.Compose = None
-    temporal_transform : torchvision.transforms.Compose = None
-    video_loader : callable = get_default_video_loader
-    gamma_tau : int = 5
+    video_loader : callable = status_video_frame_loader
+    frame_step_size : int = 5
     crops : int = 10
     randomize_spatial_params : bool = True
-    target_label : str = 'KineticsUnifiedPref700'
     collect_bad_samples : InitVar[bool] = False
-    bad_samples : list(str) = None
+    corrupt_samples : list(BadVideoSample) = None
+    missing_samples : list(BadVideoSample) = None
 
     def __post_init__(
         self,
         annotation_path,
         kinetics_class_map,
+        subset,
         collect_bad_samples,
     ):
         if isinstance(kinetics_class_map, str):
@@ -196,6 +262,16 @@ class KineticsUnified(torch.utils.data):
             },
         )
 
+
+        # Include subset feature to make this dataset instance pertain to
+        # only a subset of all of the Kinetics unified data.
+        if subset is not None:
+            # Keep the parts of the dataframe specified by the subset config
+            self.data = subset_kinetics_unified(self.data, subset)
+
+            # TODO add label subset logic for controlling when samples from
+            # certain labels get included in this dataset instance.
+
         if 'video_path' not in self.data:
             if self.image_dirs is None:
                 raise ValueError(' '.join([
@@ -210,11 +286,11 @@ class KineticsUnified(torch.utils.data):
         )
 
         if collect_bad_samples:
-            self.bad_samples = []
+            self.corrupt_videos = []
+            self.missing_videos = []
 
     def __len__(self):
-        # TODO handle len of slice, sum of boolean array, len of int indices
-        return len(self.data_index)
+        return len(self.data)
 
     def __get_item__(self, index):
         """For the given index, load the corresponding sample video frames and
@@ -227,15 +303,71 @@ class KineticsUnified(torch.utils.data):
             DataFrame, but where the video frames are included in the beginning
             index as a torch.Tensor.
         """
-        # TODO given the index, obtain the sample's row from the DataFrame.
+        # Given the index, obtain the sample's row from the DataFrame.
+        sample = self.data[index]
 
-        # TODO Load the video
+        # Load the video
+        video, status = self.video_loader(sample['video_path'])
 
-        # TODO Apply spatial transform to video frames, if any
+        if self.collect_bad_samples:
+            if status == 'bad_video':
+                self.corrupt_videos.append(BadVideoSample(
+                    index,
+                    sample['video_path'],
+                ))
+            elif status == 'path_dne':
+                self.missing_videos.append(BadVideoSample(
+                    index,
+                    sample['video_path'],
+                ))
 
-        # TODO Apply temporal transform to video frames, if any
+        # Get the representative frames of this video sample
+        video = [
+            video[i] for i in range(0, len(video))[::self.frame_step_size]
+        ]
+        step = int((len(video) - self.frames)//(self.crops))
 
-        return self.sample_tuple(video_frames, *row)
+        # Apply spatial transform to video frames, if any
+        if self.spatial_transform is not None:
+            if self.randomize_spatial_params:
+                self.spatial_transform.randomize_parameters()
+            video = [
+                self.spatial_transform(Image.fromarray(img)) for img in video
+            ]
+
+        # Permute the video tensor such that its dimensions: T C H W -> C T H W
+        video = torch.stack(video, 0).permute(1, 0, 2, 3)
+
+        # Trim all videos in the batch to a maxium of self.frames and
+        # temporal crop. . .?
+        if step == 0:
+            # TODO [explain with comment here] Why range crops?
+            video = torch.stack(
+                [video[:, :self.frames, ...] for i in range(self.crops)],
+                0,
+            )
+        else:
+            # TODO [explain with comment here]
+            video = [
+                video[:, i:i + self.frames, ...]
+                for i in range(0, step * self.crops, step)
+            ]
+
+            # For every video, ensure the frames are padded with zeros.
+            for i, frame in enumerate(video):
+                if frame.shape[1] != self.frames:
+                    # Padding in torch is absolutely bonkers, lol this pads
+                    # dimension 1
+                    video[i] = F.pad(
+                        frame,
+                        (0, 0, 0, 0, 0, self.frames - frame.shape[1]),
+                        "constant",
+                        0,
+                    )
+
+            video = torch.stack(video, 0)
+
+        return self.sample_tuple(video, *sample)
 
     #def __del__(self):
     #    """Deconstructor to close any open files upon deletion."""
