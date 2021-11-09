@@ -94,12 +94,13 @@ def main(
     model_repr_dim=512,
     templates=None,
     batch_size=1,
-    sample_duration=300,
     gamma_tau=1,
     crops=1,
     frames=300,
     unified_split=None,
     feature_extract_outpath=None,
+    start_idx=None,
+    end_idx=None,
 ):
     if image_path is None and label_path is None and pred_path is None:
         raise ValueError(
@@ -143,7 +144,9 @@ def main(
             crops=crops,
             randomize_spatial_params=False,
         )
-    else: # Use unified kinetics dataloader
+    elif unified_split.lower() == 'par': # Use PAR dataloader
+        raise NotImplementedError()
+    elif isinstance(unified_split, str): # Use unified kinetics dataloader
         dataset = Kinetics_Unified(
             root,
             anno,
@@ -151,11 +154,15 @@ def main(
             unified_split,
             spatial_transform = spatial,
             target_transform = ClassLabel(),
-            sample_duration=sample_duration,
+            sample_duration=frames,
             gamma_tau=gamma_tau,
             crops=crops,
             randomize_spatial_params=False,
             outpath=feature_extract_outpath,
+        )
+    else:
+        raise TypeError(
+            'Unexpected type for `unified_split`: {type(unified_split)}',
         )
 
     dataloader = torch.utils.data.DataLoader(
@@ -323,8 +330,13 @@ if __name__ == '__main__':
         dest='load_encoded_labels',
     )
 
+    parser.add_argument(
+        '--unified_split',
+        default=None,
+        help='If given, the dataloader is Kinetics Unified, unless "par".',
+    )
+
     # TODO for partial/batch completion of this process when VRAM not enough
-    """
     parser.add_argument(
         '--start_idx',
         default=None,
@@ -337,20 +349,12 @@ if __name__ == '__main__':
         type=int,
         help='The exclusive index of data to end process at',
     )
-    """
-
 
     args = parser.parse_args()
 
-    # set_batch_size
-    BS = 1 # 6
-    BS_UPSCALE = 2 # TODO What is this for and why???? X3D artifiact?
-
-    #targets = ["/media/sgrieggs/pageparsing/kinetics-dataset-400-test/"]
+    # TODO What is this for and why???? X3D artifiact?
 
     # TODO Pay attention to main param defaults and set shuffle to False
-
-    #for x in targets:
     main(
         image_path=args.image_path,
         label_path=args.label_path,
@@ -362,4 +366,7 @@ if __name__ == '__main__':
         class_labels=args.kinetics_class_labels,
         load_encoded_labels=args.load_encoded_labels,
         load_encoded_images=args.load_encoded_images,
+        unified_split=args.unified_split,
+        start_idx=args.start_idx,
+        end_idx=args.end_idx,
     )
