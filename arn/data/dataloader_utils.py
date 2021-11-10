@@ -53,7 +53,7 @@ def status_video_frame_loader(path):
     frames = []
 
     # Extract the frames from the video
-    if os.path.exists(path):
+    if os.path.exists(path): # NOTE may have to worry about >1 batch sizes.
         cap = cv2.VideoCapture(path)
         while(cap.isOpened()):
             ret, frame = cap.read()
