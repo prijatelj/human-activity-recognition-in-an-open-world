@@ -1,4 +1,5 @@
 """Consolidating the reused data functions."""
+from enum import Enum
 import os
 import functools
 import logging
@@ -7,6 +8,13 @@ import cv2
 import numpy as np
 import torchvision
 from PIL import Image
+
+
+class VideoStatus(Enum):
+    """The different post-loading status of videos."""
+    LOADED = 0  # 'loaded'
+    MISSING = 1 # 'missing'
+    CORRUPT = 2 # 'bad_video'
 
 
 def load_value_file(file_path):
@@ -44,7 +52,7 @@ def status_video_frame_loader(path):
 
     Returns
     -------
-    (list(np.array), str)
+    (list(np.array), VideoStatus)
         The list of video frames as images and a string representing the status
         of the associated video frames as 'path_dne' for when the filepath does
         not exist, 'bad_video' for when the video loaded improperly, and
@@ -64,13 +72,13 @@ def status_video_frame_loader(path):
             frames.append(frame)
     else:
         logging.warning('%s does not exist', path)
-        return [np.zeros((360, 640, 3)).astype(np.uint8)], 'path_dne'
+        return [np.zeros((360, 640, 3)).astype(np.uint8)], VideoStatus.MISSING
 
     if len(frames) == 0:
         logging.warning("%s is busted", path)
-        return [np.zeros((360, 640, 3)).astype(np.uint8)], 'bad_video'
+        return [np.zeros((360, 640, 3)).astype(np.uint8)], VideoStatus.CORRUPT
 
-    return frames, 'loaded'
+    return frames, VideoStatus.LOADED
 
 
 def pil_loader(path):
