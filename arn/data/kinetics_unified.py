@@ -312,12 +312,12 @@ class KineticsUnified(torch.utils.data.Dataset):
             # Keep the parts of the dataframe specified by the subset config
             self.data = subset_kinetics_unified(self.data, subset)
 
-            # Label Config determines the data column to use for labels.
-            # This way, if any masking occurs, it does not change the source
-            # the dataframe column which can then be used for evaluation.
-            self.data[['labels']] = self.data[[subset.labels.name]]
-
             if subset.labels is not None:
+                # Label Config determines the data column to use for labels.
+                # This way, if any masking occurs, it does not change the
+                # source the dataframe column which can then be used for eval.
+                self.data[['labels']] = self.data[[subset.labels.name]]
+
                 # Mask the unknowns and unlabeled samples.
                 if subset.labels.unknowns is not None: # Mask the unknowns
                     self.data[subset.labels.name][np.logical_or.reduce(
