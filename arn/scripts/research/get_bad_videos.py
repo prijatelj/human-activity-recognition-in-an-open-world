@@ -12,7 +12,7 @@ from arn.data.kinetics_unified import (
 )
 
 from arn.scripts.research import arg_utils
-from arn.scripts.research.clip.kinetics_clup_img_encode import \
+from arn.scripts.research.clip.kinetics_clip_img_encode import \
     clip_transform_image_frames
 
 from exputils.io import create_filepath, parse_args
