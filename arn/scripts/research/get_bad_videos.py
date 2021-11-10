@@ -1,5 +1,6 @@
 """A Script to save a list of bad videos, whether missing or corrupted."""
 import os
+import logging
 
 import torch
 from tqdm import tqdm
@@ -41,6 +42,8 @@ def main():
         args.subset,
         collect_bad_samples=True,
     )
+
+    logging.info('len(kuni) = %d', len(kuni))
 
     #"""
     dataloader = torch.utils.data.DataLoader(
