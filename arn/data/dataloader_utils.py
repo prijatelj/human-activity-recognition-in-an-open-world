@@ -1,6 +1,7 @@
 """Consolidating the reused data functions."""
 import os
 import functools
+import logging
 
 import cv2
 import numpy as np
