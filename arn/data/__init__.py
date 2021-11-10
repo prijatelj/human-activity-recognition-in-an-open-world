@@ -5,6 +5,8 @@ __all__ = [
     'kinetics_combined',
     'par_data',
     'dataloader_utils',
+    'kinetics_unified',
+    'par',
 ]
 
 for module in __all__:
