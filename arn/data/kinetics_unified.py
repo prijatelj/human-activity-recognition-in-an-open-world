@@ -3,7 +3,6 @@ from collections import namedtuple
 from dataclasses import dataclass, InitVar
 from functools import partial
 import os
-import re
 from typing import NamedTuple
 
 import numpy as np
@@ -116,36 +115,36 @@ def get_path(
     # earlier versions with those that are available and working in later
     # Kinetics versions.
 
-    dset_num_regex = re.compile('split_kinetics(?P<dnum>.*)')
-
     # Create the filepaths in order of preference of source dataset.
     df_order = []
     for i, col in enumerate(order):
-        dset_num = dset_num_regex.findall(col)[0]
-
-        if i == 0:
+        if i == 0: # Save a Kinetics sample if not null, and start init mask_or
             mask_or = not_null[col].copy()
             mask = mask_or
+        elif i == 1:
+            # mask_or is already set at idx 1 from idx 0. No need to update yet
+            mask = (1 ^ (mask_or & not_null[col])) & not_null[col]
         else:
             # Save a Kinetics sample if not in other Kinetics (mask_or)
-            mask_or |= not_null[col]
+            mask_or |= not_null[order[i-1]]
             # AND(NAND(other_kinetics, not_null), not_null)
             mask = (1 ^ (mask_or & not_null[col])) & not_null[col]
 
-        if dset_num == '400':
+        # Check which dataset this is and treat its path accordingly.. hardcode
+        if '400' in col:
             df_order.append(
                 root_dirs[i]
                 + os.path.sep
                 + 'kinetics-dataset-400-'
                 + df[col].replace('validate', 'val')[mask],
             )
-        elif dset_num == '600':
+        elif '600' in col:
             df_order.append(
                 root_dirs[i]
                 + os.path.sep
                 + df[col][mask]
             )
-        elif dset_num == '700_2020':
+        elif '700_2020' in col:
             df_order.append(
                 root_dirs[i]
                 + os.path.sep
