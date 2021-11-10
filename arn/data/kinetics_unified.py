@@ -321,12 +321,18 @@ class KineticsUnified(torch.utils.data.Dataset):
     corrupt_videos : list = None
     missing_videos : list = None
     unlabeled_token : str = None
+    filepath_order : InitVar[list] = [
+        'split_kinetics400',
+        'split_kinetics600',
+        'split_kinteics700_2020',
+    ]
 
     def __post_init__(
         self,
         annotation_path,
         kinetics_class_map,
         subset,
+        filepath_order,
     ):
         if isinstance(kinetics_class_map, str):
             ext = os.path.splitext(kinetics_class_map)[-1]
@@ -403,7 +409,10 @@ class KineticsUnified(torch.utils.data.Dataset):
                     '`video_path` column must be in annotation data or',
                     'video_dirs is given to generate the video paths.',
                 ]))
-            self.data['video_path'] = self.video_dirs.get_path(self.data)
+            self.data['video_path'] = self.video_dirs.get_path(
+                self.data,
+                order=filepath_order,
+            )
 
         # TODO when multiprocessing with num_workers for torch DataLoader this
         # fails to pickle.
