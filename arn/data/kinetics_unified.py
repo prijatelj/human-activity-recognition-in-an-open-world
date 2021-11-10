@@ -1,6 +1,7 @@
 """Dataset for the sample aligned Kinetics 400, 600, and 700_2020 datasets."""
 from collections import namedtuple
 from dataclasses import dataclass, InitVar
+from functools import partial
 import os
 from typing import NamedTuple
 
@@ -372,6 +373,9 @@ class KineticsUnified(torch.utils.data.Dataset):
         #    ['video'] + self.data.columns.tolist(),
         #)
 
+        # Create an index column for ease of accessing labels from DataLoader
+        self.data['sample_index'] = self.data.index
+
         if collect_bad_samples:
             self.collect_bad_samples = collect_bad_samples
             self.corrupt_videos = []
@@ -457,10 +461,32 @@ class KineticsUnified(torch.utils.data.Dataset):
             video = torch.stack(video, 0)
 
         #return self.sample_tuple(video, *sample)
-        return video, sample.to_dict()
+        #return video, sample.to_dict()
+        return video, sample['sample_index']
 
     #def __del__(self):
     #    """Deconstructor to close any open files upon deletion."""
     #    self.data.close()
 
-# TODO collate function ????
+    def get_collate_func(self, label=None):
+        if label is None:
+            if self.subset is None:
+                raise ValueError(
+                    'Must provide `label` arg if no self.subset.'
+                )
+            if self.subset.label_config is None:
+                raise ValueError(
+                    'Must provide `label` arg if no self.label_config.'
+                )
+            label = self.subset.label_config.name
+
+        return partial(KineticsUnified.collate_kinetics_unified, label=label)
+
+    @staticmethod
+    def collate_kinetics_unified(batch, label):
+        """Collate function for the dataset in a torch DataLoader."""
+        # TODO collate function ????
+
+        # TODO Ensure all videos are the same dimensions in the tensor.
+
+        return video, sample.to_dict()
