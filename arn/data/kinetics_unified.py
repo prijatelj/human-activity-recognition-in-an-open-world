@@ -3,6 +3,7 @@ from collections import namedtuple
 from dataclasses import dataclass, InitVar
 from functools import partial
 import os
+import re
 from typing import NamedTuple
 
 import numpy as np
@@ -46,7 +47,7 @@ class KineticsRootDirs(object):
     def get_path(
         self,
         df,
-        id='youtube_id',
+        youtube_id='youtube_id',
         start='time_start',
         end='time_end',
         ext='.mp4',
@@ -56,6 +57,8 @@ class KineticsRootDirs(object):
             'split_kinetics600',
             'split_kinteics700_2020',
         ],
+        #split_prefix=['kinetics-dataset-400-', None, None],
+        #split_suffix=[None, None, ''],
     ):
         """Create filepath for every video, preferring older versions first.
         Args
@@ -67,55 +70,84 @@ class KineticsRootDirs(object):
             video paths.
 
             Currently NOT implemented.
+        split_prefix : list(str)
+            NOT Implemented. An attempt at generalizaiton postponed.
+            The prefix to add to the beginning of the Kinetics split portion of
+            the data directory.
+        split_suffix : list(str)
+            NOT Implemented. An attempt at generalizaiton postponed.
+            The suffix to add to the end of the Kinetics split portion of the
+            data directory.
 
         Returns
         -------
         pd.Series
             A Pandas Series of the filepaths to each sample's video where the
             earlier Kinetics datasets' videos are prioritized.
+
+        Note
+        ----
+        This is definitely hardcoded towards the specific Kinetics Unified csv
+        where its columns are expected to be a certain way for this to
+        function, e.g. the split columns all are expected to follow the
+        pattern: 'split_kinetics[dset_num]'.
         """
         # Save when each sample is present in each dataset
-        not_null = 1 ^ pd.isnull(df[[
-            'split_kinetics400',
-            'split_kinetics600',
-            'split_kinetics700_2020',
-        ]])
-
-        # Save when a Kinetics 600 sample is not in Kinetics 400
-        k600_not_in_400 = (1 ^ (
-            not_null['split_kinetics400']
-            & not_null['split_kinetics600']
-        )) & not_null['split_kinetics600']
-
-        # Save when a Kinetics 700_2020 sample is not in either prior Kinetics
-        k700_not_in_others = (1 ^ (
-            (not_null['split_kinetics400'] | not_null['split_kinetics600'])
-            & not_null['split_kinetics700_2020']
-        )) & not_null['split_kinetics700_2020']
+        not_null = 1 ^ pd.isnull(df[[order]])
 
         # TODO include support for replacing videos that were corrupted in
         # earlier versions with those that are available and working in later
         # Kinetics versions.
 
-        return ( # Note 'kinetics-dataset-400-' is a prefix. Perhaps automate?
-            self.kinetics400_dir
-            + f'{os.path.sep}kinetics-dataset-400-'
-            + df["split_kinetics400"].replace('validate', 'val')[
-                not_null['split_kinetics400']
-            ]
-        ).append(
-            self.kinetics600_dir
-            + os.path.sep
-            + df['split_kinetics600'][k600_not_in_400]
-        ).append(
-            self.kinetics700_2020_dir
-            + os.path.sep
-            + df['split_kinetics700_2020'][k700_not_in_others]
-            + os.path.sep
-            + df['label_kinetics700_2020'][k700_not_in_others]
-        ) \
-        + os.path.sep + df[id] + '_' + df[start].astype(str).str.zfill(zfill) \
-        + '_' + df[end].astype(str).str.zfill(zfill) + ext
+        dset_num_regex = re.compile('split_kinetics(?P<dnum>.*)')
+
+        # Create the filepaths in order of preference of source dataset.
+        df_order = []
+        for i, col in enumerate(order):
+            dset_num = dset_num_regex.findall(col)[0]
+
+            if i == 0:
+                mask_or = not_null[col]
+                mask = mask_or
+            else:
+                # Save a Kinetics sample if not in other Kinetics (mask_or)
+                mask_or |= not_null[col]
+                # AND(NAND(other_kinetics, not_null), not_null)
+                mask = (1 ^ (mask_or & not_null[col])) & not_null[col]
+
+            if dset_num == '400':
+                df_order.append(
+                    self.kinetics400_dir
+                    + os.path.sep
+                    + 'kinetics-dataset-400-'
+                    + df[col].replace('validate', 'val')[mask],
+                )
+            elif dset_num == '600':
+                df_order.append(
+                    self.kinetics600_dir
+                    + os.path.sep
+                    + df[col][mask]
+                )
+            elif dset_num == '700_2020':
+                df_order.append(
+                    self.kinetics700_2020_dir
+                    + os.path.sep
+                    + df[col][mask]
+                    + os.path.sep
+                    + df[col.replace('split', 'label')][mask]
+                )
+
+        video_filename = (
+            os.path.sep
+            + df[youtube_id]
+            + '_'
+            + df[start].astype(str).str.zfill(zfill)
+            + '_'
+            + df[end].astype(str).str.zfill(zfill)
+            + ext
+        )
+
+        return pd.concat(df_order) + video_filename
 
 
 class KineticsSplitConfig(NamedTuple):
