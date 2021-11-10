@@ -136,6 +136,14 @@ class LabelConfig(NamedTuple):
         The labels that are kept but whose symbols are masked as `None`. This
         differs from unknown because unknown may be used to represent samples
         whose labels are certain to be different from the known labels.
+
+    Note
+    ----
+    Currently, known, unknown, and unlabeled may all share labels, which is
+    undesirable and checking for this case would be good to avoid user error.
+    Otherwise, known labels in unknown or unlabeled will be masked in
+    KineticsUnified with unknown masking taking precedence over unlabeled
+    masking.
     """
     name : str
     known : list
