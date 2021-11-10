@@ -266,8 +266,8 @@ class KineticsUnified(torch.utils.data.Dataset):
     time_crops : int = 1
     randomize_spatial_params : bool = False
     collect_bad_samples : InitVar[bool] = False
-    corrupt_samples : list = None
-    missing_samples : list = None
+    corrupt_videos : list = None
+    missing_videos : list = None
 
     def __post_init__(
         self,
