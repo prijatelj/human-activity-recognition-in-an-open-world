@@ -209,14 +209,18 @@ def subset_kinetics_unified(df, subset):
             'split_kinetics700_2020',
         )
 
+    label_set = set()
+    if subset.labels.known is not None:
+        label_set += set(subset.labels.known)
+    if subset.labels.unknown is not None:
+        label_set += set(subset.labels.unknown)
+    if subset.labels.unlabeled is not None:
+        label_set += set(subset.labels.unlabeled)
+
     if subset.labels is not None:
         # Update the mask to exlude all samples whose labels are not in config
         mask &= np.logical_or.reduce(
-            [df[subset.labels.name] == label for label in
-                set(subset.labels.known)
-                + set(subset.labels.unknown)
-                + set(subset.labels.unlabeled)
-            ],
+            [df[subset.labels.name] == label for label in label_set],
             axis=1,
         )
 
