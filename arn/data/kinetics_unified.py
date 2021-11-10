@@ -450,6 +450,7 @@ class KineticsUnified(torch.utils.data.Dataset):
 
             video = torch.stack(video, 0)
 
+        # TODO consider returning the label token? or leave this collate_fn?
         if self.return_sample_status: # Returns the status code at end
             return video, sample['sample_index'], status.value
         return video, sample['sample_index']
