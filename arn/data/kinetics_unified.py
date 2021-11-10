@@ -55,7 +55,7 @@ class KineticsRootDirs(object):
         order=[
             'split_kinetics400',
             'split_kinetics600',
-            'split_kinteics700_2020',
+            'split_kinetics700_2020',
         ],
         #split_prefix=['kinetics-dataset-400-', None, None],
         #split_suffix=[None, None, ''],
@@ -324,7 +324,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     filepath_order : InitVar[list] = [
         'split_kinetics400',
         'split_kinetics600',
-        'split_kinteics700_2020',
+        'split_kinetics700_2020',
     ]
 
     def __post_init__(
