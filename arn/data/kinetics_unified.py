@@ -11,7 +11,7 @@ import torch
 import torch.nn.functional as F
 import torchvision
 
-from arn.data.dataloder_utils import status_video_frame_loader
+from arn.data.dataloader_utils import status_video_frame_loader
 
 
 class KineticsRootDirs(object):

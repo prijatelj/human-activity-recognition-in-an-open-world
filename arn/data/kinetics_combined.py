@@ -8,7 +8,7 @@ import torch.utils.data as data
 from PIL import Image
 from tqdm import tqdm
 
-from arn.data.dataloder_utils import (
+from arn.data.dataloader_utils import (
     load_value_file,
     my_video_loader,
     pil_loader,
