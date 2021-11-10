@@ -457,7 +457,7 @@ class KineticsUnified(torch.utils.data.Dataset):
             video = torch.stack(video, 0)
 
         #return self.sample_tuple(video, *sample)
-        return video, sample
+        return video, sample.to_dict()
 
     #def __del__(self):
     #    """Deconstructor to close any open files upon deletion."""
