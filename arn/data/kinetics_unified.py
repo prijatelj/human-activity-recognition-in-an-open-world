@@ -51,12 +51,22 @@ class KineticsRootDirs(object):
         end='time_end',
         ext='.mp4',
         zfill=6,
+        order=[
+            'split_kinetics400',
+            'split_kinetics600',
+            'split_kinteics700_2020',
+        ],
     ):
         """Create filepath for every video, preferring older versions first.
         Args
         ----
         df : pd.DataFrame
             The Kinetics Unified DataFrame.
+        order : list(str)
+            Determines the order of which columns are prioritized for getting
+            video paths.
+
+            Currently NOT implemented.
 
         Returns
         -------
@@ -87,7 +97,7 @@ class KineticsRootDirs(object):
         # earlier versions with those that are available and working in later
         # Kinetics versions.
 
-        return (
+        return ( # Note 'kinetics-dataset-400-' is a prefix. Perhaps automate?
             self.kinetics400_dir
             + f'{os.path.sep}kinetics-dataset-400-'
             + df["split_kinetics400"].replace('validate', 'val')[
