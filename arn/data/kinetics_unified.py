@@ -89,7 +89,9 @@ class KineticsRootDirs(object):
         return (
             self.kinetics400_dir
             + f'{os.path.sep}kinetics-dataset-400-'
-            + df["split_kinetics400"][not_null['split_kinetics400']]
+            + df["split_kinetics400"].replace('validate', 'val')[
+                not_null['split_kinetics400']
+            ]
         ).append(
             self.kinetics600_dir
             + os.path.sep
