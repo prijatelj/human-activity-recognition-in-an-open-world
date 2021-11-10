@@ -365,10 +365,12 @@ class KineticsUnified(torch.utils.data.Dataset):
                 ]))
             self.data['video_path'] = self.video_dirs.get_path(self.data)
 
-        self.sample_tuple = namedtuple(
-            'kinetics_unified_sample',
-            ['video'] + self.data.columns.tolist(),
-        )
+        # TODO when multiprocessing with num_workers for torch DataLoader this
+        # fails to pickle.
+        #self.sample_tuple = namedtuple(
+        #    'kinetics_unified_sample',
+        #    ['video'] + self.data.columns.tolist(),
+        #)
 
         if collect_bad_samples:
             self.collect_bad_samples = collect_bad_samples
@@ -454,7 +456,8 @@ class KineticsUnified(torch.utils.data.Dataset):
 
             video = torch.stack(video, 0)
 
-        return self.sample_tuple(video, *sample)
+        #return self.sample_tuple(video, *sample)
+        return video, sample
 
     #def __del__(self):
     #    """Deconstructor to close any open files upon deletion."""
