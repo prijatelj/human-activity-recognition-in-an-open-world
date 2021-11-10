@@ -253,7 +253,7 @@ class KineticsUnified(torch.utils.data):
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str]
-    image_dirs : KineticsRootDirs = None
+    video_dirs : KineticsRootDirs = None
     subset :  InitVar[KineticsUnifiedSubset] = None
     spatial_transform : torchvision.transforms.Compose = None
     video_loader : callable = status_video_frame_loader
@@ -335,12 +335,12 @@ class KineticsUnified(torch.utils.data):
                     )] = None
 
         if 'video_path' not in self.data:
-            if self.image_dirs is None:
+            if self.video_dirs is None:
                 raise ValueError(' '.join([
                     '`video_path` column must be in annotation data or',
-                    'image_dirs is given to generate the video paths.',
+                    'video_dirs is given to generate the video paths.',
                 ]))
-            self.data['video_path'] = self.image_dirs.get_path(self.data)
+            self.data['video_path'] = self.video_dirs.get_path(self.data)
 
         self.sample_tuple = namedtuple(
             'kinetics_unified_sample',
