@@ -44,110 +44,127 @@ class KineticsRootDirs(object):
             kinetics700_2020_dir,
         )
 
-    def get_path(
-        self,
-        df,
-        youtube_id='youtube_id',
-        start='time_start',
-        end='time_end',
-        ext='.mp4',
-        zfill=6,
-        order=[
-            'split_kinetics400',
-            'split_kinetics600',
-            'split_kinetics700_2020',
-        ],
-        #split_prefix=['kinetics-dataset-400-', None, None],
-        #split_suffix=[None, None, ''],
-    ):
-        """Create filepath for every video, preference based on orderd datasets
+    def __len__(self):
+        """Hotpatch length for indexing."""
+        return 3
 
-        Args
-        ----
-        df : pd.DataFrame
-            The Kinetics Unified DataFrame.
-        order : list(str)
-            Determines the order of which columns are prioritized for getting
-            video paths. Default is to prefer earlier Kinetics datasets, based
-            on release date.
-        split_prefix : list(str)
-            NOT Implemented. An attempt at generalizaiton postponed.
-            The prefix to add to the beginning of the Kinetics split portion of
-            the data directory.
-        split_suffix : list(str)
-            NOT Implemented. An attempt at generalizaiton postponed.
-            The suffix to add to the end of the Kinetics split portion of the
-            data directory.
+    def __getitem__(self, index):
+        """Hotpatch getitem for indexing."""
+        return [
+            self.kinetics400_dir,
+            self.kinetics600_dir,
+            self.kinetics700_2020_dir,
+        ][index]
 
-        Returns
-        -------
-        pd.Series
-            A Pandas Series of the filepaths to each sample's video where the
-            earlier Kinetics datasets' videos are prioritized.
 
-        Note
-        ----
-        This is definitely hardcoded towards the specific Kinetics Unified csv
-        where its columns are expected to be a certain way for this to
-        function, e.g. the split columns all are expected to follow the
-        pattern: 'split_kinetics[dset_num]'.
-        """
-        # Save when each sample is present in each dataset
-        not_null = 1 ^ pd.isnull(df[order])
+def get_path(
+    df,
+    root_dirs,
+    order=[
+        'split_kinetics400',
+        'split_kinetics600',
+        'split_kinetics700_2020',
+    ],
+    youtube_id='youtube_id',
+    start='time_start',
+    end='time_end',
+    ext='.mp4',
+    zfill=6,
+    #split_prefix=['kinetics-dataset-400-', None, None],
+    #split_suffix=[None, None, ''],
+):
+    """Create filepath for every video, preference based on orderd datasets
 
-        # TODO include support for replacing videos that were corrupted in
-        # earlier versions with those that are available and working in later
-        # Kinetics versions.
+    Args
+    ----
+    df : pd.DataFrame
+        The Kinetics Unified DataFrame.
+    root_dirs : KineticsRootDirs | iterable | list | tuple
+        Must have same length as order. If KineticsRootDirs, always ordered
+        same and always 3, so have to mod it before putting in here if you want
+        diferent order or less than 3.
+    order : list(str)
+        Determines the order of which columns are prioritized for getting
+        video paths. Default is to prefer earlier Kinetics datasets, based
+        on release date.
+    split_prefix : list(str)
+        NOT Implemented. An attempt at generalizaiton postponed.
+        The prefix to add to the beginning of the Kinetics split portion of
+        the data directory.
+    split_suffix : list(str)
+        NOT Implemented. An attempt at generalizaiton postponed.
+        The suffix to add to the end of the Kinetics split portion of the
+        data directory.
 
-        dset_num_regex = re.compile('split_kinetics(?P<dnum>.*)')
+    Returns
+    -------
+    pd.Series
+        A Pandas Series of the filepaths to each sample's video where the
+        earlier Kinetics datasets' videos are prioritized.
 
-        # Create the filepaths in order of preference of source dataset.
-        df_order = []
-        for i, col in enumerate(order):
-            dset_num = dset_num_regex.findall(col)[0]
+    Note
+    ----
+    This is definitely hardcoded towards the specific Kinetics Unified csv
+    where its columns are expected to be a certain way for this to
+    function, e.g. the split columns all are expected to follow the
+    pattern: 'split_kinetics[dset_num]'.
+    """
+    # Save when each sample is present in each dataset
+    not_null = 1 ^ pd.isnull(df[order])
 
-            if i == 0:
-                mask_or = not_null[col].copy()
-                mask = mask_or
-            else:
-                # Save a Kinetics sample if not in other Kinetics (mask_or)
-                mask_or |= not_null[col]
-                # AND(NAND(other_kinetics, not_null), not_null)
-                mask = (1 ^ (mask_or & not_null[col])) & not_null[col]
+    # TODO include support for replacing videos that were corrupted in
+    # earlier versions with those that are available and working in later
+    # Kinetics versions.
 
-            if dset_num == '400':
-                df_order.append(
-                    self.kinetics400_dir
-                    + os.path.sep
-                    + 'kinetics-dataset-400-'
-                    + df[col].replace('validate', 'val')[mask],
-                )
-            elif dset_num == '600':
-                df_order.append(
-                    self.kinetics600_dir
-                    + os.path.sep
-                    + df[col][mask]
-                )
-            elif dset_num == '700_2020':
-                df_order.append(
-                    self.kinetics700_2020_dir
-                    + os.path.sep
-                    + df[col][mask]
-                    + os.path.sep
-                    + df[col.replace('split', 'label')][mask]
-                )
+    dset_num_regex = re.compile('split_kinetics(?P<dnum>.*)')
 
-        video_filename = (
-            os.path.sep
-            + df[youtube_id]
-            + '_'
-            + df[start].astype(str).str.zfill(zfill)
-            + '_'
-            + df[end].astype(str).str.zfill(zfill)
-            + ext
-        )
+    # Create the filepaths in order of preference of source dataset.
+    df_order = []
+    for i, col in enumerate(order):
+        dset_num = dset_num_regex.findall(col)[0]
 
-        return pd.concat(df_order) + video_filename
+        if i == 0:
+            mask_or = not_null[col].copy()
+            mask = mask_or
+        else:
+            # Save a Kinetics sample if not in other Kinetics (mask_or)
+            mask_or |= not_null[col]
+            # AND(NAND(other_kinetics, not_null), not_null)
+            mask = (1 ^ (mask_or & not_null[col])) & not_null[col]
+
+        if dset_num == '400':
+            df_order.append(
+                root_dirs[i]
+                + os.path.sep
+                + 'kinetics-dataset-400-'
+                + df[col].replace('validate', 'val')[mask],
+            )
+        elif dset_num == '600':
+            df_order.append(
+                root_dirs[i]
+                + os.path.sep
+                + df[col][mask]
+            )
+        elif dset_num == '700_2020':
+            df_order.append(
+                root_dirs[i]
+                + os.path.sep
+                + df[col][mask]
+                + os.path.sep
+                + df[col.replace('split', 'label')][mask]
+            )
+
+    video_filename = (
+        os.path.sep
+        + df[youtube_id]
+        + '_'
+        + df[start].astype(str).str.zfill(zfill)
+        + '_'
+        + df[end].astype(str).str.zfill(zfill)
+        + ext
+    )
+
+    return pd.concat(df_order) + video_filename
 
 
 class KineticsSplitConfig(NamedTuple):
@@ -409,8 +426,9 @@ class KineticsUnified(torch.utils.data.Dataset):
                     '`video_path` column must be in annotation data or',
                     'video_dirs is given to generate the video paths.',
                 ]))
-            self.data['video_path'] = self.video_dirs.get_path(
+            self.data['video_path'] = get_path(
                 self.data,
+                self.video_dirs,
                 order=filepath_order,
             )
 
