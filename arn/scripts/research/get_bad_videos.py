@@ -63,8 +63,8 @@ def main():
     # TODO use `get_path()` to check the K600 and K700 repeats of K400.
 
     # Loop through the dataset's videos, it will save those that fail to load.
-    for i, vid in tqdm(enumerate(dataloader), total=len(dataloader)):
-        logging.debug('%d: %s', i, vid.video_path)
+    for i, (vid, labels) in tqdm(enumerate(dataloader), total=len(dataloader)):
+        logging.debug('%d: %s', i, labels['video_path'])
 
     # Save the corrupt samples, if any. Log if there are any or not.
     kuni.data.iloc[[i.index for i in kuni.corrupt_videos]] \
