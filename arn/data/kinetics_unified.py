@@ -287,7 +287,7 @@ class KineticsUnified(torch.utils.data):
         else:
             raise TypeError(' '.join([
                 '`kinetics_class_map` expected to be str or pd.DataFrame, but',
-                f'recieved type: type(kinetics_class_map)',
+                f'recieved type: {type(kinetics_class_map)}',
             ]))
 
         # TODO consider something like Dask for parallel reading of csvs
