@@ -316,7 +316,7 @@ class KineticsUnified(torch.utils.data):
 
             if subset.labels is not None:
                 # Mask the unknowns and unlabeled samples.
-                if subset.labels.unknowns is not None:
+                if subset.labels.unknowns is not None: # Mask the unknowns
                     self.data[subset.labels.name][np.logical_or.reduce(
                         [
                             self.data['labels'] == label
@@ -325,7 +325,7 @@ class KineticsUnified(torch.utils.data):
                         axis=1,
                     )] = 'unknown'
 
-                if subset.labels.unlabeled is not None:
+                if subset.labels.unlabeled is not None: # Mask the unlabeled
                     self.data[subset.labels.name][np.logical_or.reduce(
                         [
                             self.data['labels'] == label
