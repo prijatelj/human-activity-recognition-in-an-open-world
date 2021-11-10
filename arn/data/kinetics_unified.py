@@ -93,7 +93,7 @@ class KineticsRootDirs(object):
         pattern: 'split_kinetics[dset_num]'.
         """
         # Save when each sample is present in each dataset
-        not_null = 1 ^ pd.isnull(df[[order]])
+        not_null = 1 ^ pd.isnull(df[order])
 
         # TODO include support for replacing videos that were corrupted in
         # earlier versions with those that are available and working in later
