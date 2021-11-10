@@ -5,10 +5,7 @@ import os
 
 import pandas as pd
 
-from arn.data.kinetics_unified import (
-    KineticsUnified,
-    BadVideoSample,
-)
+from arn.data.kinetics_unified import KineticsUnified
 
 
 @dataclass
