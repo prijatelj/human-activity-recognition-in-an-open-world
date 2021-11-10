@@ -366,7 +366,7 @@ class KineticsUnified(torch.utils.data.Dataset):
             index as a torch.Tensor.
         """
         # Given the index, obtain the sample's row from the DataFrame.
-        sample = self.data[index]
+        sample = self.data.iloc[index]
 
         # Load the video
         video, status = self.video_loader(sample['video_path'])
