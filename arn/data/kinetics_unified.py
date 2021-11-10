@@ -107,7 +107,7 @@ class KineticsRootDirs(object):
             dset_num = dset_num_regex.findall(col)[0]
 
             if i == 0:
-                mask_or = not_null[[col]]
+                mask_or = not_null[col].copy()
                 mask = mask_or
             else:
                 # Save a Kinetics sample if not in other Kinetics (mask_or)
