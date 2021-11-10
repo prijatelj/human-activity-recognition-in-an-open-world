@@ -92,6 +92,9 @@ def main():
             sample_indices[status_codes == VideoStatus.MISSING.value]
         ])
 
+        if i > 3:
+            break
+
     # Save the corrupt samples, if any. Log if there are any or not.
     kuni.data.iloc[[i.index for i in kuni.corrupt_videos]] \
         .to_csv(create_filepath(os.path.join(
@@ -106,6 +109,8 @@ def main():
             'missing_videos.csv',
         )))
 
+    return kuni
+
 
 if __name__ == '__main__':
-    main()
+    kuni = main()
