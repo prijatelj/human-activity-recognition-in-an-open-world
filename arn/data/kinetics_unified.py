@@ -50,11 +50,11 @@ class KineticsRootDirs(object):
 
     def __getitem__(self, index):
         """Hotpatch getitem for indexing."""
-        return [
+        return np.array([
             self.kinetics400_dir,
             self.kinetics600_dir,
             self.kinetics700_2020_dir,
-        ][index]
+        ])[index]
 
 
 def get_path(
@@ -343,6 +343,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         'split_kinetics600',
         'split_kinetics700_2020',
     ]
+    filepath_order : InitVar[list] = None
 
     def __post_init__(
         self,
@@ -350,6 +351,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         kinetics_class_map,
         subset,
         filepath_order,
+        reorder,
     ):
         if isinstance(kinetics_class_map, str):
             ext = os.path.splitext(kinetics_class_map)[-1]
@@ -428,7 +430,8 @@ class KineticsUnified(torch.utils.data.Dataset):
                 ]))
             self.data['video_path'] = get_path(
                 self.data,
-                self.video_dirs,
+                self.video_dirs \
+                if reorder is None else self.video_dirs[reorder],
                 order=filepath_order,
             )
 
