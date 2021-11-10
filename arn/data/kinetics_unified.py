@@ -150,11 +150,11 @@ class KineticsUnifiedSubset(NamedTuple):
 
 def update_subset_mask(df, mask, split_config, col):
     if split_config.train:
-        mask |= df[df[col] == 'train']
+        mask |= df[col] == 'train'
     if split_config.validate:
-        mask |= df[df[col] == 'validate']
+        mask |= df[col] == 'validate'
     if split_config.test:
-        mask |= df[df[col] == 'test']
+        mask |= df[col] == 'test'
     if split_config.NaN:
         mask |= np.isna(df[col])
     return mask
