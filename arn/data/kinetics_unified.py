@@ -9,7 +9,7 @@ import pandas as pd
 from PIL import Image
 import torch
 import torch.nn.functional as F
-import torchvision
+from torchvision.transforms import Compose, ToTensor
 
 from arn.data.dataloader_utils import status_video_frame_loader
 
@@ -235,7 +235,9 @@ class KineticsUnified(torch.utils.data.Dataset):
         another. May include other mappings as well. This serves the role of
         older unique `class_labels`.
     spatial_transform : torchvision.transforms.Compose = None
-        An image transformation that is applied to every video frame.
+        An image transformation that is applied to every video frame. Default
+        is at least a Compose consisting of ToTensor to ensure the np.array
+        video frames are converted to pytorch tensors.
     video_loader : callable = status_video_frame_loader
         A callable that given a path loads the video frames from disk.
     frame_step_size : int = 5
@@ -244,7 +246,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     time_crops : int = 10
         The total temporal crops of each video. This is specifically for use in
         X3D.
-    randomize_spatial_params : bool = True
+    randomize_spatial_params : bool = False
         If True, randomizes the spatial transforms parameters.
     sample_tuple : namedtuple
         A namedtuple of the Kinetics Unified csv column names and serves to
@@ -255,12 +257,12 @@ class KineticsUnified(torch.utils.data.Dataset):
     kinetics_class_map :  InitVar[str]
     video_dirs : KineticsRootDirs = None
     subset :  InitVar[KineticsUnifiedSubset] = None
-    spatial_transform : torchvision.transforms.Compose = None
+    spatial_transform : Compose = Compose([ToTensor()])
     video_loader : callable = status_video_frame_loader
     frames : int = 300
     frame_step_size : int = 1
     time_crops : int = 1
-    randomize_spatial_params : bool = True
+    randomize_spatial_params : bool = False
     collect_bad_samples : InitVar[bool] = False
     corrupt_samples : list = None
     missing_samples : list = None
@@ -392,14 +394,11 @@ class KineticsUnified(torch.utils.data.Dataset):
         step = int((len(video) - self.frames)//(self.time_crops))
 
         # Apply spatial transform to video frames, if any
-        if self.spatial_transform is not None:
-            if self.randomize_spatial_params:
-                self.spatial_transform.randomize_parameters()
-            video = [
-                self.spatial_transform(Image.fromarray(img)) for img in video
-            ]
-        else:
-            # Ensure the video frames convert to Tensors.
+        if self.randomize_spatial_params:
+            self.spatial_transform.randomize_parameters()
+        video = [
+            self.spatial_transform(Image.fromarray(img)) for img in video
+        ]
 
         # Permute the video tensor such that its dimensions: T C H W -> C T H W
         video = torch.stack(video, 0).permute(1, 0, 2, 3)
