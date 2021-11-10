@@ -28,6 +28,12 @@ def har_dataset_general(parser):
         help='Batch size.',
     )
     parser.add_argument(
+        '--dataloader_num_workers',
+        default=12,
+        type=int,
+        help='Number of Torch DataLoader num_workers.',
+    )
+    parser.add_argument(
         '--shuffle',
         action='store_true',
         help='If given, DataLoaders shuffle the data.',
