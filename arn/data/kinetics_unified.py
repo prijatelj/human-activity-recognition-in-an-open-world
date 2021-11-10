@@ -158,7 +158,7 @@ def update_subset_mask(df, mask, split_config, col):
     if split_config.test:
         mask |= df[col] == 'test'
     if split_config.NaN:
-        mask |= np.isna(df[col])
+        mask |= pd.isna(df[col])
     return mask
 
 
