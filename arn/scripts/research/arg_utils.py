@@ -156,9 +156,8 @@ def post_single_kinetics_unified_subset(args):
         or args.kinetics700_2020_NaN
     ):
         # If all are False, assign all 3 to None
-        k4_split_conf = None
-        k6_split_conf = None
-        k7_split_conf = None
+        args.subset = None
+        return args
     else:
         k4s_split_conf = KineticsSplitConfig(
             args.kinetics400_train,
