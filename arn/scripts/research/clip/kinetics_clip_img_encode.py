@@ -20,7 +20,7 @@ import clip
 from arn.data.kinetics import Kinetics
 from arn.transforms.target_transforms import ClassLabel
 from arn.data.kinetics import Kinetics
-from arn.data.kinetics_unified import Kinetics_Unified
+from arn.data.kinetics_unified import KineticsUnified
 
 import exputils
 
