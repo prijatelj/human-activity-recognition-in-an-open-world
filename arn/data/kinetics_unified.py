@@ -101,7 +101,7 @@ class KineticsRootDirs(object):
             + os.path.sep
             + df['label_kinetics700_2020'][k700_not_in_others]
         ) \
-        + df[id] + '_' + df[start].astype(str).str.zfill(zfill) \
+        + os.path.sep + df[id] + '_' + df[start].astype(str).str.zfill(zfill) \
         + '_' + df[end].astype(str).str.zfill(zfill) + ext
 
 
