@@ -354,7 +354,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.data)
 
-    def __get_item__(self, index):
+    def __getitem__(self, index):
         """For the given index, load the corresponding sample video frames and
         labels.
 
