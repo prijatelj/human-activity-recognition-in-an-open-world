@@ -183,7 +183,7 @@ def subset_kinetics_unified(df, subset):
             f'{type(subset)}',
         ]))
 
-    mask = pd.Series(False * len(df))
+    mask = pd.Series([False] * len(df))
 
     if subset.kinetics400 is not None:
         mask = update_subset_mask(
