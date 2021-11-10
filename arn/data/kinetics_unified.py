@@ -222,7 +222,7 @@ def subset_kinetics_unified(df, subset):
 
 
 @dataclass
-class KineticsUnified(torch.utils.data):
+class KineticsUnified(torch.utils.data.Dataset):
     """The dataset for the sample aligned Kinetics 400, 600, and 700_2020
     datasets.
 
