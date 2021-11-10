@@ -331,7 +331,7 @@ class KineticsUnified(torch.utils.data.Dataset):
                             self.data['labels'] == label
                             for label in subset.labels.unknown
                         ],
-                        axis=1,
+                        axis=0,
                     )] = 'unknown'
 
                 if subset.labels.unlabeled is not None: # Mask the unlabeled
@@ -340,7 +340,7 @@ class KineticsUnified(torch.utils.data.Dataset):
                             self.data['labels'] == label
                             for label in subset.labels.unlabeled
                         ],
-                        axis=1,
+                        axis=0,
                     )] = None
 
         if 'video_path' not in self.data:
