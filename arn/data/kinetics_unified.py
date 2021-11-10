@@ -272,6 +272,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     collect_bad_samples : InitVar[bool] = False
     corrupt_videos : list = None
     missing_videos : list = None
+    unlabeled_token : str = None
 
     def __post_init__(
         self,
@@ -347,7 +348,7 @@ class KineticsUnified(torch.utils.data.Dataset):
                             axis=0,
                         ),
                         'labels',
-                    ] = None
+                    ] = self.unlabeled_token
 
         if 'video_path' not in self.data:
             if self.video_dirs is None:
