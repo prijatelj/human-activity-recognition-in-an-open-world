@@ -16,7 +16,7 @@ from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 from utils.transform import Transforms
 
-from arn.data.dataloder_utils import (
+from arn.data.dataloader_utils import (
     load_value_file,
     pil_loader,
     get_default_image_loader,
