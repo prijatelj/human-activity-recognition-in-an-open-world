@@ -343,7 +343,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         'split_kinetics600',
         'split_kinetics700_2020',
     ]
-    filepath_order : InitVar[list] = None
+    reorder : InitVar[list] = None
 
     def __post_init__(
         self,
