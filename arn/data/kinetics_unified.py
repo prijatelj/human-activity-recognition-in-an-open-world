@@ -353,6 +353,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         )
 
         if collect_bad_samples:
+            self.collect_bad_samples = collect_bad_samples
             self.corrupt_videos = []
             self.missing_videos = []
 
