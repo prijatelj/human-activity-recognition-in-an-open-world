@@ -257,7 +257,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         X3D.
     randomize_spatial_params : bool = False
         If True, randomizes the spatial transforms parameters.
-    return_sample_state : bool = False
+    return_sample_status : bool = False
         If True, then __getitem__ returns the VideoStatus.value for the loaded
         image at the end of the returned tuple.
     sample_tuple : namedtuple
@@ -275,7 +275,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     frame_step_size : int = 1
     time_crops : int = 1
     randomize_spatial_params : bool = False
-    return_sample_state : bool = False
+    return_sample_status : bool = False
     corrupt_videos : list = None
     missing_videos : list = None
     unlabeled_token : str = None
@@ -440,7 +440,7 @@ class KineticsUnified(torch.utils.data.Dataset):
 
             video = torch.stack(video, 0)
 
-        if self.return_sample_state: # Returns the status code at end
+        if self.return_sample_status: # Returns the status code at end
             return video, sample['sample_index'], status.value
         return video, sample['sample_index']
 

@@ -11,8 +11,9 @@ from arn.data.kinetics_unified import (
     KineticsUnified,
     KineticsUnifiedSubset,
     KineticsRootDirs,
-    VideoStatus,
 )
+
+from arn.data.dataloader_utils import VideoStatus
 
 from arn.scripts.research import arg_utils
 from arn.scripts.research.clip.kinetics_clip_img_encode import \
@@ -27,12 +28,14 @@ def script_args(parser):
     arg_utils.single_label_config(parser)
     arg_utils.single_kinetics_unified_subset(parser)
 
+
 def post_script_args(args):
     return arg_utils.post_single_kinetics_unified_subset(
         arg_utils.post_kinetics_root_dirs(args)
     )
 
-def main():
+
+if __name__ == '__main__':
     args = post_script_args(parse_args(custom_args=script_args))
 
     if not isinstance(args.bad_samples_dir, str):
@@ -49,17 +52,16 @@ def main():
         args.kinetics_class_map_path,
         args.kinetic_root_dirs,
         args.subset,
-        collect_bad_samples=True,
+        return_sample_status=True,
         spatial_transform=clip_transform_image_frames(244),
     )
 
-    missing_videos = pd.DataFrame([], columns=kuni.data.columns)
+    corrupt_videos = pd.DataFrame([], columns=kuni.data.columns)
     missing_videos = pd.DataFrame([], columns=kuni.data.columns)
 
     logging.info('len(kuni) = %d', len(kuni))
     logging.debug('%s', kuni.data)
 
-    #"""
     dataloader = torch.utils.data.DataLoader(
         kuni,
         batch_size=args.batch_size,
@@ -67,7 +69,6 @@ def main():
         num_workers=12,
         pin_memory=True,
     )
-    #"""
 
     # TODO use `get_path()` to check the K600 and K700 repeats of K400.
 
@@ -92,25 +93,14 @@ def main():
             sample_indices[status_codes == VideoStatus.MISSING.value]
         ])
 
-        if i > 3:
-            break
-
     # Save the corrupt samples, if any. Log if there are any or not.
-    kuni.data.iloc[[i.index for i in kuni.corrupt_videos]] \
-        .to_csv(create_filepath(os.path.join(
-            args.bad_samples_dir,
-            'corrupt_videos.csv',
-        )))
+    corrupt_videos.to_csv(create_filepath(os.path.join(
+        args.bad_samples_dir,
+        'corrupt_videos.csv',
+    )))
 
     # Save the missing samples, if any. Log if there are any or not.
-    kuni.data.iloc[[i.index for i in kuni.missing_videos]] \
-        .to_csv(create_filepath(os.path.join(
-            args.bad_samples_dir,
-            'missing_videos.csv',
-        )))
-
-    return kuni
-
-
-if __name__ == '__main__':
-    kuni = main()
+    missing_videos.to_csv(create_filepath(os.path.join(
+        args.bad_samples_dir,
+        'missing_videos.csv',
+    )))
