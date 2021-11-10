@@ -221,7 +221,7 @@ def subset_kinetics_unified(df, subset):
         # Update the mask to exlude all samples whose labels are not in config
         mask &= np.logical_or.reduce(
             [df[subset.labels.name] == label for label in label_set],
-            axis=1,
+            axis=0,
         )
 
     return df[mask]
