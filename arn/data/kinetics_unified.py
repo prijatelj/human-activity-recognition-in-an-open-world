@@ -211,11 +211,11 @@ def subset_kinetics_unified(df, subset):
 
     label_set = set()
     if subset.labels.known is not None:
-        label_set += set(subset.labels.known)
+        label_set = label_set + set(subset.labels.known)
     if subset.labels.unknown is not None:
-        label_set += set(subset.labels.unknown)
+        label_set = label_set + set(subset.labels.unknown)
     if subset.labels.unlabeled is not None:
-        label_set += set(subset.labels.unlabeled)
+        label_set = label_set + set(subset.labels.unlabeled)
 
     if subset.labels is not None:
         # Update the mask to exlude all samples whose labels are not in config
