@@ -12,6 +12,8 @@ from arn.data.kinetics_unified import (
 )
 
 from arn.scripts.research import arg_utils
+from arn.scripts.research.clip.kinetics_clup_img_encode import \
+    clip_transform_image_frames
 
 from exputils.io import create_filepath, parse_args
 
@@ -45,6 +47,7 @@ def main():
         args.kinetic_root_dirs,
         args.subset,
         collect_bad_samples=True,
+        spatial_transform=clip_transform_image_frames(244),
     )
 
     logging.info('len(kuni) = %d', len(kuni))
