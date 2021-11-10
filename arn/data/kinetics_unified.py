@@ -60,16 +60,16 @@ class KineticsRootDirs(object):
         #split_prefix=['kinetics-dataset-400-', None, None],
         #split_suffix=[None, None, ''],
     ):
-        """Create filepath for every video, preferring older versions first.
+        """Create filepath for every video, preference based on orderd datasets
+
         Args
         ----
         df : pd.DataFrame
             The Kinetics Unified DataFrame.
         order : list(str)
             Determines the order of which columns are prioritized for getting
-            video paths.
-
-            Currently NOT implemented.
+            video paths. Default is to prefer earlier Kinetics datasets, based
+            on release date.
         split_prefix : list(str)
             NOT Implemented. An attempt at generalizaiton postponed.
             The prefix to add to the beginning of the Kinetics split portion of
