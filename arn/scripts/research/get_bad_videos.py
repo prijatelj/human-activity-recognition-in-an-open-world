@@ -93,6 +93,9 @@ if __name__ == '__main__':
             sample_indices[status_codes == VideoStatus.MISSING.value]
         ])
 
+    logging.info('Number of corrupt videos = %d', len(corrupt_videos))
+    logging.info('Number of missing videos = %d', len(missing_videos))
+
     # Save the corrupt samples, if any. Log if there are any or not.
     corrupt_videos.to_csv(create_filepath(os.path.join(
         args.bad_samples_dir,
