@@ -1,7 +1,9 @@
 """A Script to save a list of bad videos, whether missing or corrupted."""
+from enum import Enum
 import os
 import logging
 
+import pandas as pd
 import torch
 from tqdm import tqdm
 
@@ -9,6 +11,7 @@ from arn.data.kinetics_unified import (
     KineticsUnified,
     KineticsUnifiedSubset,
     KineticsRootDirs,
+    VideoStatus,
 )
 
 from arn.scripts.research import arg_utils
@@ -50,6 +53,9 @@ def main():
         spatial_transform=clip_transform_image_frames(244),
     )
 
+    missing_videos = pd.DataFrame([], columns=kuni.data.columns)
+    missing_videos = pd.DataFrame([], columns=kuni.data.columns)
+
     logging.info('len(kuni) = %d', len(kuni))
     logging.debug('%s', kuni.data)
 
@@ -66,12 +72,25 @@ def main():
     # TODO use `get_path()` to check the K600 and K700 repeats of K400.
 
     # Loop through the dataset's videos, it will save those that fail to load.
-    for i, (vid, labels) in tqdm(enumerate(dataloader), total=len(dataloader)):
+    for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
+        sample_indices = batch[1].numpy()
+
         logging.debug(
-            'First element of batch %d: %s',
+            'batch %d: %s',
             i,
-            kuni.data.loc[labels.numpy(), 'video_path'],
+            kuni.data.loc[sample_indices, 'video_path'],
         )
+
+        status_codes = batch[-1].numpy()
+
+        # if status == 'bad_video':
+        corrupt_videos = corrupt_videos.append(kuni.data.iloc[
+            sample_indices[status_codes == VideoStatus.CORRUPT.value]
+        ])
+        # elif status == 'path_dne':
+        missing_videos = missing_videos.append(kuni.data.iloc[
+            sample_indices[status_codes == VideoStatus.MISSING.value]
+        ])
 
     # Save the corrupt samples, if any. Log if there are any or not.
     kuni.data.iloc[[i.index for i in kuni.corrupt_videos]] \

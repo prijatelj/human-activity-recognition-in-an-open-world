@@ -108,11 +108,6 @@ class KineticsRootDirs(object):
         + '_' + df[end].astype(str).str.zfill(zfill) + ext
 
 
-class BadVideoSample(NamedTuple):
-    index: int
-    video_path: str
-
-
 class KineticsSplitConfig(NamedTuple):
     train: bool = False
     validate: bool = False
@@ -262,6 +257,9 @@ class KineticsUnified(torch.utils.data.Dataset):
         X3D.
     randomize_spatial_params : bool = False
         If True, randomizes the spatial transforms parameters.
+    return_sample_state : bool = False
+        If True, then __getitem__ returns the VideoStatus.value for the loaded
+        image at the end of the returned tuple.
     sample_tuple : namedtuple
         A namedtuple of the Kinetics Unified csv column names and serves to
         contain a single sample (row) of the DataFrame with the loaded video
@@ -277,7 +275,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     frame_step_size : int = 1
     time_crops : int = 1
     randomize_spatial_params : bool = False
-    collect_bad_samples : InitVar[bool] = False
+    return_sample_state : bool = False
     corrupt_videos : list = None
     missing_videos : list = None
     unlabeled_token : str = None
@@ -287,7 +285,6 @@ class KineticsUnified(torch.utils.data.Dataset):
         annotation_path,
         kinetics_class_map,
         subset,
-        collect_bad_samples,
     ):
         if isinstance(kinetics_class_map, str):
             ext = os.path.splitext(kinetics_class_map)[-1]
@@ -376,11 +373,6 @@ class KineticsUnified(torch.utils.data.Dataset):
         # Create an index column for ease of accessing labels from DataLoader
         self.data['sample_index'] = self.data.index
 
-        if collect_bad_samples:
-            self.collect_bad_samples = collect_bad_samples
-            self.corrupt_videos = []
-            self.missing_videos = []
-
     def __len__(self):
         return len(self.data)
 
@@ -400,18 +392,6 @@ class KineticsUnified(torch.utils.data.Dataset):
 
         # Load the video
         video, status = self.video_loader(sample['video_path'])
-
-        if self.collect_bad_samples:
-            if status == 'bad_video':
-                self.corrupt_videos.append(BadVideoSample(
-                    index,
-                    sample['video_path'],
-                ))
-            elif status == 'path_dne':
-                self.missing_videos.append(BadVideoSample(
-                    index,
-                    sample['video_path'],
-                ))
 
         # Get the representative frames of this video sample
         video = [
@@ -460,6 +440,8 @@ class KineticsUnified(torch.utils.data.Dataset):
 
             video = torch.stack(video, 0)
 
+        if self.return_sample_state: # Returns the status code at end
+            return video, sample['sample_index'], status.value
         return video, sample['sample_index']
 
     #def __del__(self):
