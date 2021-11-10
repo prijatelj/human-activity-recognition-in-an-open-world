@@ -398,6 +398,8 @@ class KineticsUnified(torch.utils.data.Dataset):
             video = [
                 self.spatial_transform(Image.fromarray(img)) for img in video
             ]
+        else:
+            # Ensure the video frames convert to Tensors.
 
         # Permute the video tensor such that its dimensions: T C H W -> C T H W
         video = torch.stack(video, 0).permute(1, 0, 2, 3)
