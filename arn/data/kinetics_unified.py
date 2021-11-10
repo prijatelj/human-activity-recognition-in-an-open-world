@@ -257,6 +257,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     subset :  InitVar[KineticsUnifiedSubset] = None
     spatial_transform : torchvision.transforms.Compose = None
     video_loader : callable = status_video_frame_loader
+    frames : int = 300
     frame_step_size : int = 1
     time_crops : int = 1
     randomize_spatial_params : bool = True
