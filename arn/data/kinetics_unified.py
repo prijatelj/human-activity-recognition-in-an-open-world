@@ -145,6 +145,12 @@ def get_path(
                 + df[col][mask]
             )
         elif '700_2020' in col:
+            # TODO support Kinetics700_2020 test video paths. They exist, but
+            # no label directory and no known labels, resulting in NaN paths.
+            # Currently no project plans to use Kinetics700_2020 testing that
+            # are not already in the other Kinetics, so a future todo.
+            #other_splits = df[col][(df[col] != 'test') & mask]
+            #test_split = df[col][(df[col] == 'test') & mask]
             df_order.append(
                 root_dirs[i]
                 + os.path.sep
