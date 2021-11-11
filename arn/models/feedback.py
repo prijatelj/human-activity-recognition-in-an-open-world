@@ -27,6 +27,9 @@ class CLIPFeedback(object):
         # Load in CLIP Pre-trained
         self.clip, self.preprocess = clip.load(model_path, device)
 
+        # NOTE this may be the only part of the Predictor that does not need be
+        # a torch.nn.Module, but in the end
+
 
     def interpret_feedback(
         self,

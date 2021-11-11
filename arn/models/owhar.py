@@ -5,7 +5,7 @@ from exputils.ml.generic_predictors import SupervisedClassifier
 
 from arn.models import generics
 
-class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
+class OpenWorldHumanActivityPredictor(torch.nn.Module):
     """Pipeline class of the different parts of the OWHAR.
 
     Attributes
@@ -14,16 +14,28 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
         The task's feature representation model used in this OWHAR. This is a
         torch model at its base.
 
-        If pre-calculated, then simply a torch.Tensor or Dataset or Dataloader
-        of that pre-extracted feature representations.
-    novelty_detector : NoveltyDetector | NoveltyRecognizer
-        The novelty detector model used in this OWHAR. This is either a
-        NoveltyDetector, with no ability to perform novelty recognition, or is
-        a NoveltyRecognizer, in which case this simply points to the same
-        object as `novelty_recognizer`.
-    novelty_recognizer : None | NoveltyRecognizer, opt.
-        The novelty recognizer model used in this OWHAR. A NoveltyRecognizer is
-        not always included.
+        If pre-calculated (most likely for time), then simply a torch.Tensor or
+        Dataset or Dataloader of that pre-extracted feature representations.
+
+    fine_tuning : FineTuning | torch.Tensor | DataLoader
+        The torch model used for fine tuning the FeatureRepr to the task, this
+        is typically a small fully connected neural network, with 2-5 layers.
+
+        input: feature_repr output
+        output/encode:
+            torch.Tensor([num_samples, batch, timeframes, fine_tune_repr_dim])
+                A fine-tuned task repr of every video frame.
+
+            torch.Tensor([num_samples, batch, fine_tune_repr_dim])
+                A fine-tuned task repr of the entire video.
+
+    novelty_recog : NoveltyDetector | NoveltyRecognizer
+        The novelty recognition model used in this OWHAR. This handles both
+        novelty detection and novelty recognition
+
+        classifier: EVM or softmax output of fine-tune w/ thresholding
+        clustering: FINCH or HDBSCAN
+
     label_enc : exputils.data.labels.NominalDataEncoder
         The Dector/Recognizer's label encoder as that is the end of the
         OWHAR model.
