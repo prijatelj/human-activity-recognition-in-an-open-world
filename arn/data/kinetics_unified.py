@@ -149,8 +149,12 @@ def get_path(
             # no label directory and no known labels, resulting in NaN paths.
             # Currently no project plans to use Kinetics700_2020 testing that
             # are not already in the other Kinetics, so a future todo.
+            # NOTE this may result in issues if 700_2020 is priority or the
+            # others' videos are missing / corrupted, but this video does exist
+
             #other_splits = df[col][(df[col] != 'test') & mask]
             #test_split = df[col][(df[col] == 'test') & mask]
+
             df_order.append(
                 root_dirs[i]
                 + os.path.sep
