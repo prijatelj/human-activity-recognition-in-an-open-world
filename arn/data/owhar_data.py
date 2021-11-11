@@ -46,7 +46,7 @@ class OWHARExperiment(object):
         OR does OWHARData handle all of this?
     test_data : OWHARData
         The data to be used for the OWHAR experiment.
-    predictor : OpenWorldHumanActivityRecognizer
+    predictor : OpenWorldHumanActivityPredictor
         The predictor to be trained and evaluated throughout the open world
         learning process.
     evaluator :
