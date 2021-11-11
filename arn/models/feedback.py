@@ -74,7 +74,7 @@ class CLIPFeedbackInterpreter(object):
         # TODO label maps for feedback label text to idx, and predictor label
         # text to idx
 
-    def clip_enc_text(self, label_text):
+    def clip_encode_text(self, label_text):
         """Return the clip encoding of the label text preserving shape.
 
         label_text : list(list(str)) | np.ndarray(str)
@@ -82,8 +82,30 @@ class CLIPFeedbackInterpreter(object):
             number of classes given back sa feedback, which is assumed to be 5
             due to protocol with PAR.
         """
+        raise NotImplementedError('Needs updated for predictor knowns'.)
 
-        return
+        with torch.no_grad():
+            zeroshot_weights = []
+            for label_text in label_texts:
+                # Place the class label text inside each template text and
+                # tokenize
+                texts = clip.tokenize([
+                    template.format(label_text.lower())
+                    for template in templates
+                ]).cuda()
+
+                # CLIP Encode the text, normalize dividing by L1 norm
+                label_embeddings = model.encode_text(texts)
+                label_embeddings /= label_embeddings.norm(dim=-1, keepdim=True)
+
+                # Get label encoding as normalized mean again divide by L1 norm
+                label_embedding = label_embeddings.mean(dim=0)
+                label_embedding /= label_embedding.norm()
+
+                zeroshot_weights.append(label_embedding)
+
+        #return torch.stack(zeroshot_weights, dim=1).cuda()
+        return encoded_labels
 
     def interpret_feedback(
         self,
@@ -139,11 +161,7 @@ class CLIPFeedbackInterpreter(object):
 
         # TODO CLIP Encode the given text labels with preserved structure for
         # getting indivudal feedback label encodings to be saved.
-        label_encs = text_zeroshot_encoding(
-            self.clip,
-            label_text,
-            self.templates,
-        )
+        label_encs = self.clip_encode_text(label_text)
 
         # TODO ??? Obtain a CLIP encoding per row of feedback labels? Mean?
 
