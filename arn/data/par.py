@@ -80,6 +80,5 @@ class PARData(KineticsUnified):
             ['video'] + self.data.columns.tolist(),
         )
 
-        if collect_bad_samples:
-            self.corrupt_videos = []
-            self.missing_videos = []
+        # Create an index column for ease of accessing labels from DataLoader
+        self.data['sample_index'] = self.data.index
