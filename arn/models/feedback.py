@@ -14,6 +14,9 @@ class CLIPFeedbackInterpreter(object):
     ----------
     clip : CLIP
         CLIP model used for encoding both text and images.
+    clip_templates : list(str)
+        The text templates that every label text is inserted into and used to
+        obtain the CLIP text encoding representation of that label text.
     feedback_known_map : NominalDataEncoder
         Bidirectional map of feedback known texts to index. This indexing is
         consistent across feedback_label_encs and similarity rows.
@@ -74,14 +77,12 @@ class CLIPFeedbackInterpreter(object):
         # TODO label maps for feedback label text to idx, and predictor label
         # text to idx
 
-    def clip_encode_text(self, label_text):
+    def clip_encode_text(self, label_texts):
         """Return the clip encoding of the label text preserving shape.
         Args
         ----
-        label_text : list(list(str)) | np.ndarray(str)
-            A matrix of text strings where rows are samples and columns are the
-            number of classes given back sa feedback, which is assumed to be 5
-            due to protocol with PAR.
+        label_texts : list(str)
+            The labels' text to be encoded with the given text templates.
 
         Returns
         -------
@@ -118,10 +119,15 @@ class CLIPFeedbackInterpreter(object):
 
                 zeroshot_weights.append(label_embedding)
 
-        return torch.stack(zeroshot_weights, dim=1)
+        return torch.stack(zeroshot_weights, dim=1).cuda()
 
     def get_similarity(self, label_text):
-        """Return the similarity vectors"""
+        """Return the similarity vectors
+        label_text : list(list(str)) | np.ndarray(str)
+            A matrix of text strings where rows are samples and columns are the
+            number of classes given back sa feedback, which is assumed to be 5
+            due to protocol with PAR.
+        """
         # TODO convert labels to idx, then fill in each idx w/ corresponding
         # similrity matrix row.
         return self.similarity[self.feedback_known_map.encode(label_text)]
