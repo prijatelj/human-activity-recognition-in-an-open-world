@@ -126,14 +126,40 @@ class CLIPFeedbackInterpreter(object):
         # similrity matrix row.
         return self.similarity[self.feedback_known_map.encode(label_text)]
 
+    def update_known_preds(self, new_pred_label):
+        """Given new known pred, update the existing similarity matrix, etc."""
+        # TODO this gets interesting because how do we textually encode a new
+        # pred label? Simplest case is to perhaps, after determinig, there is a
+        # new pred label to be assigned, map that label to all other feedback
+        # labels by a similarity. This would be based on all prior samples of
+        # this new pred label, and so could simply be the mean of all samples'
+        # similarities to a feedback label per feedback label, thus a separate
+        # mean per element in the new pred label's column.
+
+        # TODO, but then how do we calculate new feedback labels to this new
+        # pred label that lacks text? Basically take the similarity of the new
+        # feedback label to all existing feedback labels weighted by the
+        # similarity to the pred label.
+
+    def update_known_feedback(self, new_feedback_label):
+        """Update state with the new known feedback label text."""
+        # Update index encoding of known feedback labels.
+        self.feedback_known_map.append(new_feedback_labels)
+
+        # Get and save clip encoding of new feedback labels
+        self.feedback_label_encs.append(
+            self.clip_encode_text(new_feedback_labels)
+        )
+
+        # TODO Update the similarity of this new feedback to predictor's knowns
+        # TODO Get cosine similarity of each new feedback labels to predictor's
+        # TODO Save these cosine similarities to the cosine similarity matrix
+
+
     def interpret_feedback(
         self,
         label_text,
-        feature_repr=None,
-        task_repr=None,
-        videos=None,
-        preds=None
-        predictor_belief=None
+        unknown_last_dim=True,
     ):
         """Interpret the given feedback with the sample feature and task repr,
         returning a soft label vector per sample for the knowns + prob of
@@ -145,6 +171,66 @@ class CLIPFeedbackInterpreter(object):
             A matrix of text strings where rows are samples and columns are the
             number of classes given back sa feedback, which is assumed to be 5
             due to protocol with PAR.
+
+        Returns
+        -------
+        np.ndarray | torch.Tensor?
+            The probability vectors of predictor known classes and an unknown
+            class for each sample, which is a matrix of shape (samples,
+            predictor_knowns + 1). This indicates the predicted probablity that
+            each feedback sample corresponds to which predictor known class or
+            none of them (the unknown). Note that unknown probability is as the
+            last element of each vector row.
+        """
+        if isinstance(label_text, np.ndarray):
+            np.array(label_text)
+
+        # Check for new feedback labels and update feedback state
+        self.update_known_preds(np.unique(label_text))
+
+
+        # X TODO get the first occurrence index of the new feedback labels in
+        # label_text to save the resulting text encoding.
+
+        # With similarity updated, get the probability vectors for known labels
+        # TODO Get the normalized cosine similarity to predictor's known labels
+        sims = self.get_similarity(label_text)
+
+        # TODO Get the probablity of none of the predictor's known labels
+        # (unknown)
+
+        # NOTE follows ONE  method of getting probs, expecting probs to have
+        # columns be [0,1], but rows not to sum to 1.
+        # Find probability of unknown as 1 - max 1-vs-Rest and concat
+        if unknown_last_dim:
+            probs = torch.cat((probs, 1 - torch.max(probs, 1, True).values), 1)
+        else:
+            probs = torch.cat((1 - torch.max(probs, 1, True).values, probs), 1)
+
+        # Get a normalized probability vector keeping raitos of values.
+        return probs / probs.sum(1, True)
+        #return pred_known_or_unknown_probs
+
+    def novelty_recog(
+        self,
+        feedback_probs,
+        feature_repr=None,
+        task_repr=None,
+        videos=None,
+        preds=None,
+        predictor_belief=None,
+    ):
+        """Determine if given the interpretted feedback is a new predictor
+        label from the current set of known predictor labels. This is this
+        interpreter's novelty recognition decision per sample given available
+        predictor informaiton and its own state.
+
+        Args
+        ----
+        feedback_probs : torch.Tensor
+            A matrix of shape (samples, probs_known_labels + 1) which is the
+            interpretted feedback of samples as found from
+            `interpret_feedback()`.
         feature_repr : torch.Tensor = None
             The feature representation of the input samples.
         task_repr : torch.Tensor = None
@@ -160,35 +246,14 @@ class CLIPFeedbackInterpreter(object):
 
         Returns
         -------
-        np.ndarray | torch.Tensor?
-            The probability vectors of predictor known classes and an unknown
-            class for each sample, which is a matrix of shape (samples,
-            predictor_knowns + 1). This indicates the predicted probablity that
-            each feedback sample corresponds to which predictor known class or
-            none of them (the unknown). Note that unknown probability is as the
-            last element of each vector row.
+        str
+            The class decided upon for the given samples when interpretting
+            feedback and the predictor's novelty detection and recognition.
         """
-        if isinstance(label_text, np.ndarray):
-            np.array(label_text)
-
-        # TODO Update index encoding of known feedback labels.
-        new_feedback_labels = np.unique(label_text)
-        # TODO get the first occurrence index of the new feedback labels in
-        # label_text to save the resulting text encoding.
-
-        # TODO Sort each row of feedback labels lexically.
-
-        # TODO CLIP Encode the given text labels with preserved structure for
-        # getting indivudal feedback label encodings to be saved.
-        label_encs = self.clip_encode_text(label_text)
-
+        raise NotImplementedError()
+        # TODO Determine if this feedback plus
         # TODO ??? Obtain a CLIP encoding per row of feedback labels? Mean?
+        #   TODO Sort each row of feedback labels lexically.
+        #   Gives cenroid, may be useful in detecting unknown classes
 
-        # TODO Get cosine similarity of each new feedback labels to predictor's
-        # TODO Save these cosine similarities to the cosine similarity matrix
-
-        # TODO Get the normalized cosine similarity to predictor's known labels
-        # TODO Get the probablity of none of the predictor's known labels
-        # (unknown)
-
-        return pred_known_or_unknown_probs
+        return
