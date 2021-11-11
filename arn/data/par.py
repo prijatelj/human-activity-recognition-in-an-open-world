@@ -42,7 +42,8 @@ class PARData(KineticsUnified):
         annotation_path,
         kinetics_class_map,
         subset,
-        collect_bad_samples,
+        filepath_order,
+        reorder,
     ):
         if isinstance(kinetics_class_map, str):
             ext = os.path.splitext(kinetics_class_map)[-1]
