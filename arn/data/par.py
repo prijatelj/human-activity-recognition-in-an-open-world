@@ -64,7 +64,9 @@ class PARData(KineticsUnified):
                 f'recieved type: {type(kinetics_class_map)}',
             ]))
 
-        self.data = pd.read_csv(annotation_path)
+        self.data = pd.read_csv(annotation_path)#.rename(
+        #    columns={'class':'activity'} # Change cuz
+        #)
 
         if 'video_path' not in self.data:
             if self.video_dirs is None:
@@ -75,10 +77,10 @@ class PARData(KineticsUnified):
             self.data['video_path'] = self.video_dirs \
                 + self.data['anonymous_id']
 
-        self.sample_tuple = namedtuple(
-            'par_data_sample',
-            ['video'] + self.data.columns.tolist(),
-        )
+        #self.sample_tuple = namedtuple(
+        #    'par_data_sample',
+        #    ['video'] + self.data.columns.tolist(),
+        #)
 
         # Create an index column for ease of accessing labels from DataLoader
         self.data['sample_index'] = self.data.index
