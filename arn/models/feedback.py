@@ -14,11 +14,11 @@ class CLIPFeedbackInterpreter(object):
     ----------
     clip : CLIP
         CLIP model used for encoding both text and images.
-    feedback_knowns : NominalDataEncoder
+    feedback_known_map : NominalDataEncoder
         Bidirectional map of feedback known texts to index. This indexing is
         consistent across feedback_label_encs and similarity rows.
         This serves as the unique known feedback labels.
-    pred_knowns : NominalDataEncoder
+    pred_known_map : NominalDataEncoder
         Bidirectional map of predictor known texts to index. This indexing is
         consistent across predictor_label_encs and similarity columns.
         This serves as the unique known predictor labels.
@@ -76,13 +76,27 @@ class CLIPFeedbackInterpreter(object):
 
     def clip_encode_text(self, label_text):
         """Return the clip encoding of the label text preserving shape.
-
+        Args
+        ----
         label_text : list(list(str)) | np.ndarray(str)
             A matrix of text strings where rows are samples and columns are the
             number of classes given back sa feedback, which is assumed to be 5
             due to protocol with PAR.
+
+        Returns
+        -------
+        torch.Tensor
+            A Tensor of the label encodings with the CLIP model such that the
+            first 2 dimenions match that of the input `label_text` matrix with
+            the 3rd dimension being the dimension of the clip encoding.
         """
         raise NotImplementedError('Needs updated for predictor knowns'.)
+        # TODO this does not need to preserve shape! This can simply encode the
+        # given text labels, which is only used whenever new feedback or
+        # predictor labels are given. The feedback and pred encs are then
+        # updated with that CLIP encoding and the shape preserving is handled
+        # by putting the similarity vectors in the correct spot of label_text,
+        # handled by get_similrity()
 
         with torch.no_grad():
             zeroshot_weights = []
@@ -104,8 +118,13 @@ class CLIPFeedbackInterpreter(object):
 
                 zeroshot_weights.append(label_embedding)
 
-        #return torch.stack(zeroshot_weights, dim=1).cuda()
-        return encoded_labels
+        return torch.stack(zeroshot_weights, dim=1)
+
+    def get_similarity(self, label_text):
+        """Return the similarity vectors"""
+        # TODO convert labels to idx, then fill in each idx w/ corresponding
+        # similrity matrix row.
+        return self.similarity[self.feedback_known_map.encode(label_text)]
 
     def interpret_feedback(
         self,
