@@ -28,8 +28,12 @@ class CLIPFeedback(object):
         CLIP pre-processed label encodings of PAR.
     feedback_similarity : np.ndarray | torch.Tensor?
         A Matrix of rows being known feedback label texts and columns being the
-        known predictor labels. The cosine similarity matrix is the cosine
-        similarity of these labels to
+        known predictor labels. This matrix's elements are the unnormalized
+        cosine similarities of the feedback labels to predictor labels. This is
+        unnormalized because the normalization process is dependent upon the
+        number of predictor classes and better to preserve the raw cosine
+        similarities and normalize them on demand, rather than have to
+        re-normalize without introducing error.
     """
     def __init__(
         self,
@@ -54,6 +58,8 @@ class CLIPFeedback(object):
         feature_repr=None,
         task_repr=None,
         videos=None,
+        preds=None
+        predictor_belief=None
     ):
     """Interpret the given feedback with the sample feature and task repr,
     returning a soft label vector per sample for the knowns + prob of unknown.
@@ -71,10 +77,20 @@ class CLIPFeedback(object):
     videos : torch.Tensor
         The actual input videos, aligned to the label text, feature_repr, and
         task_repr, etc.
+    preds : torch.Tensor
+        The predictor's predictions for the sample.
+    pred_belief : torch.Tensor = None
+        The predictor's belief or certainty in the predictions for the sample.
 
     Returns
     -------
-    torch.Tensor
+    np.ndarray | torch.Tensor?
+        The probability vectors of predictor known classes and an unknown class
+        for each sample, which is a matrix of shape (samples, predictor_knowns
+        + 1). This indicates the predicted probablity that each feedback sample
+        corresponds to which predictor known class or none of them (the
+        unknown). Note that unknown probability is as the last element of each
+        vector row.
     """
     if isinstance(label_text, np.ndarray):
         np.array(label_text)
@@ -90,8 +106,12 @@ class CLIPFeedback(object):
     # getting indivudal feedback label encodings to be saved.
     label_encs = text_zeroshot_encoding(self.clip, label_text, self.templates)
 
-    # TODO Obtain a CLIP encoding per row of feedback labels? Averaging?
+    # TODO ??? Obtain a CLIP encoding per row of feedback labels? Averaging?
 
-    # TODO Obtain a Cosine Similarity of each Feedback Label to
+    # TODO Get the cosine similaritis of each new feedback label to predictor's
+    # TODO Save these cosine similarities to the cosine similarity matrix
+
+    # TODO Get the normalized cosine similarity to predictor's known labels
+    # TODO Get the probablity of none of the predictor's known labels (unknown)
 
     return interpretted_feedback
