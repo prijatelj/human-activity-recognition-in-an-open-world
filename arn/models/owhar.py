@@ -10,9 +10,12 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
 
     Attributes
     ----------
-    feature_repr : FeatureRepr
+    feature_repr : FeatureRepr | torch.Tensor
         The task's feature representation model used in this OWHAR. This is a
         torch model at its base.
+
+        If pre-calculated, then simply a torch.Tensor or Dataset or Dataloader
+        of that pre-extracted feature representations.
     novelty_detector : NoveltyDetector | NoveltyRecognizer
         The novelty detector model used in this OWHAR. This is either a
         NoveltyDetector, with no ability to perform novelty recognition, or is
@@ -24,6 +27,8 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
     label_enc : exputils.data.labels.NominalDataEncoder
         The Dector/Recognizer's label encoder as that is the end of the
         OWHAR model.
+
+        May need to make a Torch version of exputils...label_enc
     increment_count : int = 0
         The number of incremental training phases this OWHAR has completed.
         Starts at zero when no trainings have been completed.
@@ -69,8 +74,10 @@ class OpenWorldHumanActivityRecognizer(SupervisedClassifier):
 
         Returns
         -------
-        torch.tensor
-            The resulting Torch tensor.
+        (torch.tensor, torch.tensor)
+            The complete prediction output of the Predictor, including the
+            classification probability vector(s) and the running novelty
+            detection probability.
         """
         raise NotImplementedError()
         # TODO Gets the freature representation of the samples
