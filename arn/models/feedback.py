@@ -161,9 +161,9 @@ class CLIPFeedbackInterpreter(object):
         label_text,
         unknown_last_dim=True,
     ):
-        """Interpret the given feedback with the sample feature and task repr,
-        returning a soft label vector per sample for the knowns + prob of
-        unknown.
+        """Interprets the given feedback of multiple label texts per sample
+        returning a soft label vector per sample for the with dimensions =
+        knowns + unknown.
 
         Args
         ----
@@ -187,10 +187,6 @@ class CLIPFeedbackInterpreter(object):
 
         # Check for new feedback labels and update feedback state
         self.update_known_preds(np.unique(label_text))
-
-
-        # X TODO get the first occurrence index of the new feedback labels in
-        # label_text to save the resulting text encoding.
 
         # With similarity updated, get the probability vectors for known labels
         # TODO Get the normalized cosine similarity to predictor's known labels
@@ -251,7 +247,6 @@ class CLIPFeedbackInterpreter(object):
             feedback and the predictor's novelty detection and recognition.
         """
         raise NotImplementedError()
-        # TODO Determine if this feedback plus
         # TODO ??? Obtain a CLIP encoding per row of feedback labels? Mean?
         #   TODO Sort each row of feedback labels lexically.
         #   Gives cenroid, may be useful in detecting unknown classes
