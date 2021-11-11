@@ -74,6 +74,15 @@ if __name__ == '__main__':
 
     # Loop through the dataset's videos, it will save those that fail to load.
     for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
+
+        # TODO This is currently used just for testing the data loaders to
+        # ensure they are ready for OWHAR. Complete implementation and running
+        # of this script requires breaking all the unified samples into dsets
+        # and splits and batches of 10 (probably). Sam has provided a list
+        # already too for some of them.
+        if i > 5:
+            break
+
         sample_indices = batch[1].numpy()
 
         logging.debug(
