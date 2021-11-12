@@ -41,41 +41,96 @@ class CLIPFeedbackInterpreter(object):
     def __init__(
         self,
         clip_path,
-        pred_labels,
+        clip_templates,
+        pred_known_map,
         pred_label_encs=None,
-        feedback_labels=None,
+        feedback_known_map=None,
         feedback_label_encs=None,
         similarity=None,
+        device='cuda',
     ):
         """Initialize and load the CLIPFeedbackInterpreter
         Args
         ----
         clip_path : str
             Path to the clip model
-        pred_labels : str | list(str) | NominalDataEncoder
-            Path to the predictor's known labels or the known labels themselves.
+        clip_templates : str | list(str)
+            Path to the clip templates file or the actual list of str templates
+        pred_known_map : str | list(str) | NominalDataEncoder
+            Path to the predictor's known labels or the known labels themselves
         pred_label_encs : torch.Tensor = None,
             Path to the predictor's known label encodings or the encoding
             themselves.
-        feedback_labels : str | list(str) | NominalDataEncoder = None
+        feedback_known_map : str | list(str) | NominalDataEncoder = None
             Path to the known feedback labels or the labels themselves.
         feedback_label_encs : torch.Tensor = None
             Path to the known feedback label encodings or the encoding
             themselves.
-        similarity : str | torch.Tensor =None
+        similarity : str | torch.Tensor = None
             Path to the similarity martrix to be loaded or the similarity
             matrix.
         """
         # Load in CLIP Pre-trained for encoding new feedback label text
-        self.clip, self.preprocess = clip.load(model_path, device)
+        self.clip = clip.load(clip_path, device)[0]
 
-        self.feedback_known = set()
+        if isinstance(clip_templates, str):
+            with open(clip_templates) as openf:
+                self.clip_templates = openf.read().splitlines()
+        else: # NOTE I hope you set to correct types and all that.
+            self.clip_templates = clip_templates
 
-        # TODO Cosine similarity matrix of (feedback labels) X (predictor
-        # knowns) to one another when in CLIP encoded space.
+        # Predictor label map of text to idx
+        if isinstance(pred_known_map, str):
+            self.pred_known_map = NominalDataEncoder.load(pred_known_map)
+        else: # NOTE Type checking goes here to die.
+            self.pred_known_map = pred_known_map
 
-        # TODO label maps for feedback label text to idx, and predictor label
-        # text to idx
+        if isinstance(pred_label_encs, str):
+            self.pred_label_encs = torch.load(pred_label_encs)
+        elif pred_label_encs is None and self.pred_known_map is not None:
+            self.pred_label_encs = self.clip_encode_text(
+                list(self.pred_label_encs.encoder)
+            )
+        else: # NOTE Type checking is dead.
+            self.pred_label_encs = pred_label_encs
+
+        # Label map for feedback label text to idx
+        if isinstance(feedback_known_map, str):
+            self.feedback_known_map = NominalDataEncoder.load(feedback_known_map)
+        else: # NOTE Type checking ist tot.
+            self.feedback_known_map = feedback_known_map
+
+        if isinstance(feedback_label_encs, str):
+            self.feedback_label_encs = torch.load(feedback_label_encs)
+        elif (
+            feedback_label_encs is None
+            and self.feedback_known_map is not None
+        ):
+            self.feedback_label_encs = self.clip_encode_text(
+                list(self.pred_label_encs.encoder)
+            )
+        else: # NOTE Wow. Almost like someone should try to auto this...oh wait
+            self.feedback_label_encs = feedback_label_encs
+
+        # Cosine similarity matrix of (feedback labels) X (predictor knowns) to
+        # one another when in CLIP encoded space.
+        if isinstance(similarity, str):
+            self.similarity = torch.load(similarity)
+        elif similarity is None and self.feedback_label_encs is not None:
+            # TODO Calculate the similarity matrix now using clip.
+            raise NotImplementedError('Need to calc the sim matrix upon init')
+            self.similarity = (
+                100.0
+                * (
+                    self.pred_label_encs
+                    / self.pred_label_encs.norm(dim=-1, keepdim=True)
+                ) @ (
+                    self.feedback_label_encs
+                    / self.feedback_label_encs.norm(dim=-1, keepdim=True)
+                ).T
+            )
+        else: # NOTE Much redundancy wow If only I could finish my side project
+            self.similarity = similarity
 
     def clip_encode_text(self, label_texts):
         """Return the clip encoding of the label text preserving shape.
@@ -87,18 +142,15 @@ class CLIPFeedbackInterpreter(object):
         Returns
         -------
         torch.Tensor
-            A Tensor of the label encodings with the CLIP model such that the
-            first 2 dimenions match that of the input `label_text` matrix with
-            the 3rd dimension being the dimension of the clip encoding.
+            The CLIP model's text encoding of each label text using the given
+            templates in order.
         """
-        raise NotImplementedError('Needs updated for predictor knowns'.)
-        # TODO this does not need to preserve shape! This can simply encode the
+        # NOTE this does not need to preserve shape! This can simply encode the
         # given text labels, which is only used whenever new feedback or
         # predictor labels are given. The feedback and pred encs are then
         # updated with that CLIP encoding and the shape preserving is handled
         # by putting the similarity vectors in the correct spot of label_text,
         # handled by get_similrity()
-
         with torch.no_grad():
             zeroshot_weights = []
             for label_text in label_texts:
@@ -106,7 +158,7 @@ class CLIPFeedbackInterpreter(object):
                 # tokenize
                 texts = clip.tokenize([
                     template.format(label_text.lower())
-                    for template in templates
+                    for template in self.templates
                 ]).cuda()
 
                 # CLIP Encode the text, normalize dividing by L1 norm
@@ -129,7 +181,10 @@ class CLIPFeedbackInterpreter(object):
             due to protocol with PAR.
         """
         # TODO convert labels to idx, then fill in each idx w/ corresponding
+        indices = self.feedback_known_map.encode(label_text)
+
         # similrity matrix row.
+
         return self.similarity[self.feedback_known_map.encode(label_text)]
 
     def update_known_preds(self, new_pred_label):
@@ -160,7 +215,6 @@ class CLIPFeedbackInterpreter(object):
         # TODO Update the similarity of this new feedback to predictor's knowns
         # TODO Get cosine similarity of each new feedback labels to predictor's
         # TODO Save these cosine similarities to the cosine similarity matrix
-
 
     def interpret_feedback(
         self,
@@ -256,5 +310,8 @@ class CLIPFeedbackInterpreter(object):
         # TODO ??? Obtain a CLIP encoding per row of feedback labels? Mean?
         #   TODO Sort each row of feedback labels lexically.
         #   Gives cenroid, may be useful in detecting unknown classes
+
+        # NOTE this may make more sense to be done by the NoveltyRecognizer
+        # which then calls this objects update_known_preds()
 
         return
