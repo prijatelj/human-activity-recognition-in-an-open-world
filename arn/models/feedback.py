@@ -145,7 +145,7 @@ class CLIPFeedbackInterpreter(object):
         else: # NOTE Much redundancy wow If only I could finish my side project
             self.similarity = similarity
 
-        if new_pred_method != 'weighted_feedbacks'
+        if new_pred_method != 'weighted_feedbacks':
             raise NotImplementedError(
                 'Only `weighted_feedbacks` is implemented.',
             )
