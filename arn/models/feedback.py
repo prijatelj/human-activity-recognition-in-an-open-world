@@ -7,6 +7,18 @@ import clip
 from exputils.data.labels import NominalDataEncoder
 
 
+def calc_similarity(first, second, scalar=100.0):
+    """Calculate the unnormalized cosine similarity scaled by some factor."""
+    return (
+        scalar
+        * (
+            first / first.norm(dim=-1, keepdim=True)
+        ) @ (
+            second / second.norm(dim=-1, keepdim=True)
+        ).T
+    )
+
+
 class CLIPFeedbackInterpreter(object):
     """Feedback Interpretter using CLIP zeroshot.
 
@@ -117,17 +129,10 @@ class CLIPFeedbackInterpreter(object):
         if isinstance(similarity, str):
             self.similarity = torch.load(similarity)
         elif similarity is None and self.feedback_label_encs is not None:
-            # TODO Calculate the similarity matrix now using clip.
-            raise NotImplementedError('Need to calc the sim matrix upon init')
-            self.similarity = (
-                100.0
-                * (
-                    self.pred_label_encs
-                    / self.pred_label_encs.norm(dim=-1, keepdim=True)
-                ) @ (
-                    self.feedback_label_encs
-                    / self.feedback_label_encs.norm(dim=-1, keepdim=True)
-                ).T
+            # Calculate the similarity matrix now using clip.
+            self.similarity = calc_similarity(
+                self.pred_label_encs,
+                self.feedback_label_encs,
             )
         else: # NOTE Much redundancy wow If only I could finish my side project
             self.similarity = similarity
@@ -158,11 +163,11 @@ class CLIPFeedbackInterpreter(object):
                 # tokenize
                 texts = clip.tokenize([
                     template.format(label_text.lower())
-                    for template in self.templates
+                    for template in self.clip_templates
                 ]).cuda()
 
                 # CLIP Encode the text, normalize dividing by L1 norm
-                label_embeddings = model.encode_text(texts)
+                label_embeddings = self.clip.encode_text(texts)
                 label_embeddings /= label_embeddings.norm(dim=-1, keepdim=True)
 
                 # Get label encoding as normalized mean again divide by L1 norm
@@ -174,17 +179,16 @@ class CLIPFeedbackInterpreter(object):
         return torch.stack(zeroshot_weights, dim=1).cuda()
 
     def get_similarity(self, label_text):
-        """Return the similarity vectors
+        """Return the similarity vectors of label text to current sim matrix.
+
+        Args
+        ----
         label_text : list(list(str)) | np.ndarray(str)
             A matrix of text strings where rows are samples and columns are the
             number of classes given back sa feedback, which is assumed to be 5
             due to protocol with PAR.
         """
-        # TODO convert labels to idx, then fill in each idx w/ corresponding
-        indices = self.feedback_known_map.encode(label_text)
-
-        # similrity matrix row.
-
+        # Convert labels to idx, then fill in each idx w/ corresponding
         return self.similarity[self.feedback_known_map.encode(label_text)]
 
     def update_known_preds(self, new_pred_label):
@@ -202,7 +206,7 @@ class CLIPFeedbackInterpreter(object):
         # feedback label to all existing feedback labels weighted by the
         # similarity to the pred label.
 
-    def update_known_feedback(self, new_feedback_label):
+    def update_known_feedback(self, new_feedback_labels):
         """Update state with the new known feedback label text."""
         # Update index encoding of known feedback labels.
         self.feedback_known_map.append(new_feedback_labels)
