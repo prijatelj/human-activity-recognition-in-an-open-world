@@ -49,13 +49,24 @@ class CLIPFeedbackInterpreter(object):
         number of predictor classes and better to preserve the raw cosine
         similarities and normalize them on demand, rather than have to
         re-normalize without introducing error.
-    new_pred_method : str = 'weighted_feedbacks'
+    new_pred_method : str = 'weighted_centroid'
         The method of representation of new predictor labels for this
         interpreter since no text represents this label. Default and currently
         only method implemented is the weighted similarity score of every
         feedback label to every other feedback label. The weighting is based on
         how many times each feedback label was used to represent the samples of
         this new predictor label.
+    new_pred_start_idx : int
+        The integer index in pred_known_map for the first new prediction label.
+        Subtract the new prediction encodings by this value to get their index
+        in `new_pred_repr`.
+    new_pred_repr : torch.Tensor
+        A tensor of shape (number_of_new_prediction_labels, feedback_label)
+        that stores the counts of feedback labels being related to a new
+        prediction label. This is used for getting the similarity score of each
+        feedback label to a new prediction label that lacks text representation
+        by calculating the frequency and performing a weighted arithmetic mean
+        on the feature encodings, or a weighted centroid.
     """
     def __init__(
         self,
@@ -66,7 +77,7 @@ class CLIPFeedbackInterpreter(object):
         feedback_known_map=None,
         feedback_label_encs=None,
         similarity=None,
-        new_pred_method='weighted_feedbacks',
+        new_pred_method='weighted_centroid',
         device='cuda',
     ):
         """Initialize and load the CLIPFeedbackInterpreter
@@ -145,11 +156,13 @@ class CLIPFeedbackInterpreter(object):
         else: # NOTE Much redundancy wow If only I could finish my side project
             self.similarity = similarity
 
-        if new_pred_method != 'weighted_feedbacks':
+        if new_pred_method != 'weighted_centroid':
             raise NotImplementedError(
-                'Only `weighted_feedbacks` is implemented.',
+                'Only `weighted_centroid` is implemented.',
             )
         self.new_pred_method = new_pred_method
+        self.new_pred_repr = None
+        self.new_pred_start_idx = None
 
     def clip_encode_text(self, label_texts):
         """Return the clip encoding of the label text preserving shape.
@@ -203,6 +216,14 @@ class CLIPFeedbackInterpreter(object):
             due to protocol with PAR.
         """
         # Convert labels to idx, then fill in each idx w/ corresponding sim.
+
+
+
+        # TODO handle getting the similarity between label text and
+        # new_pred_reprs
+
+
+
         return self.similarity[self.feedback_known_map.encode(label_text)]
 
     def update_known_preds(
@@ -247,15 +268,26 @@ class CLIPFeedbackInterpreter(object):
         # mean per element in the new pred label's column.
 
         # annotations is simply prior feedback labels per sample (label text)
-        sims = self.similarity[self.feedback_known_map.encode(annotations)]
+        #sims = self.similarity[self.feedback_known_map.encode(annotations)]
 
         # TODO, but then how do we calculate new feedback labels to this new
         # pred label that lacks text? Basically take the similarity of the new
         # feedback label to all existing feedback labels weighted by the
         # similarity to the pred label.
 
-        if self.new_pred_method == 'weighted_feedbacks':
-            sims = sims.mean([0, 1])
+        if self.new_pred_method == 'weighted_centroid':
+            # Save the running counts of each to later get frequency as weights
+            counts = torch.unique(
+                torch.Tensor(self.feedback_known_map.encode(annotations)),
+                return_counts=True,
+            )[1]
+
+            if self.new_pred_repr is None:
+                self.new_pred_repr = counts
+                self.new_pred_start_idx = len(self.pred_known_map)
+                self.pred_known_map.append(new_pred_label)
+            else:
+                self.new_pred_repr.append(counts)
 
     def update_known_feedback(self, new_feedback_labels):
         """Update state with the new known feedback label text."""
@@ -321,6 +353,15 @@ class CLIPFeedbackInterpreter(object):
 
         # Get a normalized probability vector keeping raitos of values.
         return sims / sims.sum(1, True)
+
+    def save(self, filepath):
+        """Save the state of this CLIPFeedbackInterpreter."""
+        raise NotImplementedError()
+
+    @staticmethod
+    def load(filepath):
+        """Load the CLIPFeedbackInterpreter from the given filepath."""
+        raise NotImplementedError()
 
     def novelty_recog(
         self,
