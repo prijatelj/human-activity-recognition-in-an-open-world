@@ -216,15 +216,28 @@ class CLIPFeedbackInterpreter(object):
             due to protocol with PAR.
         """
         # Convert labels to idx, then fill in each idx w/ corresponding sim.
-
-
-
-        # TODO handle getting the similarity between label text and
-        # new_pred_reprs
-
-
-
+        # Get the similarity of label text to the known predictor labels.
         return self.similarity[self.feedback_known_map.encode(label_text)]
+
+        knowns_mask = (
+            self.pred_label_encs.encode(label_text)
+            < self.new_pred_start_idx
+        )
+
+        # TODO need to handle bool mask of when accessing known vs unknowns
+        # similarity!
+
+        # Get the similarity between label text and new_pred_reprs
+        #pred_idx =
+        counts = self.new_pred_repr[
+            self.pred_label_encs.encode(label_text) - self.new_pred_start_idx
+        ]
+        unknowns = (counts @ self.feedback_label_encs) / counts.sum(
+            1,
+            keepdims=True,
+        )
+
+        # TODO Combine the known and unknown sims into correct place for label text.
 
     def update_known_preds(
         self,
@@ -242,6 +255,9 @@ class CLIPFeedbackInterpreter(object):
             map of pred labels to index, but the similarity calculations have
             to be different; something other than direct clip encoding
             comparison of texts.
+
+            Also, this allows for updating prior counts to feedback text of an
+            prediction label not represented by text.
         annotations :
             A tensor of shape (samples, feature_repr_dim) that contains the
             samples decided as part of this new predictor label. This will be
@@ -275,19 +291,33 @@ class CLIPFeedbackInterpreter(object):
         # feedback label to all existing feedback labels weighted by the
         # similarity to the pred label.
 
-        if self.new_pred_method == 'weighted_centroid':
-            # Save the running counts of each to later get frequency as weights
-            counts = torch.unique(
-                torch.Tensor(self.feedback_known_map.encode(annotations)),
-                return_counts=True,
-            )[1]
+        if self.new_pred_method != 'weighted_centroid':
+            raise NotImplementedError(
+                'update_known_preds() expects weighted centroid method'
+            )
 
-            if self.new_pred_repr is None:
-                self.new_pred_repr = counts
-                self.new_pred_start_idx = len(self.pred_known_map)
-                self.pred_known_map.append(new_pred_label)
-            else:
-                self.new_pred_repr.append(counts)
+        # Save the running counts of each to later get frequency as weights
+        counts = torch.unique(
+            torch.Tensor(self.feedback_known_map.encode(annotations)),
+            return_counts=True,
+        )[1]
+
+
+        # TODO Must put the counts into correct index to get a vector of
+        # len(feedback_labels)
+
+
+        if self.new_pred_repr is None:
+            # First new predictor label, so create it
+            self.new_pred_repr = counts
+            self.new_pred_start_idx = len(self.pred_known_map)
+            self.pred_known_map.append(new_pred_label)
+        elif new_pred_label in self.pred_known_map.encoder:
+            # Pre-existing no-text predictor label (unknown), update counts
+            self.new_pred_repr[self.pred_known_map.encoder[new_pred_label]] \
+                += counts
+        else:
+            self.new_pred_repr.append(counts)
 
     def update_known_feedback(self, new_feedback_labels):
         """Update state with the new known feedback label text."""
