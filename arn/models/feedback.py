@@ -131,8 +131,8 @@ class CLIPFeedbackInterpreter(object):
         elif similarity is None and self.feedback_label_encs is not None:
             # Calculate the similarity matrix now using clip.
             self.similarity = calc_similarity(
-                self.pred_label_encs,
                 self.feedback_label_encs,
+                self.pred_label_encs,
             )
         else: # NOTE Much redundancy wow If only I could finish my side project
             self.similarity = similarity
@@ -188,7 +188,7 @@ class CLIPFeedbackInterpreter(object):
             number of classes given back sa feedback, which is assumed to be 5
             due to protocol with PAR.
         """
-        # Convert labels to idx, then fill in each idx w/ corresponding
+        # Convert labels to idx, then fill in each idx w/ corresponding sim.
         return self.similarity[self.feedback_known_map.encode(label_text)]
 
     def update_known_preds(self, new_pred_label):
@@ -212,18 +212,16 @@ class CLIPFeedbackInterpreter(object):
         self.feedback_known_map.append(new_feedback_labels)
 
         # Get and save clip encoding of new feedback labels
-        self.feedback_label_encs.append(
-            self.clip_encode_text(new_feedback_labels)
-        )
+        new_encs= self.clip_encode_text(new_feedback_labels)
+        self.feedback_label_encs.append(new_encs)
 
-        # TODO Update the similarity of this new feedback to predictor's knowns
-        # TODO Get cosine similarity of each new feedback labels to predictor's
-        # TODO Save these cosine similarities to the cosine similarity matrix
+        # Update the similarity of this new feedback to predictor's knowns
+        self.similarity.append(calc_similarity(new_encs, self.pred_label_encs))
 
     def interpret_feedback(
         self,
         label_text,
-        unknown_last_dim=True,
+        unknown_last_dim=None,
     ):
         """Interprets the given feedback of multiple label texts per sample
         returning a soft label vector per sample for the with dimensions =
@@ -235,6 +233,12 @@ class CLIPFeedbackInterpreter(object):
             A matrix of text strings where rows are samples and columns are the
             number of classes given back sa feedback, which is assumed to be 5
             due to protocol with PAR.
+        unknown_last_dim : bool = None
+            If not provided (default), the probability vectors are of length
+            predictor known labels. If True, then the unknown prob is
+            calculated as the 1 - max probability of the knowns and is
+            appeneded to the end of the vector. If False, calculated the same
+            way, but pre-appeneded to the beginning of the probability vectors.
 
         Returns
         -------
@@ -250,26 +254,24 @@ class CLIPFeedbackInterpreter(object):
             np.array(label_text)
 
         # Check for new feedback labels and update feedback state
-        self.update_known_preds(np.unique(label_text))
+        self.update_known_feedback(np.unique(label_text))
 
         # With similarity updated, get the probability vectors for known labels
-        # TODO Get the normalized cosine similarity to predictor's known labels
-        sims = self.get_similarity(label_text)
+        # Get the normalized cosine similarity to predictor's known labels
+        sims = self.get_similarity(label_text) / torch.pi
 
-        # TODO Get the probablity of none of the predictor's known labels
-        # (unknown)
+        # After dividing by pi, columns be [0,1], but rows not to sum to 1.
+        if unknown_last_dim is None:
+            return sims / sims.sum(1, True)
 
-        # NOTE follows ONE  method of getting probs, expecting probs to have
-        # columns be [0,1], but rows not to sum to 1.
-        # Find probability of unknown as 1 - max 1-vs-Rest and concat
+        # Find probability of unknown as 1 - max and concat
         if unknown_last_dim:
-            probs = torch.cat((probs, 1 - torch.max(probs, 1, True).values), 1)
+            sims = torch.cat((sims, 1 - torch.max(sims, 1, True).values), 1)
         else:
-            probs = torch.cat((1 - torch.max(probs, 1, True).values, probs), 1)
+            sims = torch.cat((1 - torch.max(sims, 1, True).values, sims), 1)
 
         # Get a normalized probability vector keeping raitos of values.
-        return probs / probs.sum(1, True)
-        #return pred_known_or_unknown_probs
+        return sims / sims.sum(1, True)
 
     def novelty_recog(
         self,
