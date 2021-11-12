@@ -49,6 +49,13 @@ class CLIPFeedbackInterpreter(object):
         number of predictor classes and better to preserve the raw cosine
         similarities and normalize them on demand, rather than have to
         re-normalize without introducing error.
+    new_pred_method : str = 'weighted_feedbacks'
+        The method of representation of new predictor labels for this
+        interpreter since no text represents this label. Default and currently
+        only method implemented is the weighted similarity score of every
+        feedback label to every other feedback label. The weighting is based on
+        how many times each feedback label was used to represent the samples of
+        this new predictor label.
     """
     def __init__(
         self,
@@ -59,6 +66,7 @@ class CLIPFeedbackInterpreter(object):
         feedback_known_map=None,
         feedback_label_encs=None,
         similarity=None,
+        new_pred_method='weighted_feedbacks',
         device='cuda',
     ):
         """Initialize and load the CLIPFeedbackInterpreter
@@ -137,6 +145,12 @@ class CLIPFeedbackInterpreter(object):
         else: # NOTE Much redundancy wow If only I could finish my side project
             self.similarity = similarity
 
+        if new_pred_method != 'weighted_feedbacks'
+            raise NotImplementedError(
+                'Only `weighted_feedbacks` is implemented.',
+            )
+        self.new_pred_method = new_pred_method
+
     def clip_encode_text(self, label_texts):
         """Return the clip encoding of the label text preserving shape.
         Args
@@ -191,8 +205,39 @@ class CLIPFeedbackInterpreter(object):
         # Convert labels to idx, then fill in each idx w/ corresponding sim.
         return self.similarity[self.feedback_known_map.encode(label_text)]
 
-    def update_known_preds(self, new_pred_label):
-        """Given new known pred, update the existing similarity matrix, etc."""
+    def update_known_preds(
+        self,
+        new_pred_label,
+        annotations,
+        videos=None,
+    ):
+        """Given new known pred, update the existing similarity matrix, etc.
+
+        Args
+        ----
+        new_pred_label : str
+            The str identifier of the new pred label, BUT is not used in
+            similarity scores to feedback labels. This is added to the encoding
+            map of pred labels to index, but the similarity calculations have
+            to be different; something other than direct clip encoding
+            comparison of texts.
+        annotations :
+            A tensor of shape (samples, feature_repr_dim) that contains the
+            samples decided as part of this new predictor label. This will be
+            the sets of feedback labels per sample. This could include more
+            information.
+        videos : torch.Tensor = None
+            ??? Perhaps...
+
+        Note
+        ----
+        At this point, novelty has been detected, and samples have been
+        recognized as a distinct unknown class from the known classes in the
+        feature representation space. All these decisions have been made, only
+        thing left is to represent this new class in a way that allows us to
+        translate future feedback into a probability of it being this new
+        class.
+        """
         # TODO this gets interesting because how do we textually encode a new
         # pred label? Simplest case is to perhaps, after determinig, there is a
         # new pred label to be assigned, map that label to all other feedback
@@ -201,10 +246,16 @@ class CLIPFeedbackInterpreter(object):
         # similarities to a feedback label per feedback label, thus a separate
         # mean per element in the new pred label's column.
 
+        # annotations is simply prior feedback labels per sample (label text)
+        sims = self.similarity[self.feedback_known_map.encode(annotations)]
+
         # TODO, but then how do we calculate new feedback labels to this new
         # pred label that lacks text? Basically take the similarity of the new
         # feedback label to all existing feedback labels weighted by the
         # similarity to the pred label.
+
+        if self.new_pred_method == 'weighted_feedbacks':
+            sims = sims.mean([0, 1])
 
     def update_known_feedback(self, new_feedback_labels):
         """Update state with the new known feedback label text."""
@@ -218,14 +269,12 @@ class CLIPFeedbackInterpreter(object):
         # Update the similarity of this new feedback to predictor's knowns
         self.similarity.append(calc_similarity(new_encs, self.pred_label_encs))
 
-    def interpret_feedback(
-        self,
-        label_text,
-        unknown_last_dim=None,
-    ):
+    def interpret_feedback(self, label_text, unknown_last_dim=None):
         """Interprets the given feedback of multiple label texts per sample
         returning a soft label vector per sample for the with dimensions =
-        knowns + unknown.
+        knowns OR if `unknown_last_dim` given True or False the dimensions =
+        known + 1 with the 1 representing the general unknown class located at
+        the last or first dimension, respectively.
 
         Args
         ----
@@ -242,13 +291,13 @@ class CLIPFeedbackInterpreter(object):
 
         Returns
         -------
-        np.ndarray | torch.Tensor?
-            The probability vectors of predictor known classes and an unknown
-            class for each sample, which is a matrix of shape (samples,
-            predictor_knowns + 1). This indicates the predicted probablity that
-            each feedback sample corresponds to which predictor known class or
-            none of them (the unknown). Note that unknown probability is as the
-            last element of each vector row.
+        torch.Tensor
+            The probability vectors of predictor known classes and an,
+            optionally, unknown class for each sample, which is a matrix of
+            shape (samples, predictor_knowns + 1). This indicates the predicted
+            probablity that each feedback sample corresponds to which predictor
+            known class or none of them (the unknown). Note that unknown
+            probability is as the last element of each vector row.
         """
         if isinstance(label_text, np.ndarray):
             np.array(label_text)
@@ -312,7 +361,7 @@ class CLIPFeedbackInterpreter(object):
             The class decided upon for the given samples when interpretting
             feedback and the predictor's novelty detection and recognition.
         """
-        raise NotImplementedError()
+        raise NotImplementedError('NoveltyRecognizer should handle this.')
         # TODO ??? Obtain a CLIP encoding per row of feedback labels? Mean?
         #   TODO Sort each row of feedback labels lexically.
         #   Gives cenroid, may be useful in detecting unknown classes
