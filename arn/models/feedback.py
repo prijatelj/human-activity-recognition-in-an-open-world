@@ -219,26 +219,6 @@ class CLIPFeedbackInterpreter(object):
         # Get the similarity of label text to the known predictor labels.
         return self.similarity[self.feedback_known_map.encode(label_text)]
 
-        knowns_mask = (
-            self.pred_label_encs.encode(label_text)
-            < self.new_pred_start_idx
-        )
-
-        # TODO need to handle bool mask of when accessing known vs unknowns
-        # similarity!
-
-        # Get the similarity between label text and new_pred_reprs
-        #pred_idx =
-        counts = self.new_pred_repr[
-            self.pred_label_encs.encode(label_text) - self.new_pred_start_idx
-        ]
-        unknowns = (counts @ self.feedback_label_encs) / counts.sum(
-            1,
-            keepdims=True,
-        )
-
-        # TODO Combine the known and unknown sims into correct place for label text.
-
     def update_known_preds(
         self,
         new_pred_label,
@@ -297,27 +277,52 @@ class CLIPFeedbackInterpreter(object):
             )
 
         # Save the running counts of each to later get frequency as weights
-        counts = torch.unique(
+        uniques, counts = torch.unique(
             torch.Tensor(self.feedback_known_map.encode(annotations)),
+            sorted=True,
             return_counts=True,
-        )[1]
+        )
 
-
-        # TODO Must put the counts into correct index to get a vector of
-        # len(feedback_labels)
-
+        # Put the counts into correct index for each feedback label
+        new_pred_counts = torch.zeros([len(self.feedback_known_map.encoder)])
+        new_pred_counts[uniques] = counts
 
         if self.new_pred_repr is None:
             # First new predictor label, so create it
-            self.new_pred_repr = counts
+            self.new_pred_repr = new_pred_counts
             self.new_pred_start_idx = len(self.pred_known_map)
             self.pred_known_map.append(new_pred_label)
         elif new_pred_label in self.pred_known_map.encoder:
             # Pre-existing no-text predictor label (unknown), update counts
-            self.new_pred_repr[self.pred_known_map.encoder[new_pred_label]] \
-                += counts
+            pred_idx = self.pred_known_map.encoder[new_pred_label]
+            self.new_pred_repr[pred_idx - self.new_pred_start_idx] += \
+                new_pred_counts
+
+            pred_counts = self.new_pred_repr[[
+                pred_idx - self.new_pred_start_idx
+            ]]
+
+            # Update the similarity matrix's new pred protion.
+            self.similarity[pred_idx] = calc_similarity(
+                self.feedback_label_encs,
+                (
+                    (pred_counts @ self.feedback_label_encs)
+                    / pred_counts.sum(1, keepdims=True)
+                ),
+            )
         else:
-            self.new_pred_repr.append(counts)
+            # New no-text predictor label (unknown), add counts and sims
+            self.new_pred_repr.append(new_pred_counts)
+            new_pred_counts = new_pred_counts.reshape(-1,1)
+
+            # Update the similarity matrix's new pred protion.
+            self.similarity.append(calc_similarity(
+                self.feedback_label_encs,
+                (
+                    (self.new_pred_repr[-1] @ self.feedback_label_encs)
+                    / self.new_pred_repr[-1].sum(1, keepdims=True)
+                ),
+            ))
 
     def update_known_feedback(self, new_feedback_labels):
         """Update state with the new known feedback label text."""
