@@ -116,19 +116,19 @@ class CLIPFeedbackInterpreter(object):
         # Predictor label map of text to idx
         if isinstance(pred_known_map, str):
             ext = os.path.splitext(pred_known_map)[-1]
-            if ext == '.csv':
-                # Load csv, expect to get unique lowers and rm 'unknown'
-                self.pred_known_map = pd.read_csv(
-                    pred_known_map
-                )['par_class'].str.lower().unique()
-                self.pred_known_map = NominalDataEncoder(sorted(self.pred_known_map[
-                    self.pred_known_map != 'unknown'
-                ].tolist()))
-            elif ext == '.json':
-                # Load json, expect to get unique lowers and rm 'unknown'
-                self.pred_known_map = pd.read_json(
-                    pred_known_map
-                )['par_class'].str.lower().unique()
+            if ext in {'.csv', '.json'}:
+                loader = pd.read_csv if ext == '.csv' else pd.read_json
+
+                # Load DataFrame, expect to get unique lowers & some PascalCase
+                self.pred_known_map = (
+                    pd.Series(loader(pred_known_map)['par_class'].unique())
+                    .str.replace(r'(?<![ ^])(?=[A-Z])', ' ')
+                    .str.replace('  ', ' ') # May not be necessary.
+                    .str.strip()
+                    .str.lower()
+                )
+
+                # rm 'unknown'
                 self.pred_known_map = NominalDataEncoder(sorted(
                     self.pred_known_map[
                         self.pred_known_map != 'unknown'
