@@ -1,10 +1,11 @@
 from importlib import import_module
 __all__ = [
+    # Add new files to be imported here
     'generics',
     'augmentation',
     'feature_extraction',
     'owhar',
-    # Add new files to be imported here
+    'feedback',
 ]
 
 for module in __all__:

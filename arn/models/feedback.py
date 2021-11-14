@@ -1,5 +1,8 @@
 """Feedback models, specifically CLIP label encoding."""
+import os
+
 import numpy as np
+import pandas as pd
 import torch
 
 import clip
@@ -112,7 +115,28 @@ class CLIPFeedbackInterpreter(object):
 
         # Predictor label map of text to idx
         if isinstance(pred_known_map, str):
-            self.pred_known_map = NominalDataEncoder.load(pred_known_map)
+            ext = os.path.splitext(pred_known_map)[-1]
+            if ext == '.csv':
+                # Load csv, expect to get unique lowers and rm 'unknown'
+                self.pred_known_map = pd.read_csv(
+                    pred_known_map
+                )['par_class'].str.lower().unique()
+                self.pred_known_map = NominalDataEncoder(sorted(self.pred_known_map[
+                    self.pred_known_map != 'unknown'
+                ].tolist()))
+            elif ext == '.json':
+                # Load json, expect to get unique lowers and rm 'unknown'
+                self.pred_known_map = pd.read_json(
+                    pred_known_map
+                )['par_class'].str.lower().unique()
+                self.pred_known_map = NominalDataEncoder(sorted(
+                    self.pred_known_map[
+                        self.pred_known_map != 'unknown'
+                    ].tolist()
+                ))
+            else:
+                self.pred_known_map = NominalDataEncoder.load(pred_known_map)
+
         else: # NOTE Type checking goes here to die.
             self.pred_known_map = pred_known_map
 
@@ -120,7 +144,7 @@ class CLIPFeedbackInterpreter(object):
             self.pred_label_encs = torch.load(pred_label_encs)
         elif pred_label_encs is None and self.pred_known_map is not None:
             self.pred_label_encs = self.clip_encode_text(
-                list(self.pred_label_encs.encoder)
+                list(self.pred_known_map.encoder)
             )
         else: # NOTE Type checking is dead.
             self.pred_label_encs = pred_label_encs
@@ -138,7 +162,7 @@ class CLIPFeedbackInterpreter(object):
             and self.feedback_known_map is not None
         ):
             self.feedback_label_encs = self.clip_encode_text(
-                list(self.pred_label_encs.encoder)
+                list(self.feedback_known_map.encoder)
             )
         else: # NOTE Wow. Almost like someone should try to auto this...oh wait
             self.feedback_label_encs = feedback_label_encs
@@ -183,6 +207,9 @@ class CLIPFeedbackInterpreter(object):
         # updated with that CLIP encoding and the shape preserving is handled
         # by putting the similarity vectors in the correct spot of label_text,
         # handled by get_similrity()
+
+        # TODO Support pytorch self.device
+
         with torch.no_grad():
             zeroshot_weights = []
             for label_text in label_texts:
@@ -203,7 +230,7 @@ class CLIPFeedbackInterpreter(object):
 
                 zeroshot_weights.append(label_embedding)
 
-        return torch.stack(zeroshot_weights, dim=1).cuda()
+        return torch.stack(zeroshot_weights, dim=1).cuda().T
 
     def get_similarity(self, label_text):
         """Return the similarity vectors of label text to current sim matrix.
