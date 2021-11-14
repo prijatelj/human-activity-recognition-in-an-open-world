@@ -10,7 +10,7 @@ import clip
 from exputils.data.labels import NominalDataEncoder
 
 
-def calc_similarity(first, second, scalar=100.0):
+def calc_similarity(first, second, scalar=1.0):
     """Calculate the unnormalized cosine similarity scaled by some factor."""
     return (
         scalar
@@ -32,18 +32,18 @@ class CLIPFeedbackInterpreter(object):
     clip_templates : list(str)
         The text templates that every label text is inserted into and used to
         obtain the CLIP text encoding representation of that label text.
-    feedback_known_map : NominalDataEncoder
-        Bidirectional map of feedback known texts to index. This indexing is
-        consistent across feedback_label_encs and similarity rows.
-        This serves as the unique known feedback labels.
     pred_known_map : NominalDataEncoder
         Bidirectional map of predictor known texts to index. This indexing is
         consistent across predictor_label_encs and similarity columns.
         This serves as the unique known predictor labels.
-    feedback_label_encs : torch.Tensor
-        CLIP processed label encodings of feedback label text.
     pred_label_encs : torch.Tensor
         CLIP processed label encodings of predictor's known label text.
+    feedback_known_map : NominalDataEncoder
+        Bidirectional map of feedback known texts to index. This indexing is
+        consistent across feedback_label_encs and similarity rows.
+        This serves as the unique known feedback labels.
+    feedback_label_encs : torch.Tensor
+        CLIP processed label encodings of feedback label text.
     similarity : np.ndarray | torch.Tensor?
         A Matrix of rows being known feedback label texts and columns being the
         known predictor labels. This matrix's elements are the unnormalized
@@ -233,7 +233,7 @@ class CLIPFeedbackInterpreter(object):
         return torch.stack(zeroshot_weights, dim=1).cuda().T
 
     def get_similarity(self, label_text):
-        """Return the similarity vectors of label text to current sim matrix.
+        """Return the similarity vectors of feedback text to pred label text.
 
         Args
         ----
@@ -392,12 +392,28 @@ class CLIPFeedbackInterpreter(object):
             probablity that each feedback sample corresponds to which predictor
             known class or none of them (the unknown). Note that unknown
             probability is as the last element of each vector row.
+
+        Note
+        ----
+        The use of unknown probability being added in this way is the same as
+        how the ExtremeValueMachine however it was okay to do in the extreme
+        value machine because all of the source probabilities came from one
+        versus rest classifiers that were all trained on the same data, so they
+        were dependent upon each other. I am uncertain if cosine similarity can
+        be used in the same way and am witnessing a lot of "uncertain"
+        probability vectors where all the elements are low values.
+
+        For delivery of feedback, it probably would be best to just use the
+        known probs w/o unknown and then let the predictor leverage other info
+        to determine novelty recognition.
         """
         if isinstance(label_text, np.ndarray):
             np.array(label_text)
 
         # Check for new feedback labels and update feedback state
-        self.update_known_feedback(np.unique(label_text))
+        uniques = np.unique(label_text)
+        if set(uniques) - set(self.feedback_known_map.encoder):
+            self.update_known_feedback(uniques)
 
         # With similarity updated, get the probability vectors for known labels
         # Get the normalized cosine similarity to predictor's known labels
