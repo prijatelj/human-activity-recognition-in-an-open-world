@@ -244,12 +244,18 @@ class CLIPFeedbackInterpreter(object):
         """
         # Convert labels to idx, then fill in each idx w/ corresponding sim.
         # Get the similarity of label text to the known predictor labels.
-        return self.similarity[self.feedback_known_map.encode(label_text)]
+        #return self.similarity[self.feedback_known_map.encode(label_text)]
+        # TODO fix exputils encoder upstream to allow ndarrays, not just vecs
+        return self.similarity[np.searchsorted(
+            self.feedback_known_map.encoder,
+            label_text,
+        )]
 
     def update_known_preds(
         self,
         new_pred_label,
         annotations,
+        #features,
         videos=None,
     ):
         """Given new known pred, update the existing similarity matrix, etc.
@@ -265,7 +271,10 @@ class CLIPFeedbackInterpreter(object):
 
             Also, this allows for updating prior counts to feedback text of an
             prediction label not represented by text.
-        annotations :
+        annotations : list(list(str))
+            A list of length number of samples where each element is a list of
+            feedback annotaitons given for that sample.
+        features : torch.Tensor
             A tensor of shape (samples, feature_repr_dim) that contains the
             samples decided as part of this new predictor label. This will be
             the sets of feedback labels per sample. This could include more
@@ -305,19 +314,24 @@ class CLIPFeedbackInterpreter(object):
 
         # Save the running counts of each to later get frequency as weights
         uniques, counts = torch.unique(
-            torch.Tensor(self.feedback_known_map.encode(annotations)),
+            torch.Tensor(np.searchsorted(
+                self.feedback_known_map.encoder,
+                annotations,
+            )).type(torch.long),
             sorted=True,
             return_counts=True,
         )
 
         # Put the counts into correct index for each feedback label
-        new_pred_counts = torch.zeros([len(self.feedback_known_map.encoder)])
+        new_pred_counts = torch.zeros(
+            [len(self.feedback_known_map.encoder)]
+        ).type(torch.long)
         new_pred_counts[uniques] = counts
 
         if self.new_pred_repr is None:
             # First new predictor label, so create it
             self.new_pred_repr = new_pred_counts
-            self.new_pred_start_idx = len(self.pred_known_map)
+            self.new_pred_start_idx = len(self.pred_known_map.encoder)
             self.pred_known_map.append(new_pred_label)
         elif new_pred_label in self.pred_known_map.encoder:
             # Pre-existing no-text predictor label (unknown), update counts
@@ -351,13 +365,15 @@ class CLIPFeedbackInterpreter(object):
                 ),
             ))
 
+            self.pred_known_map.append(new_pred_label)
+
     def update_known_feedback(self, new_feedback_labels):
         """Update state with the new known feedback label text."""
         # Update index encoding of known feedback labels.
         self.feedback_known_map.append(new_feedback_labels)
 
         # Get and save clip encoding of new feedback labels
-        new_encs= self.clip_encode_text(new_feedback_labels)
+        new_encs = self.clip_encode_text(new_feedback_labels)
         self.feedback_label_encs.append(new_encs)
 
         # Update the similarity of this new feedback to predictor's knowns
