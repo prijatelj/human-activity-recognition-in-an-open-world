@@ -23,3 +23,12 @@ class FinNeTune(nn.Module):
 
     def get_finetuned_feature_extractor(self):
         return self.fcs
+
+    def load_interior_weights(self, state_dict):
+        temp = []
+        for x in state_dict:
+            if x[:3] != 'fcs':
+                temp.append(x)
+        for x in temp:
+            state_dict.pop(x)
+        self.load_state_dict(state_dict,strict=False)
