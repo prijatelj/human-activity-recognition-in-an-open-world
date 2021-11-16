@@ -82,6 +82,7 @@ class CLIPFeedbackInterpreter(object):
         similarity=None,
         new_pred_method='weighted_centroid',
         device='cuda',
+        float_dtype=torch.float32,
     ):
         """Initialize and load the CLIPFeedbackInterpreter
         Args
@@ -103,9 +104,13 @@ class CLIPFeedbackInterpreter(object):
         similarity : str | torch.Tensor = None
             Path to the similarity martrix to be loaded or the similarity
             matrix.
+        float_dtype : torch.Type = torch.float32
+            The default torch type for to use for the floats.
         """
         # Load in CLIP Pre-trained for encoding new feedback label text
         self.clip = clip.load(clip_path, device)[0]
+        self.device = device
+        self.float_dtype = float_dtype
 
         if isinstance(clip_templates, str):
             with open(clip_templates) as openf:
@@ -141,13 +146,15 @@ class CLIPFeedbackInterpreter(object):
             self.pred_known_map = pred_known_map
 
         if isinstance(pred_label_encs, str):
-            self.pred_label_encs = torch.load(pred_label_encs)
+            self.pred_label_encs = torch.load(pred_label_encs).type(
+                self.float_dtype,
+            )
         elif pred_label_encs is None and self.pred_known_map is not None:
             self.pred_label_encs = self.clip_encode_text(
                 list(self.pred_known_map.encoder)
-            )
+            ).type(self.float_dtype)
         else: # NOTE Type checking is dead.
-            self.pred_label_encs = pred_label_encs
+            self.pred_label_encs = pred_label_encs.type(self.float_dtype)
 
         # Label map for feedback label text to idx
         if isinstance(feedback_known_map, str):
@@ -156,16 +163,18 @@ class CLIPFeedbackInterpreter(object):
             self.feedback_known_map = feedback_known_map
 
         if isinstance(feedback_label_encs, str):
-            self.feedback_label_encs = torch.load(feedback_label_encs)
+            self.feedback_label_encs = torch.load(feedback_label_encs).type(
+                self.float_dtype
+            )
         elif (
             feedback_label_encs is None
             and self.feedback_known_map is not None
         ):
             self.feedback_label_encs = self.clip_encode_text(
                 list(self.feedback_known_map.encoder)
-            )
+            ).type(self.float_dtype)
         else: # NOTE Wow. Almost like someone should try to auto this...oh wait
-            self.feedback_label_encs = feedback_label_encs
+            self.feedback_label_encs = feedback_label_encs.to(self.float_dtype)
 
         # Cosine similarity matrix of (feedback labels) X (predictor knowns) to
         # one another when in CLIP encoded space.
@@ -218,7 +227,7 @@ class CLIPFeedbackInterpreter(object):
                 texts = clip.tokenize([
                     template.format(label_text.lower())
                     for template in self.clip_templates
-                ]).cuda()
+                ]).to(self.device)
 
                 # CLIP Encode the text, normalize dividing by L1 norm
                 label_embeddings = self.clip.encode_text(texts)
@@ -230,7 +239,7 @@ class CLIPFeedbackInterpreter(object):
 
                 zeroshot_weights.append(label_embedding)
 
-        return torch.stack(zeroshot_weights, dim=1).cuda().T
+        return torch.stack(zeroshot_weights, dim=1).to(device).T
 
     def get_similarity(self, label_text):
         """Return the similarity vectors of feedback text to pred label text.
@@ -246,10 +255,10 @@ class CLIPFeedbackInterpreter(object):
         # Get the similarity of label text to the known predictor labels.
         #return self.similarity[self.feedback_known_map.encode(label_text)]
         # TODO fix exputils encoder upstream to allow ndarrays, not just vecs
-        return self.similarity[np.searchsorted(
+        return self.similarity[[np.searchsorted(
             self.feedback_known_map.encoder,
             label_text,
-        )]
+        )]]
 
     def update_known_preds(
         self,
@@ -300,7 +309,6 @@ class CLIPFeedbackInterpreter(object):
         # mean per element in the new pred label's column.
 
         # annotations is simply prior feedback labels per sample (label text)
-        #sims = self.similarity[self.feedback_known_map.encode(annotations)]
 
         # TODO, but then how do we calculate new feedback labels to this new
         # pred label that lacks text? Basically take the similarity of the new
@@ -321,11 +329,13 @@ class CLIPFeedbackInterpreter(object):
             sorted=True,
             return_counts=True,
         )
+        uniques = uniques.to(self.device)
+        counts = counts.type(self.float_dtype).to(self.device)
 
         # Put the counts into correct index for each feedback label
         new_pred_counts = torch.zeros(
             [len(self.feedback_known_map.encoder)]
-        ).type(torch.long)
+        ).to(self.device)
         new_pred_counts[uniques] = counts
 
         if self.new_pred_repr is None:
@@ -333,6 +343,21 @@ class CLIPFeedbackInterpreter(object):
             self.new_pred_repr = new_pred_counts
             self.new_pred_start_idx = len(self.pred_known_map.encoder)
             self.pred_known_map.append(new_pred_label)
+
+            # Update the similarity matrix's new pred protion.
+            self.similarity = torch.cat(
+                [
+                    self.similarity,
+                    calc_similarity(
+                        self.feedback_label_encs,
+                        (
+                            (self.new_pred_repr @ self.feedback_label_encs)
+                            / self.new_pred_repr.sum()
+                        )
+                    ).reshape(-1, 1),
+                ],
+                dim=1,
+            )
         elif new_pred_label in self.pred_known_map.encoder:
             # Pre-existing no-text predictor label (unknown), update counts
             pred_idx = self.pred_known_map.encoder[new_pred_label]
@@ -344,7 +369,7 @@ class CLIPFeedbackInterpreter(object):
             ]]
 
             # Update the similarity matrix's new pred protion.
-            self.similarity[pred_idx] = calc_similarity(
+            self.similarity[:, pred_idx] = calc_similarity(
                 self.feedback_label_encs,
                 (
                     (pred_counts @ self.feedback_label_encs)
@@ -353,19 +378,26 @@ class CLIPFeedbackInterpreter(object):
             )
         else:
             # New no-text predictor label (unknown), add counts and sims
-            self.new_pred_repr.append(new_pred_counts)
-            new_pred_counts = new_pred_counts.reshape(-1,1)
+            self.new_pred_repr = torch.stack(
+                [self.new_pred_repr, new_pred_counts],
+            )
+            new_pred_counts = new_pred_counts.reshape(-1, 1)
+            self.pred_known_map.append(new_pred_label)
 
             # Update the similarity matrix's new pred protion.
-            self.similarity.append(calc_similarity(
-                self.feedback_label_encs,
-                (
-                    (self.new_pred_repr[-1] @ self.feedback_label_encs)
-                    / self.new_pred_repr[-1].sum(1, keepdims=True)
-                ),
-            ))
-
-            self.pred_known_map.append(new_pred_label)
+            self.similarity = torch.cat(
+                [
+                    self.similarity,
+                    calc_similarity(
+                        self.feedback_label_encs,
+                        (
+                            (self.new_pred_repr[-1] @ self.feedback_label_encs)
+                            / self.new_pred_repr[-1].sum()
+                        )
+                    ).unsqueeze(1),
+                ],
+                dim=1,
+            )
 
     def update_known_feedback(self, new_feedback_labels):
         """Update state with the new known feedback label text."""
