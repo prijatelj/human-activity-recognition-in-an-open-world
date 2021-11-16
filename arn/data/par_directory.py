@@ -109,16 +109,20 @@ def get_class_labels(data):
 def get_video_names_and_annotations(data, root=""):
     video_names = []
     annotations = []
-    bar = tqdm(data.iterrows(), total=len(data.index))
-    for x in glob.glob()
-
+    #bar = tqdm(data.iterrows(), total=len(data.index))
+    for x in glob.glob(root+"*"):
+        instance = x
+        anon = instance.split("/")[-1].split('.')[0]
+        video_names.append(instance)
+        annotations.append({"id":anon,"segment":(0,0)})
     return video_names, annotations
+
 
 
 def make_dataset(root_path, annotation_path, subset=50, n_samples_for_each_video=1, sample_duration=10,outpath="/scratch365/sgrieggs/humongous_big_dumps"):
     # print("----------------------------------------------------")
     # print(root_path)
-    data = load_annotation_data(annotation_path,subset)
+    #data = load_annotation_data(annotation_path,subset)
     video_names, annotations = get_video_names_and_annotations(data, root_path)
     # class_to_idx = get_class_labels(class_labels)
     # idx_to_class = {}
@@ -301,6 +305,6 @@ class Kinetics(data.Dataset):
 
 # def main():
 #     print("Hello World!")
-# if __name__ == "__main__":
-#     scratch365root = "/media/scratch_crc/"
-#     test = make_dataset(scratch365root+"dprijate/osr/har/data/kinetics/", "/home/sgrieggs/Downloads/kinetics_400_600_700_2020.csv", 50, 50, None, None)
+if __name__ == "__main__":
+    scratch365root = "/media/scratch_crc/"
+    test = make_dataset("/afs/crc.nd.edu/group/cvrl/scratch_34/sgrieggs/all_vids/", "/home/sgrieggs/Downloads/kinetics_400_600_700_2020.csv", 50, 50, "test", "test")
