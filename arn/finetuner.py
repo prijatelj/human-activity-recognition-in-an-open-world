@@ -52,13 +52,15 @@ def finetune(features, labels, model, epochs=25, batch_size=1000,verbose=False, 
             loss = criterion(prediction, slabels)
             tot_cls_loss += loss.item()
         if best_cls_loss > tot_cls_loss:
-            print(best_cls_loss)
             best_cls_loss = tot_cls_loss
             torch.save(model.state_dict(),save_path+'finetune_best.pt')
-            print("Epoch: " + str(epoch) + "---------------")
-            print("New Best " + str(tot_cls_loss))
-            print("Train Accuracy: " + tacc)
-            print("Val Accuracy: " + str(right / v_len))
+            if verbose:
+                print("Epoch: " + str(epoch) + "---------------")
+                print("New Best " + str(tot_cls_loss))
+                print("Train Accuracy: " + tacc)
+                print("Val Accuracy: " + str(right / v_len))
+    model.load_state_dict(torch.load(save_path+'finetune_best.pt'))
+    return model
 
 def finetune_val(features_t, labels_t, features_v, labels_v, model, epochs=25, batch_size=1000,verbose=False, save_path=""):
     t_len = len(features_t)
@@ -107,14 +109,15 @@ def finetune_val(features_t, labels_t, features_v, labels_v, model, epochs=25, b
             loss = criterion(prediction, slabels)
             tot_cls_loss += loss.item()
         if best_cls_loss > tot_cls_loss:
-            print(best_cls_loss)
             best_cls_loss = tot_cls_loss
             torch.save(model.state_dict(), save_path + 'finetune_best.pt')
-            print("Epoch: " + str(epoch) + "---------------")
-            print("New Best " + str(tot_cls_loss))
-            print("Train Accuracy: " + tacc)
-            print("Val Accuracy: " + str(right / v_len))
-
+            if verbose:
+                print("Epoch: " + str(epoch) + "---------------")
+                print("New Best " + str(tot_cls_loss))
+                print("Train Accuracy: " + tacc)
+                print("Val Accuracy: " + str(right / v_len))
+    model.load_state_dict(torch.load(save_path + 'finetune_best.pt'))
+    return model
 
 def load_data(target_path):
     data = pd.read_csv(target_path, index_col=False, header=0)
@@ -154,4 +157,4 @@ net = FinNeTune(input_size=400, n_classes=29)
 # test = torch.load("/home/sgrieggs/PycharmProjects/arn/arn/finetune_best.pt")
 # net.load_interior_weights(test)
 # finetune(features,one_hots, net)
-finetune_val(features,one_hots, features_v,one_hots_v, net)
+finetune_val(features,one_hots, features_v,one_hots_v, net, verbose=True)
