@@ -3,7 +3,7 @@ import torch
 from finetuning_layers import FinNeTune
 from torch.utils.data import TensorDataset, DataLoader
 
-def finetune(features, labels, model, epochs=5, batch_size=5,verbose=False, save_path=""):
+def finetune(features, labels, model, epochs=10, batch_size=5,verbose=False, save_path=""):
     features_t = features[:int(len(features)*.75)]
     features_v = features[int(len(features)*.75):]
     t_len = len(features_t)
@@ -25,6 +25,7 @@ def finetune(features, labels, model, epochs=5, batch_size=5,verbose=False, save
     model.cuda()
 
     for epoch in range(epochs):
+        best_cls_loss = 99999999999999999
         tot_cls_loss = 0.0
         right = 0
         for i, x in enumerate(dataloader):
@@ -51,7 +52,12 @@ def finetune(features, labels, model, epochs=5, batch_size=5,verbose=False, save
             right += torch.sum(torch.eq(torch.argmax(prediction, dim=1),torch.argmax(slabels, dim=1)).int()).cpu().numpy()
             loss = criterion(prediction, slabels)
             tot_cls_loss += loss.item()
+            if best_cls_loss > tot_cls_loss:
+                best_cls_loss = tot_cls_loss
+                torch.save(model.state_dict(),save_path+'finetune_best.pt')
+                print("New Best ")
         print("Val Accuracy: " + str(right / v_len))
+
 
 
 
@@ -86,5 +92,7 @@ for x in annotations:
     annotation = torch.zeros(len(class_labels_map))
     annotation[class_labels_map[x]] = 1
     one_hots.append(annotation)
-net = FinNeTune(input_size=400)
+net = FinNeTune(input_size=400, n_classes=29)
+test = torch.load("/home/sgrieggs/PycharmProjects/arn/arn/finetune_best.pt")
+net.load_interior_weights(test)
 finetune(features,one_hots, net)
