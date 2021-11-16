@@ -3,7 +3,7 @@ import torch
 from finetuning_layers import FinNeTune
 from torch.utils.data import TensorDataset, DataLoader
 
-def finetune(features, labels, model, epochs=10, batch_size=5,verbose=False, save_path=""):
+def finetune(features, labels, model, epochs=10, batch_size=1000,verbose=False, save_path=""):
     features_t = features[:int(len(features)*.75)]
     features_v = features[int(len(features)*.75):]
     t_len = len(features_t)
@@ -23,9 +23,8 @@ def finetune(features, labels, model, epochs=10, batch_size=5,verbose=False, sav
     criterion = torch.nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
     model.cuda()
-
+    best_cls_loss = 99999999999999999
     for epoch in range(epochs):
-        best_cls_loss = 99999999999999999
         tot_cls_loss = 0.0
         right = 0
         for i, x in enumerate(dataloader):
@@ -53,9 +52,10 @@ def finetune(features, labels, model, epochs=10, batch_size=5,verbose=False, sav
             loss = criterion(prediction, slabels)
             tot_cls_loss += loss.item()
             if best_cls_loss > tot_cls_loss:
+                print(best_cls_loss)
                 best_cls_loss = tot_cls_loss
                 torch.save(model.state_dict(),save_path+'finetune_best.pt')
-                print("New Best ")
+                print("New Best " + str(tot_cls_loss))
         print("Val Accuracy: " + str(right / v_len))
 
 
