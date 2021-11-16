@@ -299,6 +299,14 @@ class CLIPFeedbackInterpreter(object):
         thing left is to represent this new class in a way that allows us to
         translate future feedback into a probability of it being this new
         class.
+
+        A simple top 1 assessment of this method after testing shows it does
+        not return the new pred labels for the exact annotation label text
+        given to specify that new pred label, which means that the weighted
+        centroid in CLIP space may not be work with cosine similarity.
+
+        The 30th and 31st, which were added pred labels, do occur as 2nd or 3rd
+        in the top 5 similar.
         """
         # TODO this gets interesting because how do we textually encode a new
         # pred label? Simplest case is to perhaps, after determinig, there is a
@@ -375,7 +383,7 @@ class CLIPFeedbackInterpreter(object):
                     (pred_counts @ self.feedback_label_encs)
                     / pred_counts.sum(1, keepdims=True)
                 ),
-            )
+            ).squeeze()
         else:
             # New no-text predictor label (unknown), add counts and sims
             self.new_pred_repr = torch.stack(
