@@ -130,6 +130,7 @@ class FeatureExtractor(torch.nn.Module):
         """
         return FeatureExtractor()
 
+class TimesformerFeatureExtractor(FeatureExtractor):
 
 
 
