@@ -344,8 +344,6 @@ class KineticsUnified(torch.utils.data.Dataset):
     time_crops : int = 1
     randomize_spatial_params : bool = False
     return_sample_status : bool = False
-    corrupt_videos : list = None
-    missing_videos : list = None
     unlabeled_token : str = None
     filepath_order : InitVar[list] = [
         'split_kinetics400',
