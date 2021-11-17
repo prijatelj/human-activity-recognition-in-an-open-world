@@ -1,9 +1,17 @@
 import pandas as pd
 import torch
-from finetuning_layers import FinNeTune
 from torch.utils.data import TensorDataset, DataLoader
 
-def finetune(features, labels, model, epochs=25, batch_size=1000,verbose=False, save_path=""):
+from finetuning_layers import FinNeTune
+
+def finetune(features,
+    labels,
+    model,
+    epochs=25,
+    batch_size=1000,
+    verbose=False,
+    save_path="",
+):
     features_t = features[:int(len(features)*.75)]
     features_v = features[int(len(features)*.75):]
     t_len = len(features_t)
