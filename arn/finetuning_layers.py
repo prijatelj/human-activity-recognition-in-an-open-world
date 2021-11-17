@@ -31,7 +31,7 @@ class FinNeTune(nn.Module):
     def forward(self, x):
         """Returns the last fully connected layer and the probs classifier"""
         x = self.fcs(x)
-        classification = F. log_softmax(self.classifier(x), dim=1)
+        classification = F.log_softmax(self.classifier(x), dim=1)
         return x, classification
 
     def get_finetuned_feature_extractor(self):
