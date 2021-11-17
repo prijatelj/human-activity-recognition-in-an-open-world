@@ -10,7 +10,7 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
 
     Attributes
     ----------
-    feature_repr : FeatureRepr | torch.Tensor
+    feature_repr : FeatureRepr | torch.Tensor = None
         The task's feature representation model used in this OWHAR. This is a
         torch model at its base.
 
@@ -29,7 +29,10 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
             torch.Tensor([num_samples, batch, fine_tune_repr_dim])
                 A fine-tuned task repr of the entire video.
 
+
+
     novelty_detector : NoveltyDetector
+        The model that performs the novelty detection piece given
     novelty_recog : NoveltyRecognizer
         The novelty recognition model used in this OWHAR. This handles both
         novelty detection and novelty recognition
@@ -55,16 +58,23 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
         novelty_detector : NoveltyDetector
         novelty_recognizer : NoveltyRecognizer
         """
-        # TODO init/load the task Feature Representation model
+        # TODO init/load the Feature Representation model
         self.feature_repr
 
-        # TODO init/load the NoveltyDetector model if only a detector
+        # TODO init/load the task fine tuning model
+        self.feature_repr
+
+        # TODO init/load the NoveltyDetector model
         self.novelty_detector
 
-        # TODO init/load the NoveltyRecognizer model which is also the detector
+        # TODO init/load the NoveltyRecognizer model
         self.novelty_recognizer
 
         self.increment_count = increment_count
+
+        # TODO Data Management, should not be handled in the predictor, but
+        # rather the data pipeline,  so perhaps a wrapper of the PRedictor with
+        # some data stores for carrying the train and val data as a DataLoader.
 
         raise NotImplementedError()
 
@@ -92,33 +102,41 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
             classification probability vector(s) and the running novelty
             detection probability.
         """
-        raise NotImplementedError()
-        # TODO Gets the freature representation of the samples
-        # TODO uses the NoveltyDetector of the OWHAR model for classification.
-        return self.novelty_detector.predict(self.get_feature_repr(input_samples))
-
-    def get_feature_repr(self, input_samples):
-        """Encodes the task input samples with using the FeatureRepr model."""
-        # TODO Obtain the feature representation of the input samples
-        # TODO consider finishing TorchAnnExtractor and use it here.
-        raise NotImplementedError()
-        return self.feature_repr.encode(input_samples)
+        if is_feature_repr:
+            return self.novelty_detector.predict(
+                self.fine_tune.extract(input_samples)
+            )
+        return self.novelty_detector.predict( # TODO frepr.extract()
+            self.fine_tune.extract(self.feature_repr.extract(input_samples))
+        )
 
     def detect(self, input_samples):
         """Uses available NoveltyDetector/Recognizer to detect novelty in
         the given samples.
         """
-        raise NotImplementedError()
-        return self.novelty_detector.detect(input_samples)
+        return self.novelty_detector.detect(self.predict(input_samples))
 
-    def recognize(self, input_samples):
-        """Pass through that """
-        raise NotImplementedError()
-        if self.novelty_recognizer:
-            return self.novelty_recognizer.recognize(input_samples)
-        raise ValueError('No novelty_recognizer present!')
+    def recognize(self, input_samples, is_feature_repr=False):
+        """Passes off to self.predict()."""
+        return self.predict(input_samples)
 
-    def fit_increment(self, input_samples, labels):
+    def fit_increment(
+        self,
+        input_samples,
+        labels,
+        is_feature_repr=False,
+        val_input_samples,
+        val_labels,
+        val_is_feature_repr=False,
+    ):
         """Incrementally fit the OWHAR."""
-        raise NotImplementedError()
         self.increment_count += 1
+
+        if not is_feature_repr:
+            # TODO fit when not frozen or apply special fitting overtime.
+            input_samples = self.feature_repr.extract(input_samples)
+
+        self.fine_tune.fit(input_samples, labels)
+        self.novelty_detect.fit(self.fine_tune.extract(input_samples), labels)
+
+        # TODO update any other state for fititng, such as thresholds.
