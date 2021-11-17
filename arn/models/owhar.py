@@ -6,7 +6,7 @@ from exputils.ml.generic_predictors import SupervisedClassifier
 from arn.models import generics
 
 class OpenWorldHumanActivityPredictor(SupervisedClassifer):
-    """Pipeline class of the different parts of the OWHAR.
+    """The OWHAR predictor class that contains and manages the predictor parts.
 
     Attributes
     ----------
@@ -33,11 +33,12 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
 
     novelty_detector : NoveltyDetector
         The model that performs the novelty detection piece given
-    novelty_recog : NoveltyRecognizer
-        The novelty recognition model used in this OWHAR. This handles both
-        novelty detection and novelty recognition
-
         classifier: EVM or softmax output of fine-tune w/ thresholding
+
+    novelty_recog : NoveltyRecognizer
+        The novelty recognition model used in this OWHAR. This handles only
+        novelty recognition after detection has occurred.
+
         clustering: FINCH or HDBSCAN
 
     label_enc : exputils.data.labels.NominalDataEncoder
