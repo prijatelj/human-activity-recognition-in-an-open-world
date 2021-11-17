@@ -463,10 +463,14 @@ class KineticsUnified(torch.utils.data.Dataset):
 
         Returns
         -------
-        namedtuple
-            A namedtuple whose fields match that of the columns of the
-            DataFrame, but where the video frames are included in the beginning
-            index as a torch.Tensor.
+        tuple
+            A tuple whose first item is the sample video frames as a
+            torch.Tensor, second is the sample index in the DataSet's DataFrame
+            `data` to access labels etc outside of Torch computation, and an
+            optional third element which is the status value of loading the
+            video as an int which corresponds to the enumeration
+            `arn.data.dataloader_utils.VideoStatus`. The status value is only
+            included if `return_sample_status` is True.
         """
         # Given the index, obtain the sample's row from the DataFrame.
         sample = self.data.iloc[index]
