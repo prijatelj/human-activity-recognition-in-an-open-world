@@ -5,7 +5,7 @@ from exputils.ml.generic_predictors import SupervisedClassifier
 
 from arn.models import generics
 
-class OpenWorldHumanActivityPredictor(torch.nn.Module):
+class OpenWorldHumanActivityPredictor(SupervisedClassifer):
     """Pipeline class of the different parts of the OWHAR.
 
     Attributes
@@ -29,7 +29,8 @@ class OpenWorldHumanActivityPredictor(torch.nn.Module):
             torch.Tensor([num_samples, batch, fine_tune_repr_dim])
                 A fine-tuned task repr of the entire video.
 
-    novelty_recog : NoveltyDetector | NoveltyRecognizer
+    novelty_detector : NoveltyDetector
+    novelty_recog : NoveltyRecognizer
         The novelty recognition model used in this OWHAR. This handles both
         novelty detection and novelty recognition
 
