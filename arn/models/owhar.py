@@ -3,7 +3,7 @@ import torch
 
 from exputils.ml.generic_predictors import SupervisedClassifier
 
-from arn.models import generics
+from arn.models.novelty_detector import EVMWindowedMeanKLDiv
 
 class OpenWorldHumanActivityPredictor(SupervisedClassifer):
     """The OWHAR predictor class that contains and manages the predictor parts.
@@ -31,7 +31,7 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
 
 
 
-    novelty_detector : NoveltyDetector
+    novelty_detector : NoveltyDetector | EVMWindowedMeanKLDiv
         The model that performs the novelty detection piece given
         classifier: EVM or softmax output of fine-tune w/ thresholding
 
@@ -50,7 +50,7 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
         The number of incremental training phases this OWHAR has completed.
         Starts at zero when no trainings have been completed.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, fine_tune, novelty_detector, novelty_recognizer):
         """Initializes the OWHAR.
 
         Args
@@ -60,18 +60,11 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
         novelty_recognizer : NoveltyRecognizer
         """
         # TODO init/load the Feature Representation model
-        self.feature_repr
+        #self.feature_repr
 
-        # TODO init/load the task fine tuning model
-        self.feature_repr
-
-        # TODO init/load the NoveltyDetector model
-        self.novelty_detector
-
-        # TODO init/load the NoveltyRecognizer model
-        self.novelty_recognizer
-
-        self.increment_count = increment_count
+        self.fine_tune = fine_tune
+        self.novelty_detector = novelty_detector
+        self.novelty_recognizer = novelty_recognizer
 
         # TODO Data Management, should not be handled in the predictor, but
         # rather the data pipeline,  so perhaps a wrapper of the PRedictor with
@@ -80,10 +73,14 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
         raise NotImplementedError()
 
     @property
+    def get_increment(self):
+        return self.novelty_detector.get_increment
+
+    @property
     def label_enc(self):
         return self.novelty_detector.label_enc
 
-    def predict(self, input_samples, is_feature_repr=False):
+    def predict(self, input_samples, is_feature_repr=True):
         """Classifies the input samples using the NoveltyDetector after getting
         the FeatureRepr of the samples.
 
@@ -115,9 +112,15 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
         """Uses available NoveltyDetector/Recognizer to detect novelty in
         the given samples.
         """
-        return self.novelty_detector.detect(self.predict(input_samples))
+        if is_feature_repr:
+            return self.novelty_detector.detect(self.novelty_detector.known_probs(
+                self.fine_tune.extract(input_samples)
+            ))
+        return self.novelty_detector.detect(self.novelty_detector.known_probs(
+            self.fine_tune.extract(self.feature_repr.extract(input_samples))
+        ))
 
-    def recognize(self, input_samples, is_feature_repr=False):
+    def recognize(self, input_samples, is_feature_repr=True):
         """Passes off to self.predict()."""
         return self.predict(input_samples)
 
@@ -125,14 +128,13 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
         self,
         input_samples,
         labels,
-        is_feature_repr=False,
+        is_feature_repr=True,
         val_input_samples,
         val_labels,
-        val_is_feature_repr=False,
+        val_is_feature_repr=True,
     ):
         """Incrementally fit the OWHAR."""
-        self.increment_count += 1
-
+        #self.increment_count += 1
         if not is_feature_repr:
             # TODO fit when not frozen or apply special fitting overtime.
             input_samples = self.feature_repr.extract(input_samples)
