@@ -5,7 +5,8 @@ from exputils.ml.generic_predictors import SupervisedClassifier
 
 from arn.models.novelty_detector import EVMWindowedMeanKLDiv
 
-class OpenWorldHumanActivityPredictor(SupervisedClassifer):
+#class OpenWorldHumanActivityPredictor(SupervisedClassifer):
+class OWHAPredictorEVM(SupervisedClassifer):
     """The OWHAR predictor class that contains and manages the predictor parts.
 
     Attributes
@@ -28,9 +29,7 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
 
             torch.Tensor([num_samples, batch, fine_tune_repr_dim])
                 A fine-tuned task repr of the entire video.
-
-
-
+    evm : ExtremeValueMachine
     novelty_detector : NoveltyDetector | EVMWindowedMeanKLDiv
         The model that performs the novelty detection piece given
         classifier: EVM or softmax output of fine-tune w/ thresholding
@@ -41,6 +40,8 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
 
         clustering: FINCH or HDBSCAN
 
+        Not implemented for PAR EVAL 6 month, DARPA Eval 24 month.
+
     label_enc : exputils.data.labels.NominalDataEncoder
         The Dector/Recognizer's label encoder as that is the end of the
         OWHAR model.
@@ -50,7 +51,14 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
         The number of incremental training phases this OWHAR has completed.
         Starts at zero when no trainings have been completed.
     """
-    def __init__(self, fine_tune, novelty_detector, novelty_recognizer):
+    def __init__(
+        self,
+        fine_tune,
+        evm,
+        novelty_detector,
+        #novelty_recognizer,
+        feedback_interpreter,
+    ):
         """Initializes the OWHAR.
 
         Args
@@ -63,22 +71,31 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
         #self.feature_repr
 
         self.fine_tune = fine_tune
+        self.evm = evm
         self.novelty_detector = novelty_detector
-        self.novelty_recognizer = novelty_recognizer
+        #self.novelty_recognizer = novelty_recognizer
+        self.feedback_interpreter = feedback_interpreter
 
         # TODO Data Management, should not be handled in the predictor, but
         # rather the data pipeline,  so perhaps a wrapper of the PRedictor with
         # some data stores for carrying the train and val data as a DataLoader.
 
-        raise NotImplementedError()
-
     @property
     def get_increment(self):
-        return self.novelty_detector.get_increment
+        return self.evm.get_increment
 
     @property
     def label_enc(self):
-        return self.novelty_detector.label_enc
+        return self.evm.label_enc
+
+    def known_probs(self, input_samples, is_feature_repr=True):
+        if is_feature_repr:
+            return self.evm.known_probs(
+                self.fine_tune.extract(input_samples)
+            )
+        return self.evm.known_probs( # TODO frepr.extract()
+            self.fine_tune.extract(self.feature_repr.extract(input_samples))
+        )
 
     def predict(self, input_samples, is_feature_repr=True):
         """Classifies the input samples using the NoveltyDetector after getting
@@ -101,28 +118,24 @@ class OpenWorldHumanActivityPredictor(SupervisedClassifer):
             detection probability.
         """
         if is_feature_repr:
-            return self.novelty_detector.predict(
+            return self.evm.predict(
                 self.fine_tune.extract(input_samples)
             )
-        return self.novelty_detector.predict( # TODO frepr.extract()
+        return self.evm.predict( # TODO frepr.extract()
             self.fine_tune.extract(self.feature_repr.extract(input_samples))
         )
 
-    def detect(self, input_samples):
+    def detect(self, input_samples, is_feature_repr=True):
         """Uses available NoveltyDetector/Recognizer to detect novelty in
         the given samples.
         """
         if is_feature_repr:
-            return self.novelty_detector.detect(self.novelty_detector.known_probs(
+            return self.novelty_detector.detect(self.evm.known_probs(
                 self.fine_tune.extract(input_samples)
             ))
-        return self.novelty_detector.detect(self.novelty_detector.known_probs(
+        return self.novelty_detector.detect(self.evm.known_probs(
             self.fine_tune.extract(self.feature_repr.extract(input_samples))
         ))
-
-    def recognize(self, input_samples, is_feature_repr=True):
-        """Passes off to self.predict()."""
-        return self.predict(input_samples)
 
     def fit_increment(
         self,
