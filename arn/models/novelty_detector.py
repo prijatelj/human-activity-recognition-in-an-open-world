@@ -9,7 +9,7 @@ from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 
 # TODO?
 #class NoveltyDetector(object):
-#    def detect(self, preds):
+#    def detect(self, known_probs):
 #        pass
 
 class EVMWindowedMeanKLDiv(ExtremeValueMachine):
@@ -78,18 +78,18 @@ class EVMWindowedMeanKLDiv(ExtremeValueMachine):
         # code, we keep it.
         self.past_window = []
 
-    def detect(self, preds, max_pred=None, logger=None):
+    def detect(self, known_probs, is_max_pred=False, logger=None):
         """Post probability score classification, perform detection using KL
         Divergence with a weighted threshold.
 
         Args
         ----
-        preds : torch.Tensor
-            Resulting output from EVMWindowedMeanKLDiv.predict(input_samples).
+        known_probs : torch.Tensor
+            Something confusing involving EVMWindowedMeanKLDiv.predict(input_samples).
             This is the probability vectors per sample of known classes.
-        max_preds : torch.Tensor = None
-            The maximum probability per sample's predicted probability vector
-            may be provided if precalculated.
+        is_max_known_probs : bool = False
+            If True, known_probs is the maximum probability per sample's predicted
+            probability vector may be provided if precalculated.
         logger : logging
             A logging object to preserve the functionality up-stream.
 
@@ -112,10 +112,10 @@ class EVMWindowedMeanKLDiv(ExtremeValueMachine):
         # is done to handle novelty detection past the evm's prob vector
         # output.  The boundary between classification and novely detection
         # becomes blurred.
-        if max_pred is None:
-            max_probs = torch.max(preds, axis=1)
+        if is_max_pred is None:
+            max_probs = torch.max(known_probs, axis=1)
 
-        round_size = len(preds)
+        round_size = len(known_probs)
 
         # Populate the sliding window of moving averages
         self.past_window = copy.deepcopy(self.sliding_window)
