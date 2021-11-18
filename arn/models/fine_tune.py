@@ -152,14 +152,16 @@ class FineTune(object):
         # TODO save args and other state info
 
     @staticmethod
-    def load(filepath,
-             input_size=400,
-             model_width=512,
-             n_layers=5,
-             out_features=512,
-             n_classes=29,
-             nonlinearity=nn.ReLU,
-             **kwargs):
+    def load(
+        filepath,
+        input_size=400,
+        model_width=512,
+        n_layers=5,
+        out_features=512,
+        n_classes=29,
+        nonlinearity=nn.ReLU,
+        **kwargs,
+    ):
         """Load all the pieces from a file(s), possibly be done thru a config
         file. For now, feel free to hard code expectation of FineTuneFCANN.
 
