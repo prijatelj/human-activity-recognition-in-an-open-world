@@ -12,7 +12,7 @@ from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 #    def detect(self, known_probs):
 #        pass
 
-class EVMWindowedMeanKLDiv(ExtremeValueMachine):
+class WindowedMeanKLDiv(ExtremeValueMachine):
     """A Novelty Detector consisting of the EVM and weighted KL Divergence.
     This method relies on a moving average using a sliding window.
 
@@ -45,15 +45,15 @@ class EVMWindowedMeanKLDiv(ExtremeValueMachine):
         std_dev_train,
         window_size,
         num_rounds,
-        *args,
-        **kwargs,
+        #*args,
+        #**kwargs,
     ):
         """
         Args
         ----
         kl_threshold_decay_rate : determines KL Divergence threshold decay.
         """
-        super(EVMWindowedMeanKLDiv, self).__init__(*args, **kwargs)
+        #super(EVMWindowedMeanKLDiv, self).__init__(*args, **kwargs)
 
         # General Detector threshold
         self.detection_threshold = detection_threshold
@@ -113,7 +113,7 @@ class EVMWindowedMeanKLDiv(ExtremeValueMachine):
         # output.  The boundary between classification and novely detection
         # becomes blurred.
         if is_max_pred is None:
-            max_probs = torch.max(known_probs, axis=1)
+            known_probs = torch.max(known_probs, axis=1)
 
         round_size = len(known_probs)
 
