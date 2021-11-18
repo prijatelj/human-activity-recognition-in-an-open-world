@@ -419,7 +419,7 @@ class CLIPFeedbackInterpreter(object):
         # Update the similarity of this new feedback to predictor's knowns
         self.similarity.append(calc_similarity(new_encs, self.pred_label_encs))
 
-    def interpret_feedback(self, label_text, unknown_last_dim=None):
+    def interpret(self, label_text, unknown_last_dim=None):
         """Interprets the given feedback of multiple label texts per sample
         returning a soft label vector per sample for the with dimensions =
         knowns OR if `unknown_last_dim` given True or False the dimensions =
@@ -516,7 +516,7 @@ class CLIPFeedbackInterpreter(object):
         feedback_probs : torch.Tensor
             A matrix of shape (samples, probs_known_labels + 1) which is the
             interpretted feedback of samples as found from
-            `interpret_feedback()`.
+            `interpret()`.
         feature_repr : torch.Tensor = None
             The feature representation of the input samples.
         task_repr : torch.Tensor = None
