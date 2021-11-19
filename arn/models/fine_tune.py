@@ -55,7 +55,14 @@ class FineTune(object):
             self.batch_size = fit_args['batch_size']
             self.epochs = fit_args['epochs']
 
-    def fit(self, features_t, labels_t, features_v, labels_v,  verbose=False):
+    def fit(
+        self,
+        features_t,
+        labels_t,
+        features_v=None,
+        labels_v=None,
+        verbose=False,
+    ):
         """Fits the model with fit_args and the given features and labels in a
         supervised learning fashion.
         features_t labels_t: features and labels that the model should be trained on.
@@ -72,13 +79,17 @@ class FineTune(object):
 
         dataset = torch.utils.data.TensorDataset(features_t, labels_t)
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
-        dataset_val = torch.utils.data.TensorDataset(features_v, labels_v)
-        dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=self.batch_size, shuffle=True)
+        if features_v is not None:
+            dataset_val = torch.utils.data.TensorDataset(features_v, labels_v)
+            dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=self.batch_size, shuffle=True)
+
         model = self.model.to(self.device)
         criterion = torch.nn.BCEWithLogitsLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
+
         best_cls_loss = 99999999999999999
         best_val_acc = 0
+
         for epoch in range(self.epochs):
             if verbose:
                 print("Epoch: " + str(epoch) + "---------------")
@@ -100,6 +111,10 @@ class FineTune(object):
             tacc = str(right / t_len)
             right = 0
             tot_cls_loss = 0.0
+
+            if features_v is None: # Skip validation
+                continue
+
             for i, x in enumerate(dataloader_val):
                 torch.autograd.set_grad_enabled(False)
                 sfeatures, slabels = x
