@@ -142,8 +142,8 @@ class OWHAPredictorEVM(SupervisedClassifer):
         input_samples,
         labels,
         is_feature_repr=True,
-        val_input_samples,
-        val_labels,
+        val_input_samples=None,
+        val_labels=None,
         val_is_feature_repr=True,
     ):
         """Incrementally fit the OWHAR."""
