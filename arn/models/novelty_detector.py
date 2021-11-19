@@ -143,7 +143,7 @@ class WindowedMeanKLDiv(ExtremeValueMachine):
             ))
             p_window = p_past_and_current.unfold(0, self.window_size, 1)
 
-            # Calculate Kullback-Leibler Divergence for nominal data
+            # Calculate Gaussian Kullback-Leibler Divergence for nominal data
             mean = torch.mean(p_window, dim=1)
             std_dev = torch.std(p_window, dim=1)
             kl_epoch = (
