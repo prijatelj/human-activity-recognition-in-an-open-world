@@ -35,7 +35,13 @@ class FineTune(object):
 
     [add anything else you deem necessary as state for the FineTune object.]
     """
-    def __init__(self, model, fit_args=None, device=torch.device("cpu"),  eval_args=None):
+    def __init__(
+        self,
+        model,
+        fit_args=None,
+        device=torch.device("cpu"),
+        eval_args=None,
+    ):
         if not isinstance(model, torch.nn.Module):
             raise TypeError(
                 'Expected model typed as `torch.nn.Module`, not {type(model)}'
@@ -48,12 +54,6 @@ class FineTune(object):
         else:
             self.batch_size = fit_args['batch_size']
             self.epochs = fit_args['epochs']
-
-        # TODO Save the fit args
-
-        # TODO Save the eval/fwd pass args if any, probs not.
-
-        # raise NotImplementedError()
 
     def fit(self, features_t, labels_t, features_v, labels_v,  verbose=False):
         """Fits the model with fit_args and the given features and labels in a
