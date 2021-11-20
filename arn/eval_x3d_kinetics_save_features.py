@@ -14,12 +14,12 @@ from torchvision import datasets, transforms
 from torchsummary import summary
 
 
-from data.kinetics import Kinetics as Kinetics_val
+from data.kinetics_combined import Kinetics as Kinetics_val
 import numpy as np
 import tqdm
 from utils.apmeter import APMeter
 
-from timesformer.models.vit import TimeSformer
+import x3d as resnet_x3d
 
 # from data.kinetics_multigrid import Kinetics_val
 
@@ -39,17 +39,26 @@ parser.add_argument('-gpu', default='0', type=str)
 parser.add_argument('-task', default='class', type=str)
 parser.add_argument('-config', default="config.txt", type=str)
 parser.add_argument('-id', default="", type=str)
+parser.add_argument('-batch', default=1, type=int)
+
 KINETICS_CLASS_LABELS = 'data/kinetics400_labels.txt'
 args = parser.parse_args()
-os.environ["CUDA_VISIBLE_DEVICES"]=args.gpu
 ID = args.id
 # set_batch_size
-BS = 1
-BS_UPSCALE = 2
+BS = 4
+BS_UPSCALE = 1
 INIT_LR = 0.0002 * BS_UPSCALE
-GPUS = 1
-
+GPUS = 2
+BATCH =args.batch
+print(torch.cuda.device_count())
+print(os.environ.get('CUDA_VISIBLE_DEVICES'))
+gpus=os.environ.get('CUDA_VISIBLE_DEVICES').split(',')
+GPUS = len(gpus)
 X3D_VERSION = 'M'
+BS *= GPUS
+for x in range(len(gpus)):
+    gpus[x] = int(x)
+print(gpus)
 
 with open(args.config, "r") as f:
     raw_lines = f.readlines()
@@ -62,6 +71,7 @@ KINETICS_VAL_ANNO = lines[1][:-1]
 # KINETICS_VAL = lines[2][:-1]
 model_save_path = lines[3][:-1]
 save_txt_dir = lines[4][:-1]
+
 
 
 # TODO: Why are these here? We can take the len() of the dataset
@@ -102,19 +112,20 @@ def run(init_lr=INIT_LR, max_epochs=1, root=KINETICS_VAL_ROOT, anno=KINETICS_VAL
         'target':   ClassLabel()
     }
 
-
+    big_dumps = "/scratch365/sgrieggs/humongous_big_dumps/x3d/" + str(BATCH) + str('/')
+    big_dumps = "/home/sgrieggs/bigger_dumps/x3d/" + str(BATCH) + str('/')
     val_dataset = Kinetics_val(
-        root,
-        KINETICS_VAL_ANNO,
-        KINETICS_CLASS_LABELS,
-        'val',
-        spatial_transform = validation_transforms['spatial'],
-        temporal_transform = validation_transforms['temporal'],
-        target_transform = validation_transforms['target'],
-        sample_duration=300,
-        gamma_tau=1,
-        crops=1,
-    )
+            root,
+            KINETICS_VAL_ANNO,
+            KINETICS_CLASS_LABELS,
+            BATCH,
+            spatial_transform = validation_transforms['spatial'],
+            temporal_transform = validation_transforms['temporal'],
+            target_transform = validation_transforms['target'],
+            sample_duration=frames,
+            gamma_tau=gamma_tau,
+            crops=4,
+            outpath=big_dumps)
 
 
     val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=12, pin_memory=True)
@@ -127,19 +138,26 @@ def run(init_lr=INIT_LR, max_epochs=1, root=KINETICS_VAL_ROOT, anno=KINETICS_VAL
     # max_steps = iterations_per_epoch * max_epochs
 
 
+
+    try:
+        os.makedirs(big_dumps)
+    except FileExistsError:
+        print("File Exists")
+
     dataloaders = {'val': val_dataloader}
     datasets = {'val': val_dataset}
     print('val',len(datasets['val']))
     # print('Total iterations:', max_steps, 'Total epochs:', max_epochs)
     print('datasets created')
 
-    model_file = "models/TimeSformer_divST_8x32_224_K400.pyth"
-    # lol changing the name would be a lot of work, lmao
-    x3d = TimeSformer(img_size=224, num_classes=400, num_frames=8, attention_type='divided_space_time',
-                        pretrained_model=str(model_file))
+
+    x3d = resnet_x3d.generate_model(x3d_version=X3D_VERSION, n_classes=400, n_input_channels=3, dropout=0.5, base_bn_splits=1)
 
     # This is where we load the stuff
+
+    load_ckpt = torch.load('models/x3d_multigrid_kinetics_fb_pretrained.pt')
     # load_ckpt = torch.load('/home/sgrieggs/Downloads/x3d_multigrid_kinetics_rgb_sgd_204000.pt')
+    x3d.load_state_dict(load_ckpt['model_state_dict'])
     # save_model = model_save_path + '/x3d_PAR_rgb_ADAM_'+task+"_"+ID+"_"
     # print(dataset.get_no_classes())
     # x3d.replace_logits(dataset.get_no_classes())
@@ -185,7 +203,7 @@ def run(init_lr=INIT_LR, max_epochs=1, root=KINETICS_VAL_ROOT, anno=KINETICS_VAL
                     torch.autograd.set_grad_enabled(True)
                 else:
                     x3d.train(False)  # Set model to evaluate mode
-                    # _ = x3d.module.aggregate_sub_bn_stats() # FOR EVAL AGGREGATE BN STATS
+                    _ = x3d.module.aggregate_sub_bn_stats() # FOR EVAL AGGREGATE BN STATS
                     torch.autograd.set_grad_enabled(False)
 
                 tot_loss = 0.0
@@ -203,18 +221,17 @@ def run(init_lr=INIT_LR, max_epochs=1, root=KINETICS_VAL_ROOT, anno=KINETICS_VAL
                         progress_file.write(str(bar))
                     if phase == 'train':
 
-                        inputs, labels = data
+                        inputs, labels, path = data
 
                         # print(inputs.shape)
                         # print(labels.shape)
 
                     else:
-                        inputs, labels = data
+                        inputs, labels, path = data
                         b,n,c,t,h,w = inputs.shape # FOR MULTIPLE TEMPORAL CROPS
                         inputs = inputs.view(b*n,c,t,h,w)
 
                     inputs = inputs.cuda() # B 3 T W H
-                    labels = labels.cuda() # B C
 
                     if phase == 'train':
                         logits, _, _ = x3d(inputs)
@@ -230,7 +247,7 @@ def run(init_lr=INIT_LR, max_epochs=1, root=KINETICS_VAL_ROOT, anno=KINETICS_VAL
 
                     else:
                         with torch.no_grad():
-                            logits = x3d(inputs)
+                            logits, feat, base = x3d(inputs)
 
                         # logits = logits.squeeze(2) # B C
                         # logits = logits.view(b,n,logits.shape[1]) # FOR MULTIPLE TEMPORAL CROPS
@@ -239,23 +256,32 @@ def run(init_lr=INIT_LR, max_epochs=1, root=KINETICS_VAL_ROOT, anno=KINETICS_VAL
                         # #logits = torch.mean(logits, 1)
                         # probs = torch.sum(probs, dim=1)
                         # logits = torch.max(logits, dim=1)[0]
-                        # logits = logits.view(b, n, logits.shape[1])  # FOR MULTIPLE TEMPORAL CROPS
-                        logits_sm = F.softmax(logits, dim=1)
-                        # logits_sm = torch.mean(logits_sm, 1)
-                        # logits = torch.mean(logits, 1)
-                    right += torch.sum(torch.eq(torch.argmax(logits_sm, dim=1),torch.argmax(labels, dim=1)).int()).cpu().numpy()
+                        logits = logits.view(b, n, logits.shape[1])  # FOR MULTIPLE TEMPORAL CROPS
+                        logits_sm = F.softmax(logits, dim=2)
+                        logits_sm = torch.mean(logits_sm, 1)
+                        logits = torch.mean(logits, 1)
+                        for j, logit in enumerate(logits):
+                            torch.save(logit, big_dumps + path[j].split('/')[-1].split('.')[0] + '_logits.pt')
+                            # torch.save(labels[j], big_dumps + path[j].split('/')[-1].split('.')[0] + 'label.pt')
+                            torch.save(feat[j], big_dumps + path[j].split('/')[-1].split('.')[0] + '_feat.pt')
+                            # torch.save(base[j], big_dumps + path[j].split('/')[-1].split('.')[0] + 'base.pt')
+
+                    # for j, logit_sm in enumerate(logits_sm):
+                    #     top5v, top5 = torch.topk(logit_sm, 5)
+                        # if torch.argmax(labels[j], dim=0).int() in top5:
+                        #     right += 1
+
+                    # right += torch.sum(torch.eq(torch.argmax(logits_sm, dim=1),torch.argmax(labels, dim=1)).int()).cpu().numpy()
 
 
-                    cls_loss = criterion(logits, labels)
-                    tot_cls_loss += cls_loss.item()
-                    bar.set_description("Accuracy: {:.4f}".format(right/((i+1)*batch_size)))
-                    if phase == 'train':
-                        tr_apm.add(logits_sm.detach().cpu().numpy(), labels.cpu().numpy())
-                    else:
-                        val_apm.add(logits_sm.detach().cpu().numpy(), labels.cpu().numpy())
+                    # bar.set_description("Accuracy: {:.4f}".format(right/((i+1)*batch_size)))
+                    # if phase == 'train':
+                    #     tr_apm.add(logits_sm.detach().cpu().numpy(), labels.cpu().numpy())
+                    # else:
+                    #     val_apm.add(logits_sm.detach().cpu().numpy(), labels.cpu().numpy())
 
-                    loss = cls_loss/num_steps_per_update
-                    tot_loss += loss.item()
+                    loss = 1
+                    tot_loss += 1
 
                     if phase == 'train':
                         loss.backward()
@@ -268,41 +294,41 @@ def run(init_lr=INIT_LR, max_epochs=1, root=KINETICS_VAL_ROOT, anno=KINETICS_VAL
                         optimizer.step()
                         optimizer.zero_grad()
                         # s_times = iterations_per_epoch//2
-                        if (steps-load_steps) % s_times == 0:
-                            tr_map = tr_apm.value().mean()
-                            tr_apm.reset()
-                            print (' Epoch:{} {} steps: {} Cls Loss: {:.4f} Tot Loss: {:.4f} mAP: {:.4f}\n'.format(epochs, phase,
-                                steps, tot_cls_loss/(s_times*num_steps_per_update), tot_loss/s_times, tr_map))
+                        # if (steps-load_steps) % s_times == 0:
+                        #     tr_map = tr_apm.value().mean()
+                        #     tr_apm.reset()
+                            # print (' Epoch:{} {} steps: {} Cls Loss: {:.4f} Tot Loss: {:.4f} mAP: {:.4f}\n'.format(epochs, phase,
+                            #     steps, tot_cls_loss/(s_times*num_steps_per_update), tot_loss/s_times, tr_map))
+                            #
+                            # f.write (' Epoch:{} {} steps: {} Cls Loss: {:.4f} Tot Loss: {:.4f} mAP: {:.4f}\n'.format(epochs, phase,
+                            #                                                                                     steps,
+                            #                                                                                     tot_cls_loss / (s_times * num_steps_per_update),
+                            #                                                                                     tot_loss / s_times,
+                            #                                                                                     tr_map))
 
-                            f.write (' Epoch:{} {} steps: {} Cls Loss: {:.4f} Tot Loss: {:.4f} mAP: {:.4f}\n'.format(epochs, phase,
-                                                                                                                steps,
-                                                                                                                tot_cls_loss / (s_times * num_steps_per_update),
-                                                                                                                tot_loss / s_times,
-                                                                                                                tr_map))
-
-                            tot_loss = tot_cls_loss = 0.
+                            # tot_loss = tot_cls_loss = 0.
 
 
-                if phase == 'val':
-                    val_map = val_apm.value().mean()
-                    lr_sched.step(tot_loss)
-                    val_apm.reset()
-                    print (' Epoch:{} {} Loc Cls Loss: {:.4f} Tot Loss: {:.4f} mAP: {:.4f}\n'.format(epochs, phase,
-                        tot_cls_loss/num_iter, (tot_loss*num_steps_per_update)/num_iter, val_map))
-
-                    f.write (' Epoch:{} {} Loc Cls Loss: {:.4f} Tot Loss: {:.4f} mAP: {:.4f}\n'.format(epochs, phase,
-                        tot_cls_loss/num_iter, (tot_loss*num_steps_per_update)/num_iter, val_map))
-
-                    tot_loss = tot_cls_loss = 0.
-                    if val_map > best_map:
-                        ckpt = {'model_state_dict': x3d.module.state_dict(),
-                                'optimizer_state_dict': optimizer.state_dict(),
-                                'scheduler_state_dict': lr_sched.state_dict()}
-                        best_map = val_map
-                        best_epoch = epochs
-                        # print (' Epoch:{} {} best mAP: {:.4f}\n'.format(best_epoch, phase, best_map))
-                        f.write(' Epoch:{} {} best mAP: {:.4f}\n'.format(best_epoch, phase, best_map))
-                        # torch.save(ckpt, save_model+task+'_best.pt')
+                # if phase == 'val':
+                    # val_map = val_apm.value().mean()
+                    # lr_sched.step(tot_loss)
+                    # val_apm.reset()
+                    # print (' Epoch:{} {} Loc Cls Loss: {:.4f} Tot Loss: {:.4f} mAP: {:.4f}\n'.format(epochs, phase,
+                    #     tot_cls_loss/num_iter, (tot_loss*num_steps_per_update)/num_iter, val_map))
+                    #
+                    # f.write (' Epoch:{} {} Loc Cls Loss: {:.4f} Tot Loss: {:.4f} mAP: {:.4f}\n'.format(epochs, phase,
+                    #     tot_cls_loss/num_iter, (tot_loss*num_steps_per_update)/num_iter, val_map))
+                    #
+                    # tot_loss = tot_cls_loss = 0.
+                    # if val_map > best_map:
+                    #     ckpt = {'model_state_dict': x3d.module.state_dict(),
+                    #             'optimizer_state_dict': optimizer.state_dict(),
+                    #             'scheduler_state_dict': lr_sched.state_dict()}
+                    #     best_map = val_map
+                    #     best_epoch = epochs
+                    #     # print (' Epoch:{} {} best mAP: {:.4f}\n'.format(best_epoch, phase, best_map))
+                    #     f.write(' Epoch:{} {} best mAP: {:.4f}\n'.format(best_epoch, phase, best_map))
+                    #     # torch.save(ckpt, save_model+task+'_best.pt')
 
 def lr_warmup(init_lr, cur_steps, warmup_steps, opt):
     start_after = 1
@@ -323,16 +349,4 @@ def print_stats(long_ind, batch_size, stats, gamma_tau, bn_splits, lr):
 
 
 if __name__ == '__main__':
-    #
-    targets = ["/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_normal/",
-"/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Perspective/",
-"/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_jitter/",
-"/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Noise/",
-"/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Blur/",
-"/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Invert/",
-"/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Rotation/",
-"/media/sgrieggs/pageparsing/DATASETS/kinetics400_dataset/val_256_Flip/"]
-
-    targets = ["/media/sgrieggs/pageparsing/kinetics-dataset-400-test/"]
-    for x in targets:
-        run(root=x)
+    run()
