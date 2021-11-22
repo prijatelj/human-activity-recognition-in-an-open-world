@@ -1,0 +1,26 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:21.09-py3
+
+%post 
+    # Intall dependencies
+    mkdir deps
+    cd deps
+
+    # Install Prijatelj's public fork of `vast` for the EVM and FINCH
+    git clone --recurse-submodules https://github.com/prijatelj/vast
+    cd vast
+    python setup.py install
+
+    cd ../../
+
+    # Install CLIP
+    # pytorch, torchvision, and cudatoolkit deps are handled from NVIDIA container
+    pip install ftfy regex tqdm
+    pip install git+https://github.com/openai/CLIP.git
+
+    # Install this repo's main package and its dependencies
+    python setup.py install
+
+%labels
+    Author dprijate@nd.edu
+    Version v0.0.1
