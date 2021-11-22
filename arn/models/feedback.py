@@ -239,7 +239,7 @@ class CLIPFeedbackInterpreter(object):
 
                 zeroshot_weights.append(label_embedding)
 
-        return torch.stack(zeroshot_weights, dim=1).to(device).T
+        return torch.stack(zeroshot_weights, dim=1).to(self.device).T
 
     def get_similarity(self, label_text):
         """Return the similarity vectors of feedback text to pred label text.
