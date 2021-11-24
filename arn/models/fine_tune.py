@@ -72,7 +72,11 @@ class FineTune(object):
         print(t_len)
 
         dataset = torch.utils.data.TensorDataset(features_t, labels_t)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        dataloader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+        )
 
         if features_v is not None:
             v_len = len(features_v)
@@ -97,8 +101,8 @@ class FineTune(object):
                 torch.autograd.set_grad_enabled(True)
                 sfeatures, slabels = x
                 sfeatures = sfeatures.to(self.device)
-                slabels = slabels.to(self.device)
-                garbage, prediction = model(sfeatures)
+                slabels = slabels.to(self.device).float()
+                prediction = model(sfeatures)[1]
                 right += torch.sum(
                     torch.eq(torch.argmax(prediction, dim=1), torch.argmax(slabels, dim=1)).int()).cpu().numpy()
                 loss = criterion(prediction, slabels)
@@ -117,8 +121,8 @@ class FineTune(object):
                 torch.autograd.set_grad_enabled(False)
                 sfeatures, slabels = x
                 sfeatures = sfeatures.cuda()
-                slabels = slabels.cuda()
-                garbage, prediction = model(sfeatures)
+                slabels = slabels.cuda().float()
+                prediction = model(sfeatures)[1]
                 right += torch.sum(
                     torch.eq(torch.argmax(prediction, dim=1), torch.argmax(slabels, dim=1)).int()).cpu().numpy()
                 loss = criterion(prediction, slabels)
