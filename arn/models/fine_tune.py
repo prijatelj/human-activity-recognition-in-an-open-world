@@ -135,7 +135,8 @@ class FineTune(object):
                     print("New Best " + str(tot_cls_loss))
                     print("Train Accuracy: " + tacc)
                     print("Val Accuracy: " + str(right / v_len))
-        self.model = best_model
+
+        self.model = model
         # return
 
     def extract(self, features):
