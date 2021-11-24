@@ -137,7 +137,6 @@ class FineTune(object):
                     print("Val Accuracy: " + str(right / v_len))
 
         self.model = model
-        # return
 
     def extract(self, features):
         """Given features, outputs the fully connected encoding of them.
