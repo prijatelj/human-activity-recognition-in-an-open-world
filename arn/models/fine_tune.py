@@ -69,17 +69,15 @@ class FineTune(object):
         features_v labels_v: features and labels that the model should be validated on.
         """
         t_len = len(features_t)
-        v_len = len(features_v)
         print(t_len)
-        print(v_len)
-        # features_t = torch.stack(features_t)
-        # labels_t = torch.stack(labels_t)
-        # features_v = torch.stack(features_v)
-        # labels_v = torch.stack(labels_v)
 
         dataset = torch.utils.data.TensorDataset(features_t, labels_t)
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+
         if features_v is not None:
+            v_len = len(features_v)
+            print(v_len)
+
             dataset_val = torch.utils.data.TensorDataset(features_v, labels_v)
             dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=self.batch_size, shuffle=True)
 
