@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import torch
 
-from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
+#from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 
 # TODO?
 #class NoveltyDetector(object):
@@ -112,14 +112,14 @@ class WindowedMeanKLDiv(object):
         # is done to handle novelty detection past the evm's prob vector
         # output.  The boundary between classification and novely detection
         # becomes blurred.
-        if is_max_pred is None:
+        if not is_max_pred:
             known_probs = torch.max(known_probs, axis=1)
 
         round_size = len(known_probs)
 
         # Populate the sliding window of moving averages
         self.past_window = copy.deepcopy(self.sliding_window)
-        self.sliding_window.extend(torch.mean(max_probs, axis=1))
+        self.sliding_window.extend(torch.mean(known_probs, axis=1))
         if len(self.sliding_window) >= self.window_size:
             window_size = len(self.sliding_window)
             self.sliding_window = \
@@ -173,7 +173,7 @@ class WindowedMeanKLDiv(object):
                 4,
             ))
             if logger is not None:
-                self.logger.info(
+                logger.info(
                     f"self.temp_world_changed = {approx_world_changed}",
                 )
 
