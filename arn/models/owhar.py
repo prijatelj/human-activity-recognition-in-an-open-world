@@ -153,6 +153,6 @@ class OWHAPredictorEVM(object):
             input_samples = self.feature_repr.extract(input_samples)
 
         self.fine_tune.fit(input_samples, labels)
-        self.novelty_detect.fit(self.fine_tune.extract(input_samples), labels)
+        self.novelty_detector.fit(self.fine_tune.extract(input_samples), labels)
 
         # TODO update any other state for fititng, such as thresholds.
