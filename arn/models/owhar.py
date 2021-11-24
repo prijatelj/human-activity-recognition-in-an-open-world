@@ -153,9 +153,10 @@ class OWHAPredictorEVM(object):
             input_samples = self.feature_repr.extract(input_samples)
 
         self.fine_tune.fit(input_samples, labels)
+        # TODO all this casting is hot fixes and need better maintained by owhar
         self.novelty_detector.fit(
             self.fine_tune.extract(input_samples.to(self.fine_tune.device)),
-            labels.argmax(1),
+            labels.argmax(1).float(),
         )
 
         # TODO update any other state for fititng, such as thresholds.
