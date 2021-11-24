@@ -12,7 +12,7 @@ from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 #    def detect(self, known_probs):
 #        pass
 
-class WindowedMeanKLDiv(ExtremeValueMachine):
+class WindowedMeanKLDiv(object):
     """A Novelty Detector consisting of the EVM and weighted KL Divergence.
     This method relies on a moving average using a sliding window.
 
