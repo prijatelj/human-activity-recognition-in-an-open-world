@@ -148,7 +148,7 @@ class FineTune(object):
         -------
         torch.Tensor
         """
-        return self.model.fcs(features)
+        return self.model.fcs(features.to(self.device))
 
     def predict(self, features, labels):
         # TODO If this eval/fwd pass loop overlaps with training loop, reuse
