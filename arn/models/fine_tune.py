@@ -68,7 +68,8 @@ class FineTune(object):
         features_t labels_t: features and labels that the model should be trained on.
         features_v labels_v: features and labels that the model should be validated on.
         """
-        t_len = len(features_t)
+        features_t = features_t.float()
+        t_len = len(features_t.float())
         print(t_len)
 
         dataset = torch.utils.data.TensorDataset(features_t, labels_t)
@@ -148,7 +149,7 @@ class FineTune(object):
         -------
         torch.Tensor
         """
-        return self.model.fcs(features.to(self.device))
+        return self.model.fcs(features.to(self.device).float()).double()
 
     def predict(self, features, labels):
         # TODO If this eval/fwd pass loop overlaps with training loop, reuse
