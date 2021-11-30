@@ -151,7 +151,7 @@ class FineTune(object):
         """
         return self.model.fcs(features.to(self.device).float()).double()
 
-    def predict(self, features, labels):
+    def predict(self, features):
         # TODO If this eval/fwd pass loop overlaps with training loop, reuse
         # the code by function call, otherwise just do eval loop here. more
         # likely the training loop would use this at least in validation.
