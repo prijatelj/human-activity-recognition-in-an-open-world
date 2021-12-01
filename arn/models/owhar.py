@@ -154,9 +154,10 @@ class OWHAPredictorEVM(object):
 
         self.fine_tune.fit(input_samples, labels)
         # TODO all this casting is hot fixes and need better maintained by owhar
+        test = self.fine_tune.extract(input_samples.to(self.fine_tune.device))
         self.evm.fit(
-            self.fine_tune.extract(input_samples.to(self.fine_tune.device)),
-            labels.argmax(1).float(),
+            test,
+            labels.argmax(1).float().to("cpu"),
         )
 
         # TODO update any other state for fititng, such as thresholds.

@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import torch
-
+import math
 import clip
 
 from exputils.data.labels import NominalDataEncoder
@@ -473,7 +473,8 @@ class CLIPFeedbackInterpreter(object):
 
         # With similarity updated, get the probability vectors for known labels
         # Get the normalized cosine similarity to predictor's known labels
-        sims = self.get_similarity(label_text) / torch.pi
+        sims = self.get_similarity(label_text)
+        sims = sims / torch.Tensor([math.pi]).to(sims.device)
 
         # After dividing by pi, columns be [0,1], but rows not to sum to 1.
         if unknown_last_dim is None:
