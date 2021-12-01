@@ -89,6 +89,9 @@ class OWHAPredictorEVM(object):
         return self.evm.label_enc
 
     def known_probs(self, input_samples, is_feature_repr=True):
+        # print(input_samples)
+        # input_samples = torch.Tensor(input_samples)
+        # print(input_samples)
         if is_feature_repr:
             return self.evm.known_probs(
                 self.fine_tune.extract(input_samples)
