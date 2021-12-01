@@ -118,6 +118,8 @@ class WindowedMeanKLDiv(object):
         round_size = len(known_probs)
 
         # Populate the sliding window of moving averages
+        for x in range(len(self.sliding_window)):
+            self.sliding_window[x] = self.sliding_window[x].detach()
         self.past_window = copy.deepcopy(self.sliding_window)
         self.sliding_window.extend(torch.mean(known_probs, axis=1))
         if len(self.sliding_window) >= self.window_size:

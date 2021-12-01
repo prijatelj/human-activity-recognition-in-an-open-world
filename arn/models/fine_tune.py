@@ -70,8 +70,6 @@ class FineTune(object):
         """
         features_t = features_t.float()
         t_len = len(features_t.float())
-        print(t_len)
-
         dataset = torch.utils.data.TensorDataset(features_t, labels_t)
         dataloader = torch.utils.data.DataLoader(
             dataset,
@@ -161,7 +159,6 @@ class FineTune(object):
         prediction = F.softmax(self.model.classifier(features), dim=1).detach()
         prediction.requires_grad_(False)
         return prediction
-
 
     def save(self, filepath):
         # this should work
