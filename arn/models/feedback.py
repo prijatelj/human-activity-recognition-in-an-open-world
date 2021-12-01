@@ -81,7 +81,7 @@ class CLIPFeedbackInterpreter(object):
         feedback_label_encs=None,
         similarity=None,
         new_pred_method='weighted_centroid',
-        device='cuda',
+        device='cpu',
         float_dtype=torch.float32,
     ):
         """Initialize and load the CLIPFeedbackInterpreter
