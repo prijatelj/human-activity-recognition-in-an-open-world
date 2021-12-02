@@ -156,8 +156,8 @@ class FineTune(object):
 
         # NOTE for our paper, we want this with ability to find a threshold
         # from all train and val data.
-        prediction = F.softmax(self.model(features), dim=1).detach()
-        prediction.requires_grad_(False)
+        features, prediction = self.model(features)
+        F.softmax(prediction.detach().requires_grad_(False), dim=1)
         return prediction
 
     def save(self, filepath):
