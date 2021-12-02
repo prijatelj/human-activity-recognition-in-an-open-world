@@ -419,7 +419,7 @@ class CLIPFeedbackInterpreter(object):
         # Update the similarity of this new feedback to predictor's knowns
         self.similarity.append(calc_similarity(new_encs, self.pred_label_encs))
 
-    def interpret(self, label_text, unknown_last_dim=None):
+    def interpret(self, label_text, dim=-1, unknown_last_dim=None):
         """Interprets the given feedback of multiple label texts per sample
         returning a soft label vector per sample for the with dimensions =
         knowns OR if `unknown_last_dim` given True or False the dimensions =
@@ -478,16 +478,16 @@ class CLIPFeedbackInterpreter(object):
 
         # After dividing by pi, columns be [0,1], but rows not to sum to 1.
         if unknown_last_dim is None:
-            return sims / sims.sum(1, True)
+            return sims / sims.sum(dim, True)
 
         # Find probability of unknown as 1 - max and concat
         if unknown_last_dim:
-            sims = torch.cat((sims, 1 - torch.max(sims, 1, True).values), 1)
+            sims = torch.cat((sims, 1 - torch.max(sims, dim, True).values), 1)
         else:
-            sims = torch.cat((1 - torch.max(sims, 1, True).values, sims), 1)
+            sims = torch.cat((1 - torch.max(sims, dim, True).values, sims), 1)
 
         # Get a normalized probability vector keeping raitos of values.
-        return sims / sims.sum(1, True)
+        return sims / sims.sum(dim, True)
 
     def save(self, filepath):
         """Save the state of this CLIPFeedbackInterpreter."""
