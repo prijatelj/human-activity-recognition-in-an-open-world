@@ -93,12 +93,22 @@ class OWHAPredictorEVM(object):
         # input_samples = torch.Tensor(input_samples)
         # print(input_samples)
         if is_feature_repr:
-            return self.evm.known_probs(
+            kps = self.evm.known_probs(
                 self.fine_tune.extract(input_samples)
             )
-        return self.evm.known_probs( # TODO frepr.extract()
+            temp = torch.zeros((kps.shape[0],kps.shape[1]+1))
+            temp[:,:27] = kps[:,:27]
+            temp[:,28:] = kps[:,27:]
+            kps=temp
+            return kps
+        kps = self.evm.known_probs( # TODO frepr.extract()
             self.fine_tune.extract(self.feature_repr.extract(input_samples))
         )
+        temp = torch.zeros((kps.shape[0], kps.shape[1] + 1))
+        temp[:, :27] = kps[:, :27]
+        temp[:, 28:] = kps[:, 27:]
+        kps = temp
+        return kps
 
     def predict(self, input_samples, is_feature_repr=True):
         """Classifies the input samples using the NoveltyDetector after getting
@@ -121,24 +131,44 @@ class OWHAPredictorEVM(object):
             detection probability.
         """
         if is_feature_repr:
-            return self.evm.predict(
+            kps = self.evm.predict(
                 self.fine_tune.extract(input_samples)
             )
-        return self.evm.predict( # TODO frepr.extract()
+            temp = torch.zeros((kps.shape[0],kps.shape[1]+1))
+            temp[:,:27] = kps[:,:27]
+            temp[:,28:] = kps[:,27:]
+            kps=temp
+            return kps
+        kps =self.evm.predict( # TODO frepr.extract()
             self.fine_tune.extract(self.feature_repr.extract(input_samples))
         )
+        temp = torch.zeros((kps.shape[0], kps.shape[1] + 1))
+        temp[:, :27] = kps[:, :27]
+        temp[:, 28:] = kps[:, 27:]
+        kps = temp
+        return kps
 
     def detect(self, input_samples, is_feature_repr=True):
         """Uses available NoveltyDetector/Recognizer to detect novelty in
         the given samples.
         """
         if is_feature_repr:
-            return self.novelty_detector.detect(self.evm.known_probs(
+            kps = self.evm.known_probs(
                 self.fine_tune.extract(input_samples)
-            ))
-        return self.novelty_detector.detect(self.evm.known_probs(
+            )
+            temp = torch.zeros((kps.shape[0],kps.shape[1]+1))
+            temp[:,:27] = kps[:,:27]
+            temp[:,28:] = kps[:,27:]
+            kps=temp
+            return self.novelty_detector.detect(kps)
+        kps = self.evm.known_probs(
             self.fine_tune.extract(self.feature_repr.extract(input_samples))
-        ))
+        )
+        temp = torch.zeros((kps.shape[0], kps.shape[1] + 1))
+        temp[:, :27] = kps[:, :27]
+        temp[:, 28:] = kps[:, 27:]
+        kps = temp
+        return self.novelty_detector.detect(kps)
 
     def fit_increment(
         self,
@@ -158,9 +188,13 @@ class OWHAPredictorEVM(object):
         self.fine_tune.fit(input_samples, labels)
         # TODO all this casting is hot fixes and need better maintained by owhar
         test = self.fine_tune.extract(input_samples.to(self.fine_tune.device))
+        relabeled = labels.argmax(1).float().to("cpu")
+        for x in range(len(relabeled)):
+            if relabeled[x] > 27:
+                relabeled[x] -= 1
         self.evm.fit(
             test,
-            labels.argmax(1).float().to("cpu"),
+            relabeled,
         )
 
         # TODO update any other state for fititng, such as thresholds.
