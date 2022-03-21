@@ -5,7 +5,6 @@ from exputils.ml.generic_predictors import SupervisedClassifier
 
 from arn.models.novelty_detector import WindowedMeanKLDiv
 
-#class OpenWorldHumanActivityPredictor(SupervisedClassifer):
 class OWHAPredictorEVM(object):
     """The OWHAR predictor class that contains and manages the predictor parts.
 
