@@ -219,6 +219,7 @@ class FineTuneFCANN(nn.Module):
 
         for x in range(1,n_layers-1):
             ord_dict[f'fc{x}'] = nn.Linear(model_width, model_width)
+            # TODO This cannot be correct, it overrides the above Linear.
             ord_dict[f'fc{x}'] = nonlinearity()
 
         ord_dict[f'fc{n_layers - 1}'] = nn.Linear(model_width, out_features)
