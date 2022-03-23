@@ -59,11 +59,7 @@ class KineticsRootDirs(object):
 def get_path(
     df,
     root_dirs,
-    order=[
-        'split_kinetics400',
-        'split_kinetics600',
-        'split_kinetics700_2020',
-    ],
+    order=None,
     youtube_id='youtube_id',
     start='time_start',
     end='time_end',
@@ -108,6 +104,13 @@ def get_path(
     function, e.g. the split columns all are expected to follow the
     pattern: 'split_kinetics[dset_num]'.
     """
+    if order is None:
+        order = [
+        'split_kinetics400',
+        'split_kinetics600',
+        'split_kinetics700_2020',
+        ]
+
     # Save when each sample is present in each dataset
     not_null = 1 ^ pd.isnull(df[order])
 
@@ -138,6 +141,7 @@ def get_path(
                 + 'kinetics-dataset-400-'
                 + df[col].replace('validate', 'val')[mask],
             )
+            # TODO expand for augmentations.
         elif '600' in col:
             df_order.append(
                 root_dirs[i]
@@ -299,9 +303,9 @@ def subset_kinetics_unified(df, subset):
 
 
 @dataclass
-class KineticsUnified(torch.utils.data.Dataset):
-    """The dataset for the sample aligned Kinetics 400, 600, and 700_2020
-    datasets.
+class KineticsUnifiedFeatures(torch.utils.data.Dataset):
+    """The features extracted sample aligned dataset for Kinetics 400, 600, and
+    700_2020.
 
     Attributes
     ----------
@@ -311,39 +315,11 @@ class KineticsUnified(torch.utils.data.Dataset):
         A mapping of the unique classes in each Kinetics dataset to one
         another. May include other mappings as well. This serves the role of
         older unique `class_labels`.
-    spatial_transform : torchvision.transforms.Compose = None
-        An image transformation that is applied to every video frame. Default
-        is at least a Compose consisting of ToTensor to ensure the np.array
-        video frames are converted to pytorch tensors.
-    video_loader : callable = status_video_frame_loader
-        A callable that given a path loads the video frames from disk.
-    frame_step_size : int = 5
-        The step size used to select frames from the video to represent that
-        video in the sample. Named gamma tau in the X3D paper.
-    time_crops : int = 10
-        The total temporal crops of each video. This is specifically for use in
-        X3D.
-    randomize_spatial_params : bool = False
-        If True, randomizes the spatial transforms parameters.
-    return_sample_status : bool = False
-        If True, then __getitem__ returns the VideoStatus.value for the loaded
-        image at the end of the returned tuple.
-    sample_tuple : namedtuple
-        A namedtuple of the Kinetics Unified csv column names and serves to
-        contain a single sample (row) of the DataFrame with the loaded video
-        frames and annotations.
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str]
-    video_dirs : KineticsRootDirs = None
+    sample_dirs : KineticsRootDirs = None
     subset :  InitVar[KineticsUnifiedSubset] = None
-    spatial_transform : Compose = Compose([ToTensor()])
-    video_loader : callable = status_video_frame_loader
-    frames : int = 300
-    frame_step_size : int = 1
-    time_crops : int = 1
-    randomize_spatial_params : bool = False
-    return_sample_status : bool = False
     unlabeled_token : str = None
     filepath_order : InitVar[list] = [
         'split_kinetics400',
@@ -351,6 +327,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         'split_kinetics700_2020',
     ]
     reorder : InitVar[list] = None
+    ext : InitVar[str] = '_feat.pt'
 
     def __post_init__(
         self,
@@ -359,7 +336,9 @@ class KineticsUnified(torch.utils.data.Dataset):
         subset,
         filepath_order,
         reorder,
+        ext,
     ):
+        # Load the kinetics class map.
         if isinstance(kinetics_class_map, str):
             ext = os.path.splitext(kinetics_class_map)[-1]
             if ext == '.csv':
@@ -379,7 +358,7 @@ class KineticsUnified(torch.utils.data.Dataset):
                 f'recieved type: {type(kinetics_class_map)}',
             ]))
 
-        # TODO consider something like Dask for parallel reading of csvs
+        # Read in the annotation csv, and cast known columns to str.
         self.data = pd.read_csv(
             annotation_path,
             dtype={
@@ -429,31 +408,83 @@ class KineticsUnified(torch.utils.data.Dataset):
                         'labels',
                     ] = self.unlabeled_token
 
-        if 'video_path' not in self.data:
-            if self.video_dirs is None:
-                raise ValueError(' '.join([
-                    '`video_path` column must be in annotation data or',
-                    'video_dirs is given to generate the video paths.',
-                ]))
-            self.data['video_path'] = get_path(
-                self.data,
-                self.video_dirs \
-                if reorder is None else self.video_dirs[reorder],
-                order=filepath_order,
-            )
-
-        # TODO when multiprocessing with num_workers for torch DataLoader this
-        # fails to pickle.
-        #self.sample_tuple = namedtuple(
-        #    'kinetics_unified_sample',
-        #    ['video'] + self.data.columns.tolist(),
-        #)
-
         # Create an index column for ease of accessing labels from DataLoader
         self.data['sample_index'] = self.data.index
 
+        # Ensure the sample path exists for ease of grabbing.
+        if 'sample_path' not in self.data:
+            if self.sample_dirs is None:
+                raise ValueError(' '.join([
+                    '`sample_path` column must be in annotation data or',
+                    'sample_dirs is given to generate the video paths.',
+                ]))
+            self.data['sample_path'] = get_path(
+                self.data,
+                self.sample_dirs \
+                if reorder is None else self.sample_dirs[reorder],
+                order=filepath_order,
+                ext=ext,
+            )
+
     def __len__(self):
         return len(self.data)
+
+    def __getitem__(self, index):
+        """For the given index, load the corresponding sample feature encoding
+        and labels.
+
+        Returns
+        -------
+        tuple
+            A tuple whose first item is the sample feature encoding as a
+            torch.Tensor, second is the sample index in the DataSet's DataFrame
+            `data` to access labels etc outside of Torch computation.
+        """
+        # Given the index, obtain the sample's row from the DataFrame.
+        sample = self.data.iloc[index]
+
+        # Load from file. Hopefully, this is efficient enough.
+        feature_extract = torch.load(sample['sample_path'])
+
+        return feature_extract, sample['sample_index']
+
+
+@dataclass
+class KineticsUnified(KineticsUnifiedFeatures):
+    """The video sample aligned dataset for Kinetics 400, 600, and 700_2020.
+
+    Attributes
+    ----------
+    see KineticsUnifiedFeatures
+    spatial_transform : torchvision.transforms.Compose = None
+        An image transformation that is applied to every video frame. Default
+        is at least a Compose consisting of ToTensor to ensure the np.array
+        video frames are converted to pytorch tensors.
+    video_loader : callable = status_video_frame_loader
+        A callable that given a path loads the video frames from disk.
+    frame_step_size : int = 5
+        The step size used to select frames from the video to represent that
+        video in the sample. Named gamma tau in the X3D paper.
+    time_crops : int = 10
+        The total temporal crops of each video. This is specifically for use in
+        X3D.
+    randomize_spatial_params : bool = False
+        If True, randomizes the spatial transforms parameters.
+    return_sample_status : bool = False
+        If True, then __getitem__ returns the VideoStatus.value for the loaded
+        image at the end of the returned tuple.
+    """
+    spatial_transform : Compose = Compose([ToTensor()])
+    video_loader : callable = status_video_frame_loader
+    frames : int = 300
+    frame_step_size : int = 1
+    time_crops : int = 1
+    randomize_spatial_params : bool = False
+    return_sample_status : bool = False
+    ext : InitVar[str] = '.mp4'
+
+    def __post_init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def __getitem__(self, index):
         """For the given index, load the corresponding sample video frames and
@@ -469,12 +500,15 @@ class KineticsUnified(torch.utils.data.Dataset):
             video as an int which corresponds to the enumeration
             `arn.data.dataloader_utils.VideoStatus`. The status value is only
             included if `return_sample_status` is True.
+        Note
+        ----
+        This is built off from the X3D's dataloader.__get_item__().
         """
         # Given the index, obtain the sample's row from the DataFrame.
         sample = self.data.iloc[index]
 
         # Load the video
-        video, status = self.video_loader(sample['video_path'])
+        video, status = self.video_loader(sample['sample_path'])
 
         # Get the representative frames of this video sample
         video = [
@@ -527,7 +561,3 @@ class KineticsUnified(torch.utils.data.Dataset):
         if self.return_sample_status: # Returns the status code at end
             return video, sample['sample_index'], status.value
         return video, sample['sample_index']
-
-    #def __del__(self):
-    #    """Deconstructor to close any open files upon deletion."""
-    #    self.data.close()
