@@ -118,6 +118,8 @@ def get_path(
     # earlier versions with those that are available and working in later
     # Kinetics versions.
 
+    # TODO optionally expand samples by their pre-augmented versions.
+
     # Create the filepaths in order of preference of source dataset.
     df_order = []
     for i, col in enumerate(order):
@@ -141,7 +143,6 @@ def get_path(
                 + 'kinetics-dataset-400-'
                 + df[col].replace('validate', 'val')[mask],
             )
-            # TODO expand for augmentations.
         elif '600' in col:
             df_order.append(
                 root_dirs[i]
