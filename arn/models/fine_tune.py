@@ -2,13 +2,10 @@
 import copy
 from collections import OrderedDict
 
+#import pytorch_lightning as pl
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-# TODO Fine Tuning state: init, load, save
-# TODO Train/fit code given feature repr input
-# TODO extract/predict code given feature repr input
+nn = torch.nn
+F = torch.nn.functional
 
 
 class FineTune(object):
@@ -18,7 +15,7 @@ class FineTune(object):
     ----------
     model : torch.nn.Module
         The model to be used for fine tuning. This is expected to support
-        FineTuneFCANN.
+        FineTuneFC.
     fit_args : dict()
         The hyperparameters for fitting the fine tuning model. This includes
         the optimizer, epochs, etc. to run a complete run of fitting the model.
@@ -29,31 +26,33 @@ class FineTune(object):
     device : torch.device()
         the device on which model should be trained
         default: cpu
-    eval_args : dict() = None
-        The hyperparameters for evaluating the fine tuning model, if any.
-        Often, there are none.
-
-    [add anything else you deem necessary as state for the FineTune object.]
     """
     def __init__(
         self,
         model,
-        fit_args=None,
-        device=torch.device("cpu"),
-        eval_args=None,
+        batch_size=1000,
+        epochs=25,
+        device='cpu',
+        dtype=torch.float32,
     ):
         if not isinstance(model, torch.nn.Module):
             raise TypeError(
                 'Expected model typed as `torch.nn.Module`, not {type(model)}'
             )
+
         self.model = model
-        self.device = device
-        if fit_args is None:
-            self.batch_size = 1000
-            self.epochs = 25
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.device = torch.device(device)
+
+        if isinstance(dtype, torch.dtype):
+            self.dtype = dtype
+        elif isinstance(dtype, str):
+            self.dtype = getattr(torch, dtype)
         else:
-            self.batch_size = fit_args['batch_size']
-            self.epochs = fit_args['epochs']
+            raise TypeError(
+                f'Expected dtype as `torch.dtype` or `str`, not {type(dtype)}'
+            )
 
     def fit(
         self,
@@ -68,6 +67,11 @@ class FineTune(object):
         features_t labels_t: features and labels that the model should be trained on.
         features_v labels_v: features and labels that the model should be validated on.
         """
+
+        # TODO move to pytorch_lightning
+        # trainer = pl.Trainer(gpus=4, precision=16, limit_train_batches=0.5)
+        # trainer.fit(model, train_loader, val_loader)
+
         features_t = features_t.float()
         t_len = len(features_t.float())
         dataset = torch.utils.data.TensorDataset(features_t, labels_t)
@@ -103,7 +107,11 @@ class FineTune(object):
                 slabels = slabels.to(self.device).float()
                 prediction = model(sfeatures)[1]
                 right += torch.sum(
-                    torch.eq(torch.argmax(prediction, dim=1), torch.argmax(slabels, dim=1)).int()).cpu().numpy()
+                    torch.eq(
+                        torch.argmax(prediction, dim=1),
+                        torch.argmax(slabels, dim=1)
+                    ).int()
+                ).cpu().numpy()
                 loss = criterion(prediction, slabels)
                 loss.backward()
                 optimizer.step()
@@ -147,7 +155,7 @@ class FineTune(object):
         -------
         torch.Tensor
         """
-        return self.model.fcs(features.to(self.device).float()).double()
+        return self.model.fcs(features.to(self.device, dtype=self.dtype))
 
     def predict(self, features):
         # TODO If this eval/fwd pass loop overlaps with training loop, reuse
@@ -157,30 +165,16 @@ class FineTune(object):
         # NOTE for our paper, we want this with ability to find a threshold
         # from all train and val data.
         features, prediction = self.model(features)
-        prediction = F.softmax(prediction.detach().requires_grad_(False), dim=1)
+        prediction = F.softmax(prediction.detach(), dim=1)
         return prediction
 
     def save(self, filepath):
-        # this should work
-        # args).
-
         torch.save(self.model, filepath)
 
-        # TODO save args and other state info
-
     @staticmethod
-    def load(
-        filepath,
-        input_size=400,
-        model_width=512,
-        n_layers=5,
-        out_features=512,
-        n_classes=29,
-        nonlinearity=nn.ReLU,
-        **kwargs,
-    ):
+    def load(filepath, input_size=400, **kwargs):
         """Load all the pieces from a file(s), possibly be done thru a config
-        file. For now, feel free to hard code expectation of FineTuneFCANN.
+        file. For now, feel free to hard code expectation of FineTuneFC.
 
         Returns
         -------
@@ -188,41 +182,57 @@ class FineTune(object):
             An instance of FineTune is returned given the files containing
             state information.
         """
-
         state_dict = torch.load(filepath) # handles torch model when saved as .pt
-        model = FineTuneFCANN(input_size,model_width,n_layers,out_features,n_classes,nonlinearity)
+        model = FineTuneFC(input_size, **kwargs)
         model.load(state_dict)
-        # TODO load the other parameters . . .
-        #   If not loaded from file or whatever, then can simply be given by
-        #   **kwargs.
 
         return FineTune(model, **kwargs)
 
 
-class FineTuneFCANN(nn.Module):
-    """Fully Connected Dense ANN for fine tuning."""
+class FineTuneFC(nn.Module):
+    """Fully Connected Dense ANN for fine tuning.
+
+    Attrib
+    ------
+    fcs : nn.Sequntial
+        The fully connected sequential dense ANN whose output is the
+        penultamite layer of the network just before the linear, softmaxed
+        layer.
+    classifier : nn.Linear
+        The remaining portion of the sequential model that takes as input
+        the output of fcs and maps that to a dense layer. Note that this does
+        not apply log_softmax to the output of the linear, only puts it into
+        the correct number of dimensions (number of classes). The log_softmax
+        is applied to the first dimension in the `forward()` method.
+    """
     def __init__(
         self,
         input_size,
-        model_width=512,
-        n_layers=5,
-        out_features=512,
+        width=512,
+        depth=5,
+        out_features=None,
         n_classes=29,
-        nonlinearity=nn.ReLU,
+        activation=nn.ReLU,
+        dropout_prob=None,
     ):
         """Fine-tuning ANN consisting of fully-connected dense layers."""
-        self.nonlinearity = nonlinearity
         super().__init__()
+        if out_features is None:
+            out_features = width
+
         ord_dict = OrderedDict()
-        ord_dict["fc0"] = nn.Linear(input_size, model_width)
-        ord_dict["nl0"] = nonlinearity()
+        ord_dict["fc0"] = nn.Linear(input_size, width)
+        ord_dict[f"{activation.__name__}0"] = activation()
 
-        for x in range(1,n_layers-1):
-            ord_dict[f'fc{x}'] = nn.Linear(model_width, model_width)
-            # TODO This cannot be correct, it overrides the above Linear.
-            ord_dict[f'fc{x}'] = nonlinearity()
+        for x in range(1, depth-1):
+            ord_dict[f'fc{x}'] = nn.Linear(width, width)
+            if dropout_prob:
+                ord_dict[f'Dropout{x}'] = nn.Dropout(dropout_prob)
+            ord_dict[f'{activation.__name__}{x}'] = activation()
 
-        ord_dict[f'fc{n_layers - 1}'] = nn.Linear(model_width, out_features)
+        # Final dense / fully connected layer as output feature representation
+        ord_dict[f'fc{depth - 1}'] = nn.Linear(width, out_features)
+
         self.fcs = nn.Sequential(ord_dict)
         self.classifier = nn.Linear(out_features, n_classes)
 
@@ -232,10 +242,6 @@ class FineTuneFCANN(nn.Module):
         classification = F.log_softmax(self.classifier(x), dim=1)
         return x, classification
 
-    def get_finetuned_feature_extractor(self):
-        """Returns ANN that outputs the final fully connected layer."""
-        return self.fcs
-
     def load_interior_weights(self, state_dict):
         temp = []
         for x in state_dict:
@@ -243,4 +249,24 @@ class FineTuneFCANN(nn.Module):
                 temp.append(x)
         for x in temp:
             state_dict.pop(x)
-        self.load_state_dict(state_dict,strict=False)
+        self.load_state_dict(state_dict, strict=False)
+
+
+# TODO pytorch lightning for experience and speed, replace/new FineTune?
+"""
+class FineTuneFCLit(FineTuneFC, pl.LightningModule):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters())
+
+    def training_step(self, batch, batch_idx):
+        raise NotImplementedError()
+
+    def validation_step(self, batch, batch_idx):
+        raise NotImplementedError()
+
+    def test_step(self, batch, batch_idx):
+        raise NotImplementedError()
+"""
