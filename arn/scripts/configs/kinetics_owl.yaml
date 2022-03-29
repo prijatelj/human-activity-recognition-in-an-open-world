@@ -1,0 +1,62 @@
+# The complete Open World Human Activity Recognition pipeline from beginning to
+# end. This will probably be broken down into smaller chunks for convenience.
+doc_style: numpy
+from import:
+  arn.data.kinetics_owl:
+    - KineticsOWL
+    - KineticsOWLExperiment
+import:
+  - torch
+main: KineticsOWL.run()
+
+KineticsOWL: # Pipeline for the Open World Learning Data process
+  seed: 0
+  environment:
+    KineticsOWLExperiment:
+      shared_dataloader_kwargs:
+        annotation_path:
+        kinetics_class_map:
+        sample_dirs:
+          kinetics400_dir: x3d-features-k400/
+          kinetics600_dir: x3d-features-k600/
+          kinetics700_2020_dir: x3d-features-k700_2020/
+          root_dir: $HOME/workspace/research/osr/repos/har/data
+      start:
+        KineticsUnifiedFeatures:
+          subset:
+            KineticsSplitConfig:
+              kinetics400:
+                KineticsSplitConfig:
+                  train: True
+                  validate: True
+                  test: True
+      step: # Cycle through
+        - Kinetics600:
+            subset:
+              KineticsSplitConfig:
+                kinetics600:
+                  KineticsSplitConfig:
+                    train: True
+                    validate: True
+                    test: True
+        - Kinetics700:
+            subset:
+              KineticsSplitConfig:
+                kinetics700_2020:
+                  KineticsSplitConfig:
+                    train: True
+                    validate: True
+                    test: True
+    label_id: 'kinetics700_map' # TODO check if any k400 are cut. or other changes.
+    inc_splits_per_dset: 10
+    feature_extract: True
+    maintain_predictor_experience: True
+  predictor:
+    OWHARPredictor: # Pipeline for the Open World Agent
+      fine_tuning:
+      novelty_detector: # Classification + Clustering
+      feedback_interpreter: None
+  measures:
+    - acc
+    - top-5 acc
+    - loss
