@@ -1,11 +1,43 @@
 """Open World Human Activity Recognition pipeline class."""
 import torch
 
-from exputils.ml.generic_predictors import SupervisedClassifier
-
 from arn.models.novelty_detector import WindowedMeanKLDiv
 
 
+class OWHAPredictor(object):
+    """The OWHAR predictor class that contains and manages the predictor parts.
+    """
+    def __init__(self, fine_tune, novelty_detector, feedback_interpreter=None):
+        """Initializes the OWHAR.
+        """
+        self.fine_tune = fine_tune
+        self.evm = evm
+        self.novelty_detector = novelty_detector
+        self.feedback_interpreter = feedback_interpreter
+        self._increment = 0
+
+    @property
+    def get_increment(self):
+        return self._increment
+
+    def fit(self):
+        raise NotImplementedError()
+
+    def step(self):
+        raise NotImplementedError()
+        self._increment += 1
+
+    def known_probs(self,):
+        raise NotImplementedError()
+
+    def predict(self,):
+        raise NotImplementedError()
+
+    def novelty_detect(self,):
+        raise NotImplementedError()
+
+
+# TODO class OWHAPredictorEVM(OWHAPredictor):
 class OWHAPredictorEVM(object):
     """The OWHAR predictor class that contains and manages the predictor parts.
 
