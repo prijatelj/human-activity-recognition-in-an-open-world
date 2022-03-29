@@ -212,7 +212,7 @@ class FineTuneFC(nn.Module):
         depth=5,
         out_features=None,
         n_classes=29,
-        activation=nn.ReLU,
+        activation=nn.LeakyReLU,
         dropout_prob=None,
     ):
         """Fine-tuning ANN consisting of fully-connected dense layers."""
