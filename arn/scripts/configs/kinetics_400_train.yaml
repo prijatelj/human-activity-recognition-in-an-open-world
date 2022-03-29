@@ -7,7 +7,7 @@ from import:
     - KineticsOWLExperiment
   arn.models.fine_tune:
     - FineTune
-    - FineTuneFCANN
+    - FineTuneFC
   arn.models.novelty_detector:
     - WindowedMeanKLDiv
 import:
@@ -37,15 +37,15 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   test: True
     label_id: 'kinetics700_map' # TODO check if any k400 are cut. or other changes.
   predictor:
-    OWHARPredictor: # Pipeline for the Open World Agent
+    OWHARPredictor: # the Open World Agent
       fine_tuning:
         FineTune:
           model:
-            FineTuneFCANN: # TODO update to like certainty's DenseBlock
+            FineTuneFC:
               depth: 5
-              units: 512
-              activation: LeakyRelu
-              #dropout: 0.1 # TODO consider drop out
+              width: 512
+              activation: torch.nn.LeakyReLU
+              #dropout: 0.5 # TODO consider drop out
           batch_size: 1000
           epochs: 25
       novelty_detector: # Classification + Clustering
