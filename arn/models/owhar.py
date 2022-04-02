@@ -6,12 +6,20 @@ from arn.models.novelty_detector import WindowedMeanKLDiv
 
 class OWHAPredictor(object):
     """The OWHAR predictor class that contains and manages the predictor parts.
+    Every OWL predictor consists of a feature representation model, fine tuner,
+    and novelty detector. Extra parts include a novelty recognizer if separate
+    from the pre-existing parts and optional feedback interpreter.
+
+    Attrib
+    ------
+    fine_tune:
+    novelty_detector:
+    feedback_interpreter: = None
+    label_enc:
     """
     def __init__(self, fine_tune, novelty_detector, feedback_interpreter=None):
-        """Initializes the OWHAR.
-        """
+        """Initializes the OWHAR."""
         self.fine_tune = fine_tune
-        self.evm = evm
         self.novelty_detector = novelty_detector
         self.feedback_interpreter = feedback_interpreter
         self._increment = 0
