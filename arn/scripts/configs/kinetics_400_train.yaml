@@ -14,8 +14,8 @@ docstr: # Optional container for all docstr specifc configuraitons.
       - WindowedMeanKLDiv
     arn.models.owhar:
       - OWHAPredictor
-  import:
-    - torch
+  #import:
+  #  - torch
   main: KineticsOWL.run
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
@@ -50,7 +50,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               input_size: 512
               depth: 5
               width: 512
-              activation: torch.nn.LeakyReLU
+              #activation: torch.nn.LeakyReLU
               dropout: 0.5
           batch_size: 1000
           epochs: 25
