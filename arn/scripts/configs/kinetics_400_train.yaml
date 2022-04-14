@@ -1,8 +1,8 @@
 # The complete Open World Human Activity Recognition pipeline from beginning to
 # end. This will probably be broken down into smaller chunks for convenience.
 
-docstr: # Optional container for all docstr specifc configuraitons.
-  doc_style: numpy
+docstr:
+  style: numpy
   from import:
     arn.data.kinetics_owl:
       - KineticsOWL
@@ -16,7 +16,7 @@ docstr: # Optional container for all docstr specifc configuraitons.
       - OWHAPredictor
   #import:
   #  - torch
-  main: KineticsOWL.run
+  main: run #KineticsOWL.run
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
   seed: 0
@@ -64,19 +64,19 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           window_size:
           num_rounds:
       # TODO checkpoints for saving the model results.
-  measures:
-    per_step:
-      - acc
-      - top-5 acc
-      - loss
-      - mcc
-      - nmi
-      #- novelty_detection: # TODO
-      #  ConfusionMatrix:
-    cummulative:
-      - novelty_detection # TODO
-      - acc
-      - top-5 acc
-      - loss
-      - mcc
-      - nmi
+  #measures:
+  #  per_step:
+  #    - acc
+  #    - top-5 acc
+  #    - loss
+  #    - mcc
+  #    - nmi
+  #    #- novelty_detection: # TODO
+  #    #  ConfusionMatrix:
+  #  cummulative:
+  #    - novelty_detection # TODO
+  #    - acc
+  #    - top-5 acc
+  #    - loss
+  #    - mcc
+  #    - nmi

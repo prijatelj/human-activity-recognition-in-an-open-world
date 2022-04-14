@@ -16,7 +16,14 @@ from arn.data.dataloader_utils import status_video_frame_loader
 
 
 class KineticsRootDirs(object):
-    """Stores the root directory paths for each Kinetics dataset."""
+    """Stores the root directory paths for each Kinetics dataset.
+
+    Attributes
+    ----------
+    kinetics400_dir :
+    kinetics600_dir :
+    kinetics700_2020_dir :
+    """
     def __init__(
         self,
         kinetics400_dir='',

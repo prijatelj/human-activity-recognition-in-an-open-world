@@ -9,4 +9,5 @@ __all__ = [
 ]
 
 for module in __all__:
-    globals()[module] = import_module(f'.{module}', 'arn.models')
+    globals()[module] = import_module(f'.{module}', __name__)
+del import_module, module

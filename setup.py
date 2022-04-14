@@ -1,5 +1,5 @@
 # ARN package Setup.py
-from setuptools import setup
+from setuptools import setup, find_packages
 import re
 
 def get_property(prop, project):
@@ -29,14 +29,7 @@ setup(
     version=get_property('__version__', project_name),
     author='Derek S. Prijatelj',
     author_email='dprijate@nd.edu',
-    packages=[
-        project_name,
-        f'{project_name}.data',
-        f'{project_name}.models',
-        f'{project_name}.transforms',
-        #f'{project_name}.visuals',
-    ],
-    #scripts
+    packages=[f'{project_name}.{pkg}' for pkg in find_packages(project_name)],
     description=' '.join(
         'Human Activity Recognition with novelty through machine learning',
     ),
@@ -44,17 +37,16 @@ setup(
     long_description_content_type='text/markdown',
     url=f'https://github.com/prijatelj/{project_name}',
     install_requires=install_requires,
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
-    #tests_require=['pytest'],
-    #setup_requires=['pylint', 'pytest-runner'],
     # Add the Script Interfce that provides `packagename submodule` similart to
     # `git pull` or `git push` commands for git and unify them under one alias
     # TODO implement this ofc, but also consider making it optional?
+    #scripts
     #entry_points={
     #   `arn=arn.scripts:script_cli`
     #},

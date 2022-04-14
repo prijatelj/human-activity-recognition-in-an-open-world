@@ -6,7 +6,12 @@ __all__ = [
     'models',
     'transforms',
     #'visuals',
+    #'utils',
+    # TODO really should rely on external install for X3D and TimeSformer if we
+    # can so we don't carry their code in the repo, to be shown in containerize
+    #'timesformer',
 ]
 
 for module in __all__:
-    globals()[module] = import_module(f'.{module}', 'arn')
+    globals()[module] = import_module(f'.{module}', __name__)
+del import_module, module

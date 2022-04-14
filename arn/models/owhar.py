@@ -10,15 +10,20 @@ class OWHAPredictor(object):
     and novelty detector. Extra parts include a novelty recognizer if separate
     from the pre-existing parts and optional feedback interpreter.
 
-    Attrib
-    ------
-    fine_tune:
-    novelty_detector:
-    feedback_interpreter: = None
-    label_enc:
+    Attributes
+    ----------
+    fine_tune: str
+    novelty_detector: str
+    feedback_interpreter: str = None
+    label_enc: str
     """
     def __init__(self, fine_tune, novelty_detector, feedback_interpreter=None):
-        """Initializes the OWHAR."""
+        """Initializes the OWHAR.
+
+        Args
+        ----
+        see self
+        """
         self.fine_tune = fine_tune
         self.novelty_detector = novelty_detector
         self.feedback_interpreter = feedback_interpreter
