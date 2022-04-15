@@ -20,9 +20,10 @@ class KineticsRootDirs(object):
 
     Attributes
     ----------
-    kinetics400_dir :
-    kinetics600_dir :
-    kinetics700_2020_dir :
+    kinetics400_dir : str = ''
+    kinetics600_dir : str = ''
+    kinetics700_2020_dir : str = ''
+    root_dir : str = ''
     """
     def __init__(
         self,
@@ -189,6 +190,15 @@ def get_path(
 
 
 class KineticsSplitConfig(NamedTuple):
+    """Specifies the split ocnfiguration of a kinetics dataset.
+
+    Attributes
+    ----------
+    train: bool = False
+    validate: bool = False
+    test: bool = False
+    NaN: bool = False
+    """
     train: bool = False
     validate: bool = False
     test: bool = False
@@ -206,9 +216,9 @@ class LabelConfig(NamedTuple):
         The name of the label set expressed by this label configuration.
     known : list
         The known labels whose symbols are used as is.
-    unknown : list
+    unknown : list = None
         The labels that are kept but whose symbols are masked as `unknown`.
-    unlabeled : list
+    unlabeled : list = None
         The labels that are kept but whose symbols are masked as `None`. This
         differs from unknown because unknown may be used to represent samples
         whose labels are certain to be different from the known labels.
@@ -228,6 +238,15 @@ class LabelConfig(NamedTuple):
 
 
 class KineticsUnifiedSubset(NamedTuple):
+    """Specifies a data subset of the KineticsUnified data.
+
+    Attributes
+    ----------
+    kinetics400 : KineticsSplitConfig = None
+    kinetics600 : KineticsSplitConfig = None
+    kinetics700_2020 : KineticsSplitConfig = None
+    labels : LabelConfig = None
+    """
     kinetics400: KineticsSplitConfig = None
     kinetics600: KineticsSplitConfig = None
     kinetics700_2020: KineticsSplitConfig = None
