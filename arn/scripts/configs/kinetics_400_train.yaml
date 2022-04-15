@@ -53,19 +53,20 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               input_size: 512
               depth: 5
               width: 512
-              #activation: torch.nn.LeakyReLU
               dropout: 0.5
           batch_size: 1000
           epochs: 25
       novelty_detector: # Classification + Clustering
         WindowedMeanKLDiv:
-          detection_threshold:
-          kl_threshold:
-          kl_threshold_decay_rate:
-          mean_train:
-          std_dev_train:
-          window_size:
-          num_rounds:
+          kl_threshold: 5.365822113508410
+          kl_threshold_decay_rate: 0.6
+          mean_train: 1.0
+          std_dev_train: 0.1242729408792351
+          window_size: 100
+          num_rounds: 40
+          #threshold_scale: 3.0 # Hack to scale down early detection.
+          #feedback_weight: 1.0 # binary novelty feedback
+
       # TODO checkpoints for saving the model results.
   #measures:
   #  per_step:
