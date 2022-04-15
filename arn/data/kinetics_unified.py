@@ -338,21 +338,20 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     ----------
     data : pd.DataFrame
         A DataFrame whose rows represents each sample's annotation data.
-    kinetics_class_map : pd.DataFrame
+    kinetics_class_map : str | pd.DataFrame
         A mapping of the unique classes in each Kinetics dataset to one
         another. May include other mappings as well. This serves the role of
         older unique `class_labels`.
+    sample_dirs : KineticsRootDirs = None
+    subset : KineticsUnifiedSubset = None
+    unlabeled_token : str = None
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str]
     sample_dirs : KineticsRootDirs = None
     subset :  InitVar[KineticsUnifiedSubset] = None
     unlabeled_token : str = None
-    filepath_order : InitVar[list] = [
-        'split_kinetics400',
-        'split_kinetics600',
-        'split_kinetics700_2020',
-    ]
+    filepath_order : InitVar[list] = None
     reorder : InitVar[list] = None
     ext : InitVar[str] = '_feat.pt'
 
@@ -365,6 +364,21 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         reorder,
         ext,
     ):
+        """
+        Args
+        ----
+        see self
+        annotation_path : str
+            The filepath to the annotations for the data.
+        subset : see self
+        filepath_order : list = None
+            The order of the pd.DataFrame columns to use for filepath priority.
+        reorder : list = None
+            Reordering of the `sample_dirs` indices.
+        ext : str = '_feat.pt'
+            The string suffix to expect at the end of feature files and
+            includes the file extention within it.
+        """
         # Load the kinetics class map.
         if isinstance(kinetics_class_map, str):
             ext = os.path.splitext(kinetics_class_map)[-1]
@@ -445,6 +459,12 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
                     '`sample_path` column must be in annotation data or',
                     'sample_dirs is given to generate the video paths.',
                 ]))
+            if filepath_order is None:
+                filepath_order = [
+                    'split_kinetics400',
+                    'split_kinetics600',
+                    'split_kinetics700_2020',
+                ]
             self.data['sample_path'] = get_path(
                 self.data,
                 self.sample_dirs \

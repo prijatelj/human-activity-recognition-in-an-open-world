@@ -38,20 +38,27 @@ class WindowedMeanKLDiv(object):
     """
     def __init__(
         self,
-        detection_threshold,
         kl_threshold,
         kl_threshold_decay_rate,
         mean_train,
         std_dev_train,
         window_size,
         num_rounds,
+        detection_threshold=0.5,
         #*args,
         #**kwargs,
     ):
         """
         Args
         ----
+        kl_threshold : float
+        kl_threshold_decay_rate : float
         kl_threshold_decay_rate : determines KL Divergence threshold decay.
+        mean_train : floa
+        std_dev_train : float
+        window_size : int
+        num_rounds : int
+        detection_threshold : float = 0.5
         """
         #super(EVMWindowedMeanKLDiv, self).__init__(*args, **kwargs)
 

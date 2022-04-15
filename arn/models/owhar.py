@@ -12,10 +12,9 @@ class OWHAPredictor(object):
 
     Attributes
     ----------
-    fine_tune: str
-    novelty_detector: str
-    feedback_interpreter: str = None
-    label_enc: str
+    fine_tune: arn.models.FineTune
+    novelty_detector: WindowedMeanKLDiv
+    feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
     """
     def __init__(self, fine_tune, novelty_detector, feedback_interpreter=None):
         """Initializes the OWHAR.

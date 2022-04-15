@@ -35,6 +35,16 @@ class FineTune(object):
         device='cpu',
         dtype=torch.float32,
     ):
+        """Init the FineTune model.
+
+        Args
+        ----
+        model : see self
+        batch_size : int = 1000
+        epochs : int = 25
+        device : str | torch.device = 'cpu'
+        dtype : torch.dtype = torch.float32
+        """
         if not isinstance(model, torch.nn.Module):
             raise TypeError(
                 'Expected model typed as `torch.nn.Module`, not {type(model)}'
@@ -64,8 +74,10 @@ class FineTune(object):
     ):
         """Fits the model with fit_args and the given features and labels in a
         supervised learning fashion.
-        features_t labels_t: features and labels that the model should be trained on.
-        features_v labels_v: features and labels that the model should be validated on.
+        features_t labels_t:
+            features and labels that the model should be trained on.
+        features_v labels_v:
+            features and labels that the model should be validated on.
         """
 
         # TODO move to pytorch_lightning
@@ -86,7 +98,11 @@ class FineTune(object):
             print(v_len)
 
             dataset_val = torch.utils.data.TensorDataset(features_v, labels_v)
-            dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=self.batch_size, shuffle=True)
+            dataloader_val = torch.utils.data.DataLoader(
+                dataset_val,
+                batch_size=self.batch_size,
+                shuffle=True,
+            )
 
         model = self.model.to(self.device)
         criterion = torch.nn.BCEWithLogitsLoss()
@@ -131,12 +147,16 @@ class FineTune(object):
                 slabels = slabels.cuda().float()
                 prediction = model(sfeatures)[1]
                 right += torch.sum(
-                    torch.eq(torch.argmax(prediction, dim=1), torch.argmax(slabels, dim=1)).int()).cpu().numpy()
+                    torch.eq(
+                        torch.argmax(prediction, dim=1),
+                        torch.argmax(slabels, dim=1)
+                    ).int()
+                ).cpu().numpy()
                 loss = criterion(prediction, slabels)
                 tot_cls_loss += loss.item()
             if best_cls_loss > tot_cls_loss:
                 best_cls_loss = tot_cls_loss
-                # torch.save(model.state_dict(), save_path + 'finetune_best.pt')
+                # torch.save(model.state_dict(), save_path +'finetune_best.pt')
                 best_model = copy.deepcopy(model).cpu()
                 if verbose:
                     print("New Best " + str(tot_cls_loss))
@@ -182,7 +202,7 @@ class FineTune(object):
             An instance of FineTune is returned given the files containing
             state information.
         """
-        state_dict = torch.load(filepath) # handles torch model when saved as .pt
+        state_dict = torch.load(filepath) # handles torch model when a .pt
         model = FineTuneFC(input_size, **kwargs)
         model.load(state_dict)
 
@@ -210,12 +230,35 @@ class FineTuneFC(nn.Module):
         input_size,
         width=512,
         depth=5,
-        out_features=None,
+        feature_repr_width=None,
         n_classes=29,
         activation=nn.LeakyReLU,
         dropout_prob=None,
     ):
-        """Fine-tuning ANN consisting of fully-connected dense layers."""
+        """Fine-tuning ANN consisting of fully-connected dense layers.
+
+        Args
+        ----
+        input_size : int
+            The input size of the input linear layer.
+        width : int = 512
+            The width of the hidden layers within the ANN.
+        depth : int = 5
+            The depth or number of hidden layers within the ANN.
+        feature_repr_width : int = None
+            The width of the penultamite layer of this ANN, which is the layer
+            just before the output(softmax) and serves as the feature
+            representation of the ANN. By default, this is None and not set,
+            which means the feature representation layer will use the same
+            `width` as the other hidden layers.
+        n_classes : int = 29
+            The number of classes to expect for the output layer of this ANN.
+        activation : troch.nn.Module = nn.LeakyReLU
+            The activation to apply after every linaer layer.
+        dropout_prob : float = None
+            The probability for the dropout layers after the linear layers.
+            Defaults to None, meaning no dropout is applied.
+        """
         super().__init__()
         if out_features is None:
             out_features = width
