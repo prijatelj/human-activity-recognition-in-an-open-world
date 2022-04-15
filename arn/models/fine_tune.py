@@ -16,14 +16,14 @@ class FineTune(object):
     model : torch.nn.Module
         The model to be used for fine tuning. This is expected to support
         FineTuneFC.
-    fit_args : dict()
+    fit_args : dict
         The hyperparameters for fitting the fine tuning model. This includes
         the optimizer, epochs, etc. to run a complete run of fitting the model.
 
         Though, batch size is handled by DataLoaders I believe. Let dataloaders
         handle what they can and their outputs be intput args. Everything will
         be torch.Tensors in and torch.Tensors out.
-    device : torch.device()
+    device : torch.device
         the device on which model should be trained
         default: cpu
     """

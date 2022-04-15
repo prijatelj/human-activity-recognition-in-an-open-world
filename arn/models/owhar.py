@@ -12,7 +12,7 @@ class OWHAPredictor(object):
 
     Attributes
     ----------
-    fine_tune: arn.models.FineTune
+    fine_tune: arn.models.fine_tune.FineTune
     novelty_detector: WindowedMeanKLDiv
     feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
     """

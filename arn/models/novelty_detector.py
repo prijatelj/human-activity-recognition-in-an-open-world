@@ -26,8 +26,8 @@ class WindowedMeanKLDiv(object):
     mean_train : float
     std_dev_train : float
     window_size : int
-    sliding_window : list()
-    past_window : list()
+    sliding_window : list
+    past_window : list
 
     Note
     ----
@@ -53,8 +53,8 @@ class WindowedMeanKLDiv(object):
         ----
         kl_threshold : float
         kl_threshold_decay_rate : float
-        kl_threshold_decay_rate : determines KL Divergence threshold decay.
-        mean_train : floa
+            determines KL Divergence threshold decay.
+        mean_train : float
         std_dev_train : float
         window_size : int
         num_rounds : int

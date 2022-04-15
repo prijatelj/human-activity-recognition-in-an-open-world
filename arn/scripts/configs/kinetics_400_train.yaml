@@ -8,6 +8,12 @@ docstr:
     arn.data.kinetics_owl:
       - KineticsOWL
       - KineticsOWLExperiment
+    arn.data.kinetics_unified:
+      - KineticsUnifiedFeatures
+      - KineticsSplitConfig
+      - KineticsUnifiedSubset
+      - LabelConfig
+      - KineticsRootDirs
     arn.models.fine_tune:
       - FineTune
       - FineTuneFC
@@ -37,7 +43,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
       start:
         KineticsUnifiedFeatures:
           subset:
-            KineticsSplitConfig:
+            KineticsUnifiedSubset:
               kinetics400:
                 KineticsSplitConfig:
                   train: True

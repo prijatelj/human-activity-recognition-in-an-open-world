@@ -32,6 +32,11 @@ class KineticsRootDirs(object):
         kinetics700_2020_dir='',
         root_dir='',
     ):
+        """
+        Args
+        ----
+        see self
+        """
         if (
             root_dir == ''
             and (
@@ -80,7 +85,7 @@ def get_path(
 
     Args
     ----
-    df : pd.DataFrame
+    df : pandas.DataFrame
         The Kinetics Unified DataFrame.
     root_dirs : KineticsRootDirs | iterable | list | tuple
         Must have same length as order. If KineticsRootDirs, always ordered
@@ -269,7 +274,7 @@ def subset_kinetics_unified(df, subset):
     """Provides a subset of the given DataFrame based on the subset object.
     Args
     ----
-    df : pd.DataFrame
+    df : pandas.DataFrame
         Kinetics Unified DataFrame
     subset : KineticsUnifiedSubset
         The subset configuration that informs what to keep from the original
@@ -336,9 +341,9 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
 
     Attributes
     ----------
-    data : pd.DataFrame
+    data : pandas.DataFrame
         A DataFrame whose rows represents each sample's annotation data.
-    kinetics_class_map : str | pd.DataFrame
+    kinetics_class_map : str | pandas.DataFrame
         A mapping of the unique classes in each Kinetics dataset to one
         another. May include other mappings as well. This serves the role of
         older unique `class_labels`.
@@ -367,10 +372,8 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         """
         Args
         ----
-        see self
         annotation_path : str
             The filepath to the annotations for the data.
-        subset : see self
         filepath_order : list = None
             The order of the pd.DataFrame columns to use for filepath priority.
         reorder : list = None
@@ -378,6 +381,7 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         ext : str = '_feat.pt'
             The string suffix to expect at the end of feature files and
             includes the file extention within it.
+        see self
         """
         # Load the kinetics class map.
         if isinstance(kinetics_class_map, str):
