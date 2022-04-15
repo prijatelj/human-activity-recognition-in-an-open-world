@@ -1,5 +1,6 @@
-# The complete Open World Human Activity Recognition pipeline from beginning to
-# end. This will probably be broken down into smaller chunks for convenience.
+# The Open World Human Activity Recognition pipeline from given features
+# extracted from a feature representaiton model to the end. This will probably
+# be broken down into smaller chunks for convenience.
 
 docstr:
   style: numpy
@@ -16,6 +17,8 @@ docstr:
       - OWHAPredictor
   #import:
   #  - torch
+  # config: # TODO add configuration file linking for convenience
+  #   TimeSformer_features_dataloader: abs/path/to/the/config_file.yaml
   main: run #KineticsOWL.run
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
