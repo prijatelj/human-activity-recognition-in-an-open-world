@@ -13,7 +13,8 @@ class FineTune(object):
 
     Attributes
     ----------
-    model : torch.nn.Module
+    model : FineTuneFC
+        docstr needs to support subclasses of a given class: torch.nn.Module
         The model to be used for fine tuning. This is expected to support
         FineTuneFC.
     fit_args : dict
@@ -212,13 +213,13 @@ class FineTune(object):
 class FineTuneFC(nn.Module):
     """Fully Connected Dense ANN for fine tuning.
 
-    Attrib
-    ------
-    fcs : nn.Sequntial
+    Attributes
+    ----------
+    fcs : torch.nn.Sequential
         The fully connected sequential dense ANN whose output is the
         penultamite layer of the network just before the linear, softmaxed
         layer.
-    classifier : nn.Linear
+    classifier : torch.nn.Linear
         The remaining portion of the sequential model that takes as input
         the output of fcs and maps that to a dense layer. Note that this does
         not apply log_softmax to the output of the linear, only puts it into
@@ -253,7 +254,7 @@ class FineTuneFC(nn.Module):
             `width` as the other hidden layers.
         n_classes : int = 29
             The number of classes to expect for the output layer of this ANN.
-        activation : troch.nn.Module = nn.LeakyReLU
+        activation : torch.nn.Module = torch.nn.LeakyReLU
             The activation to apply after every linaer layer.
         dropout_prob : float = None
             The probability for the dropout layers after the linear layers.

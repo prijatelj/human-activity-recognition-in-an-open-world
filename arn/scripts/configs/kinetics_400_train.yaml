@@ -57,8 +57,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           model:
             FineTuneFC:
               input_size: 512
-              depth: 5
               width: 512
+              depth: 5
               dropout: 0.5
           batch_size: 1000
           epochs: 25
