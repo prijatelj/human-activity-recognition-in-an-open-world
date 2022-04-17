@@ -1,8 +1,8 @@
 """Fine tuning models. These follow fine tuning in Pre-Trained Models"""
 import copy
 from collections import OrderedDict
+import logging
 
-#import pytorch_lightning as pl
 import torch
 nn = torch.nn
 F = torch.nn.functional
@@ -56,14 +56,17 @@ class FineTune(object):
         self.epochs = epochs
         self.device = torch.device(device)
 
+        # TODO this is 2nd time using this, should make it a func util.
         if isinstance(dtype, torch.dtype):
             self.dtype = dtype
         elif isinstance(dtype, str):
-            self.dtype = getattr(torch, dtype)
+            dtype = getattr(torch, dtype, None)
+            if isinstance(dtype, torch.dtype):
+                self.dtype = dtype
+            else:
+                raise TypeError('Expected torch.dtype for dtype not: {dtype}')
         else:
-            raise TypeError(
-                f'Expected dtype as `torch.dtype` or `str`, not {type(dtype)}'
-            )
+            raise TypeError('Expected torch.dtype for dtype not: {dtype}')
 
     def fit(
         self,
@@ -298,19 +301,28 @@ class FineTuneFC(nn.Module):
 
 # TODO pytorch lightning for experience and speed, replace/new FineTune?
 """
+import pytorch_lightning as pl
 class FineTuneFCLit(FineTuneFC, pl.LightningModule):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters())
+    def configure_optimizers(self, **kwargs):
+        return torch.optim.Adam(self.parameters(), **kwargs)
 
-    def training_step(self, batch, batch_idx):
-        raise NotImplementedError()
+    def training_step(self, batch, batch_idx, df):
+        inputs, indices = batch
+        labels = df.iloc[indices]['labels']
+
+        fine_tune_reprs, classifications = self(inputs)
+
+        loss = self.loss(classifications, labels)
+        #logging.info('Training loss: %d', loss)
+        self.log('train_loss', loss)
+        return loss
 
     def validation_step(self, batch, batch_idx):
         raise NotImplementedError()
 
     def test_step(self, batch, batch_idx):
         raise NotImplementedError()
-"""
+#"""
