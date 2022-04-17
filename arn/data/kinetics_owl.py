@@ -9,9 +9,10 @@ Actuators: Feedback request system
     - Oracle feedback budgeted amount overall
     - Feedback Translation?
 """
-#TODO KU: feature extraction loading instead of images/vids, pair w/ labels.
 from arn.data.kinetics_unified import KineticsUnified, KineticsUnifiedFeatures
 from arn.models.owhar import OWHAPredictor
+
+from exputils.data.labels import NominalDataEncoder
 
 
 class KineticsOWL(object):
@@ -53,6 +54,10 @@ class KineticsOWL(object):
         self.predictor = predictor
         self.feedback = feedback
         self.measures = measures
+
+    @property
+    def increment(self):
+        self.environment.increment
 
     def step(self, state):
         """The incremental step in incremental learning of Kinetics OWL."""
@@ -99,6 +104,11 @@ class KineticsOWLExperiment(object):
         KUFs for k600 and k700?
     _inc_splits_per_dset : int = 10
         The number of incremental splits per dataset.
+    _increment : int = 0
+        The current increment of the experiment. Starts at zero, increments
+        after a step is complete. After initial increment is increment = 1.
+    label_encoder : exputils.data.labels import NominalDataEncoder
+        Keep the labels consistent at the current step.
     """
     def __init__(
         self,
@@ -124,7 +134,12 @@ class KineticsOWLExperiment(object):
         self.start = start
         self.step = step
 
-        # TODO make appropriate call to KineticsUnified, o.w. implement here
+        # TODO need to create a dataset from the provided start and step
+        # datasets.
+
+
+        # Experience: train, val, test? inferred by label presence?
+
 
         #if maintain_predictor_experience:
         #    # TODO, create an experience DataLoader that combines the
@@ -136,8 +151,12 @@ class KineticsOWLExperiment(object):
         self.experience = None
 
     @property
-    def num_increments(self):
-        raise NotImplementedError()
+    def increment(self):
+        """The current increment or steps taken."""
+        self.environment._increment
+
+    @property
+    def increments_per_dataset(self):
         return self._inc_splits_per_dset
 
     def step(self):
