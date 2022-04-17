@@ -27,28 +27,40 @@ docstr:
   #   TimeSformer_features_dataloader: abs/path/to/the/config_file.yaml
   main: run #KineticsOWL.run
 
+# TODO docsr initializes the objects towars leaves first, meaning they will be
+# missing this shared_dataloader_kwargs which are essential to init. So this
+# needs implemented another way. If we enable multiple top level namespace
+# objects in docstr, parsing this could be a docstr var that is called within
+# other configs for shorthand. The beginning of a kind of config linking.
+#
+#SHARED_DATALOADER_KWARGS:
+#  annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+#  kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
+#  sample_dirs:
+#    KineticsRootDirs:
+#      kinetics400_dir: x3d-features-k400/
+#      kinetics600_dir: x3d-features-k600/
+#      kinetics700_2020_dir: x3d-features-k700_2020/
+#      root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+#  device: 'cuda'
+#  dtype: 'float32'
+
 KineticsOWL: # Pipeline for the Open World Learning Data process
   seed: 0
   environment:
     KineticsOWLExperiment:
-      shared_dataloader_kwargs:
-        annotation_path: $HOME/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-        kinetics_class_map: # TODO add location of file.
-        sample_dirs:
-          kinetics400_dir: x3d-features-k400/
-          kinetics600_dir: x3d-features-k600/
-          kinetics700_2020_dir: x3d-features-k700_2020/
-          # Support Environment Variables in config.
-          root_dir: $HOME/workspace/research/osr/repos/har/data
       start:
         KineticsUnifiedFeatures:
+          #**SHARED_DATALOADER_KWARGS
           subset:
             KineticsUnifiedSubset:
               kinetics400:
                 KineticsSplitConfig:
                   train: True
-                  validate: True
-                  test: True
+              labels:
+                LabelConfig:
+                  name: 'label_kinetics400'
+                  known: True
     label_id: 'kinetics700_map' # TODO check if any k400 are cut. or other changes.
   predictor:
     OWHAPredictor: # the Open World Agent
