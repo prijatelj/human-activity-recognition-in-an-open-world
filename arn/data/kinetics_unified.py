@@ -2,6 +2,7 @@
 from collections import namedtuple
 from dataclasses import dataclass, InitVar
 from functools import partial
+import logging
 import os
 from typing import NamedTuple
 
@@ -237,7 +238,7 @@ class LabelConfig(NamedTuple):
     masking.
     """
     name : str
-    known : list
+    known : list # TODO Currently KineticsUnifiedFeatures does nothing with this!
     unknown : list = None
     unlabeled : list = None
 
@@ -452,6 +453,10 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
                         ),
                         'labels',
                     ] = self.unlabeled_token
+            else:
+                logging.warning(
+                    'subset given but no labels! No changes to DataFrame',
+                )
 
         # Create an index column for ease of accessing labels from DataLoader
         self.data['sample_index'] = self.data.index
