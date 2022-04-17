@@ -46,7 +46,7 @@ docstr:
 #  dtype: 'float32'
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
-  seed: 0
+  seed: 0 # TODO is this even used?
   environment:
     KineticsOWLExperiment:
       start:
