@@ -320,7 +320,9 @@ def subset_kinetics_unified(df, subset):
 
     if subset.labels is not None:
         label_set = set()
-        if subset.labels.known is not None:
+        if subset.labels.known is True: # Use all unique labels
+            label_set |= set(df[subset.labels.name].unique())
+        elif subset.labels.known is not None:
             label_set |= set(subset.labels.known)
         if subset.labels.unknown is not None:
             label_set |= set(subset.labels.unknown)
@@ -360,6 +362,8 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     filepath_order : InitVar[list] = None
     reorder : InitVar[list] = None
     ext : InitVar[str] = '_feat.pt'
+    device : InitVar[str] = 'cpu'
+    dtype : InitVar[str] = torch.float32
 
     def __post_init__(
         self,
@@ -369,6 +373,8 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         filepath_order,
         reorder,
         ext,
+        device,
+        dtype,
     ):
         """
         Args
@@ -384,17 +390,29 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
             includes the file extention within it.
         see self
         """
+        self.device = torch.device(device)
+        if isinstance(dtype, torch.dtype):
+            self.dtype = dtype
+        elif isinstance(dtype, str):
+            dtype = getattr(torch, dtype, None)
+            if isinstance(dtype, torch.dtype):
+                self.dtype = dtype
+            else:
+                raise TypeError('Expected torch.dtype for dtype not: {dtype}')
+        else:
+            raise TypeError('Expected torch.dtype for dtype not: {dtype}')
+
         # Load the kinetics class map.
         if isinstance(kinetics_class_map, str):
-            ext = os.path.splitext(kinetics_class_map)[-1]
-            if ext == '.csv':
+            map_ext = os.path.splitext(kinetics_class_map)[-1]
+            if map_ext == '.csv':
                 self.kinetics_class_map = pd.read_csv(kinetics_class_map)
-            elif ext == '.json':
+            elif map_ext == '.json':
                 self.kinetics_class_map = pd.read_json(kinetics_class_map)
             else:
                 raise ValueError(' '.join([
                     'Expected `kinetics_class_map` as a str to have',
-                    f'extention, ".csv" or ".json", not `{ext}`',
+                    f'extention, ".csv" or ".json", not `{map_ext}`',
                 ]))
         elif isinstance(kinetics_class_map, pd.DataFrame):
             self.kinetics_class_map = kinetics_class_map
@@ -500,7 +518,10 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         sample = self.data.iloc[index]
 
         # Load from file. Hopefully, this is efficient enough.
-        feature_extract = torch.load(sample['sample_path'])
+        feature_extract = torch.load(
+            sample['sample_path'],
+            self.device,
+        ).to(self.dtype)
 
         return feature_extract, sample['sample_index']
 
