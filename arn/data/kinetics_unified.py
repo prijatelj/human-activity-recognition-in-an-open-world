@@ -353,6 +353,15 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     sample_dirs : KineticsRootDirs = None
     subset : KineticsUnifiedSubset = None
     unlabeled_token : str = None
+    return_label : bool = False
+        If True, which is the default, returns the label along with the
+        input sample. The label typically is the smaple index to access
+        the DataFrame row which contains all labels.
+    return_index : bool = False
+        If True, returns only the contents within the self.data DataFrame's
+        column `labels` for the sample. Otherwise, the default, returns
+        the index of the sample with the dataframe.
+
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str]
@@ -364,6 +373,8 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     ext : InitVar[str] = '_feat.pt'
     device : InitVar[str] = 'cpu'
     dtype : InitVar[str] = torch.float32
+    return_label : bool = False
+    return_index : bool = False
 
     def __post_init__(
         self,
@@ -503,21 +514,17 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.data)
 
-    def __getitem__(self, index, get_label=False):
+    def __getitem__(self, index):
         """For the given index, load the corresponding sample feature encoding
         and labels.
 
         Args
         ----
         index : int
-        get_label : bool = False
-            If True, returns only the contents within the self.data DataFrame's
-            column `labels` for the sample. Otherwise, the default, returns
-            the index of the sample with the dataframe.
 
         Returns
         -------
-        tuple
+        torch.Tensor | tuple
             A tuple whose first item is the sample feature encoding as a
             torch.Tensor, second is the sample index in the DataSet's DataFrame
             `data` to access labels etc outside of Torch computation.
@@ -531,9 +538,13 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
             self.device,
         ).to(self.dtype)
 
-        if get_label:
+        #if get_label:
+        #    return feature_extract, sample['labels']
+        if self.return_label:
+            if self.return_index:
+                return feature_extract, sample['sample_index']
             return feature_extract, sample['labels']
-        return feature_extract, sample['sample_index']
+        return feature_extract
 
 
 @dataclass
