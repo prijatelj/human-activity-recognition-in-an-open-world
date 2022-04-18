@@ -30,7 +30,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   train: True
                   validate: True
                   test: True
-      step: # Cycle through
+      steps: # Cycle through
         - Kinetics600:
             subset:
               KineticsSplitConfig:
