@@ -32,6 +32,37 @@ class DataSplits(NamedTuple):
     validate: KineticsUnifiedFeatures = None
     test: KineticsUnifiedFeatures = None
 
+    def update(self, data_split):
+        """Given data_split update internal data_split."""
+        # Most basic is concat new data splits to end of current one.
+        # TODO but what about their metadata? how is that accesible from this?
+        if data_split.train:
+            if self.train is not None:
+                self.train = torch.utils.data.ConcatDataset(
+                    [self.train, data_split.train],
+                )
+            else:
+                self.train = data_split.train
+
+        if data_split.validate:
+            if self.validate is not None:
+                self.validate = torch.utils.data.ConcatDataset(
+                    [self.validate, data_split.validate],
+                )
+            else:
+                self.validate = data_split.validate
+
+        if data_split.test:
+            if self.test is not None:
+                self.test = torch.utils.data.ConcatDataset(
+                    [self.test, data_split.test],
+                )
+            else:
+                self.test = data_split.test
+
+        # TODO support check for repeat or non-unique sample ids, which then
+        # would mean to update those prior experiences.
+
 
 class KineticsOWL(object):
     """Kinetics Open World Learning Pipeline for incremental recognition.
@@ -66,6 +97,7 @@ class KineticsOWL(object):
         #inc_splits_per_dset : 10
         eval_on_start=False,
         maintain_experience=False,
+        task_ids=None,
     ):
         """Initialize the KineticsOWL experiment.
 
@@ -83,7 +115,12 @@ class KineticsOWL(object):
         self.measures = measures
         self.eval_on_start = eval_on_start
 
-        # TODO Maintain experience here for the predictor
+        if task_ids is None:
+             #TODO support this in predictor and the datasets in labels
+             #returned!
+            self.task_ids = ['labels', 'detect']
+
+        # Maintain experience here for the predictor
         if maintain_experience:
             self.experience = DataSplits()
         else:
@@ -116,6 +153,8 @@ class KineticsOWL(object):
                 # TODO Add new data to experience
                 raise NotImplementedError('Added new data to experience')
 
+                self.experience.update(new_data_splits)
+
             # TODO 4. Opt. Predictor Update/train on new data w/ feedback
             self.predictor.fit(self.experience)
 
@@ -130,8 +169,6 @@ class KineticsOWL(object):
     def eval(self, dataset, pred):
         # TODO evaluate the given dataset on all measures.
         raise NotImplementedError()
-
-        # TODO record running measures across entire experience as well.
 
     def run(self, max_steps=None, tqdm=None):
         """The entire experiment run loop."""
