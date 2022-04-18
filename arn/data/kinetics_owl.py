@@ -9,10 +9,26 @@ Actuators: Feedback request system
     - Oracle feedback budgeted amount overall
     - Feedback Translation?
 """
+import torch
+
 from arn.data.kinetics_unified import KineticsUnified, KineticsUnifiedFeatures
 from arn.models.owhar import OWHAPredictor
 
 from exputils.data.labels import NominalDataEncoder
+
+
+class DataSplits(NamedTuple):
+    """Contains the torch.utils.data.Dataset for train, validate, and test
+
+    Attributes
+    ----------
+    train: torch.utils.data.Dataset = None
+    validate: torch.utils.data.Dataset = None
+    test: torch.utils.data.Datasetool = None
+    """
+    train: torch.utils.data.Dataset = None
+    validate: torch.utils.data.Dataset = None
+    test: torch.utils.data.Datasetool = None
 
 
 class KineticsOWL(object):
@@ -91,13 +107,13 @@ class KineticsOWLExperiment(object):
         ordered KineticsUnifiedFeatures obejcts in order of apperance, and each
         of those lists will contain the indices in the order they were obtained
         by sample.
-    start : KineticsUnifiedFeatures
+    start : DataSplits
         The starting increment's data as a KineticsUnifiedFeatures object.
 
         huh... docstr does not CAP gen on MultiType ... | KineticsUnified
     step : list = None
-        List of KineticsUnifiedFeature objects representing the order to
-        increment over them.
+        List of DataSplits containing KineticsUnifiedFeature objects
+        representing the order to increment over them.
 
         ? Is this suspposed to be the other two datasets that get
         incrementally stepped over? a list of them in order? so 2 different
@@ -137,9 +153,7 @@ class KineticsOWLExperiment(object):
         # TODO need to create a dataset from the provided start and step
         # datasets.
 
-
         # Experience: train, val, test? inferred by label presence?
-
 
         #if maintain_predictor_experience:
         #    # TODO, create an experience DataLoader that combines the

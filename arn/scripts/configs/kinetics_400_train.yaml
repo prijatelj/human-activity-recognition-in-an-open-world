@@ -6,6 +6,7 @@ docstr:
   style: numpy
   from import:
     arn.data.kinetics_owl:
+      - DataSplits
       - KineticsOWL
       - KineticsOWLExperiment
     arn.data.kinetics_unified:
@@ -38,22 +39,40 @@ docstr:
           root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
       device: cuda
       dtype: float32
+      subset:
+        KineticsUnifiedSubset:
+          labels:
+            LabelConfig:
+              name: 'label_kinetics400'
+              known: True
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
   seed: 0 # TODO is this even used?
   environment:
     KineticsOWLExperiment:
       start:
-        KineticsUnifiedFeatures: !docstr.configs:shared_data_kwargs
-          subset:
-            KineticsUnifiedSubset:
-              kinetics400:
-                KineticsSplitConfig:
-                  train: True
-              labels:
-                LabelConfig:
-                  name: 'label_kinetics400'
-                  known: True
+        DataSplits:
+          train:
+            KineticsUnifiedFeatures: !docstr.configs:shared_data_kwargs
+              subset:
+                KineticsUnifiedSubset:
+                  kinetics400:
+                    KineticsSplitConfig:
+                      train: True
+          val:
+            KineticsUnifiedFeatures: !docstr.configs:shared_data_kwargs
+              subset:
+                KineticsUnifiedSubset:
+                  kinetics400:
+                    KineticsSplitConfig:
+                      validate: True
+          test:
+            KineticsUnifiedFeatures: !docstr.configs:shared_data_kwargs
+              subset:
+                KineticsUnifiedSubset:
+                  kinetics400:
+                    KineticsSplitConfig:
+                      test: True
     label_id: 'kinetics700_map' # TODO check if any k400 are cut. or other changes.
   predictor:
     OWHAPredictor: # the Open World Agent
