@@ -42,10 +42,36 @@ class OWHAPredictor(object):
     def known_probs(self,):
         raise NotImplementedError()
 
-    def predict(self,):
+    def predict(self, dataset, task_id=None):
+        """Predictor performs the prediction (classification) tasks given
+        dataset.
+        Args
+        ----
+        dataset : torch.Dataset
+        task_id : str = None
+            The str identifier of the task to perform with the given inputs.
+            This assumes the proper dataset input format is given for each task
+            or that every task has the same input format.When task_id is None,
+            default, it performs all tasks sequentially.
+        """
         raise NotImplementedError()
 
-    def novelty_detect(self,):
+    def novelty_detect(self, dataset, task_id=None):
+        """Predictor performs novelty detection given the dataset, possibly
+        conditioned on specific task set. Novelty detection is the same as
+        anaomaly detection, outlier detection, out-of-distirbution detection,
+        etc...
+
+        Args
+        ----
+        dataset : torch.Dataset
+        task_id : str = None
+            The str identifier of the task to perform with the given inputs.
+            This assumes the proper dataset input format is given for each task
+            or that every task has the same input format.When task_id is None,
+            default, it performs detection across all tasks and returns an
+            novelty detection ansewr based on the data relative to all tasks.
+        """
         raise NotImplementedError()
 
 
