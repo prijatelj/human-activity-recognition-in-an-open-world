@@ -503,9 +503,17 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.data)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index, get_label=False):
         """For the given index, load the corresponding sample feature encoding
         and labels.
+
+        Args
+        ----
+        index : int
+        get_label : bool = False
+            If True, returns only the contents within the self.data DataFrame's
+            column `labels` for the sample. Otherwise, the default, returns
+            the index of the sample with the dataframe.
 
         Returns
         -------
@@ -523,6 +531,8 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
             self.device,
         ).to(self.dtype)
 
+        if get_label:
+            return feature_extract, sample['labels']
         return feature_extract, sample['sample_index']
 
 
@@ -563,7 +573,7 @@ class KineticsUnified(KineticsUnifiedFeatures):
     def __post_init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index, get_label=False):
         """For the given index, load the corresponding sample video frames and
         labels.
 
@@ -633,8 +643,12 @@ class KineticsUnified(KineticsUnifiedFeatures):
                     )
 
             video = torch.stack(video, 0)
+        if get_label:
+            sample_label = sample['labels']
+        else:
+            sample_label = sample['sample_index']
 
         # TODO consider returning the label token? or leave this collate_fn?
         if self.return_sample_status: # Returns the status code at end
-            return video, sample['sample_index'], status.value
-        return video, sample['sample_index']
+            return video, sample_label, status.value
+        return video, sample_label
