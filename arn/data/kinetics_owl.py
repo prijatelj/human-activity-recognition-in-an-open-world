@@ -75,10 +75,6 @@ class KineticsOWL(object):
     feedback : str = 'oracle'
     rng_state : int = None
         Random seed.
-    measures : list = None
-        String identifier of a measure or a callable that takes as input
-        (target, predictions) and returns a measurement or measurement
-        object, e.g., confusion matrix.
     eval_on_start : bool = False
         If False (the default), does not evaluate an untrained predictor. If
         True, evaluated an untrained predictor. May be a good idea to evaluate
@@ -229,12 +225,17 @@ class KineticsOWLExperiment(object):
         after a step is complete. After initial increment is increment = 1.
     label_encoder : exputils.data.labels.NominalDataEncoder
         Keep the labels consistent at the current step.
+    measures : list = None
+        String identifier of a measure or a callable that takes as input
+        (target, predictions) and returns a measurement or measurement
+        object, e.g., confusion matrix.
     """
     def __init__(
         self,
         start,
         steps=None,
         inc_splits_per_dset=10,
+        measures=None,
         seed=None,
     ):
         """Initialize the Kinetics Open World Learning Experiment.
@@ -244,6 +245,7 @@ class KineticsOWLExperiment(object):
         start : see self
         steps : see self
         inc_splits_per_dset : see self _inc_splits_per_dset
+        measures : see self
         seed : int = None
             The seed for the random number generator
         """
