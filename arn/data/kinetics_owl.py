@@ -139,7 +139,7 @@ class KineticsOWL(object):
 
             # TODO Novelty Detection for the Task
 
-            # TODO Predict for the Task
+            # TODO Predict for the Task(s)
             pred = self.predictor.predict(new_data_splits) # TODO data pass!
 
             # TODO Optional log/save predictions or eval measures
