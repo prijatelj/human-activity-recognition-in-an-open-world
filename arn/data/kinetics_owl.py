@@ -98,14 +98,19 @@ class KineticsOWL(object):
         measures=None,
         #inc_splits_per_dset : 10
         eval_on_start=False,
-        maintain_experience=False,
         tasks=None,
+        maintain_experience=False,
     ):
         """Initialize the KineticsOWL experiment.
 
         Args
         ----
-        see self
+        environment : see self
+        predictor : see self
+        feedback : see self
+        rng_state : see self
+        eval_on_start : see self
+        tasks : see self
         maintain_experience : bool = False
             If False, the default, the past experienced samples are not saved
             in the simulation for use by the predictor. Otherwise, the
