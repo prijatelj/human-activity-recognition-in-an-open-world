@@ -221,7 +221,7 @@ class LabelConfig(NamedTuple):
     ----------
     name : str
         The name of the label set expressed by this label configuration.
-    known : list
+    known : list = True
         The known labels whose symbols are used as is.
     unknown : list = None
         The labels that are kept but whose symbols are masked as `unknown`.
@@ -239,7 +239,7 @@ class LabelConfig(NamedTuple):
     masking.
     """
     name : str
-    known : list # TODO Currently KineticsUnifiedFeatures does nothing with this!
+    known : list = True # TODO Currently KineticsUnifiedFeatures does nothing with this!
     unknown : list = None
     unlabeled : list = None
 
@@ -354,8 +354,8 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     sample_dirs : KineticsRootDirs = None
     subset : KineticsUnifiedSubset = None
     unlabeled_token : str = None
-    device : str | torch.device = 'cpu'
-    dtype : str | torch.dtype = torch.float32
+    device : str = 'cpu'
+    dtype : str = torch.float32
     return_label : bool = False
         If True, which is the default, returns the label along with the
         input sample. The label typically is the smaple index to access
@@ -484,6 +484,8 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
                 logging.warning(
                     'subset given but no labels! No changes to DataFrame',
                 )
+        #else:
+            #print('\nsubset was None!\n')
 
         # Create an index column for ease of accessing labels from DataLoader
         self.data['sample_index'] = self.data.index
