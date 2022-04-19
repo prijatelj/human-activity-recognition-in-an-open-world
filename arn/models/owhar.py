@@ -22,7 +22,7 @@ class OWHAPredictor(object):
         fine_tune,
         novelty_detector,
         feedback_interpreter=None,
-        dtype=torch.float32,
+        dtype=None,
         #TODO label_enc
     ):
         """Initializes the OWHAR.
@@ -34,8 +34,9 @@ class OWHAPredictor(object):
         self.fine_tune = fine_tune
         self.novelty_detector = novelty_detector
         self.feedback_interpreter = feedback_interpreter
-        self.dtype = torch_dtype(dtype)
         self._increment = 0
+        self.dtype = torch_dtype(dtype)
+        # TODO Use the dtype in all interior predictor parts unless None.
 
     @property
     def get_increment(self):
@@ -83,7 +84,6 @@ class OWHAPredictor(object):
             default, it performs detection across all tasks and returns an
             novelty detection ansewr based on the data relative to all tasks.
         """
-        raise NotImplementedError()
         self.fine_tune.feature_extract(dataset)
 
     # TODO def feedback_query(self, dataset, task_id=None):
