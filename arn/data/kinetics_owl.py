@@ -142,12 +142,12 @@ class KineticsOWL(object):
 
     def step(self, state=None):
         """The incremental step in incremental learning of Kinetics OWL."""
+        # 1. Get new data (input samples only)
+        logging.info("Getting step %d's data.", self.increment + 1)
+        new_data_splits = self.environment.step()
+
         # 2. Inference/Eval on new data if self.eval_untrained_start
         if self.increment == 0 and self.eval_on_start:
-            # 1. Get new data (input samples only)
-            logging.info("Getting step %d's data.", self.increment + 1)
-            new_data_splits = self.environment.step()
-
             # NOTE Predict for the Task(s), useful when multiple tasks to be
             # handled by one predictor.
             #for task_id in self.tasks:
@@ -183,7 +183,10 @@ class KineticsOWL(object):
                 # TODO 4. Opt. Predictor Update/train on new data w/ feedback
                 self.predictor.fit(self.experience)
             else:
-                self.predictor.fit(new_data_splits.train, new_data_splits.val)
+                self.predictor.fit(
+                    new_data_splits.train,
+                    new_data_splits.validate,
+                )
 
             # TODO 5. Opt. Predictor eval post update
             self.environment.eval(new_data_splits, pred)
