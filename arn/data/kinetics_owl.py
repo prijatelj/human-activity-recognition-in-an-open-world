@@ -9,6 +9,7 @@ Actuators: Feedback request system
     - Oracle feedback budgeted amount overall
     - Feedback Translation?
 """
+import logging
 from typing import NamedTuple
 
 import torch
@@ -144,6 +145,7 @@ class KineticsOWL(object):
         # 2. Inference/Eval on new data if self.eval_untrained_start
         if self.increment == 0 and self.eval_on_start:
             # 1. Get new data (input samples only)
+            logging.info("Getting step %d's data.", self.increment + 1)
             new_data_splits = self.environment.step()
 
             # NOTE Predict for the Task(s), useful when multiple tasks to be
@@ -152,14 +154,26 @@ class KineticsOWL(object):
             #    pass
 
             # TODO data pass!
+            logging.info(
+                "Predicting `label` for step %d's data.",
+                self.increment,
+            )
             pred = self.predictor.predict(new_data_splits)
             self.environment.eval(new_data_splits, pred, 'labels')
 
+            logging.info(
+                "Predicting `novelty_detection` for step %d's data.",
+                self.increment,
+            )
             detect = self.predictor.novelty_detect(new_data_splits)
             self.environment.eval(new_data_splits, detect, 'novelty_detect')
 
         if self.feedback == 'oracle':
             # 3. Opt. Feedback on new data
+            logging.info(
+                "Requesting feedback ({self.feedback}) for step %d's data.",
+                self.increment,
+            )
             new_data_splits = self.environment.feedback(new_data_splits)
 
             if self.experience:
@@ -180,6 +194,8 @@ class KineticsOWL(object):
     def run(self, max_steps=None, tqdm=None):
         """The entire experiment run loop."""
         for i in range(self.environment.total_increments):
+            logging.info("Starting this run's step: %d", i + 1)
+            logging.info("Increment: %d", self.increment + 1)
             self.step()
 
 
