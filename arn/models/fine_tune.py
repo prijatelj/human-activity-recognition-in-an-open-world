@@ -7,6 +7,8 @@ import torch
 nn = torch.nn
 F = torch.nn.functional
 
+from arn.torch_utils import torch_dtype
+
 
 class FineTune(object):
     """The Fine Tuning module of the open world human activity predictor.
@@ -55,18 +57,7 @@ class FineTune(object):
         self.batch_size = batch_size
         self.epochs = epochs
         self.device = torch.device(device)
-
-        # TODO this is 2nd time using this, should make it a func util.
-        if isinstance(dtype, torch.dtype):
-            self.dtype = dtype
-        elif isinstance(dtype, str):
-            dtype = getattr(torch, dtype, None)
-            if isinstance(dtype, torch.dtype):
-                self.dtype = dtype
-            else:
-                raise TypeError('Expected torch.dtype for dtype not: {dtype}')
-        else:
-            raise TypeError('Expected torch.dtype for dtype not: {dtype}')
+        self.dtype = torch_dtype(dtype)
 
     def fit(
         self,
@@ -83,8 +74,7 @@ class FineTune(object):
         features_v labels_v:
             features and labels that the model should be validated on.
         """
-
-        # TODO move to pytorch_lightning
+        # TODO move to pytorch_lightning?
         # trainer = pl.Trainer(gpus=4, precision=16, limit_train_batches=0.5)
         # trainer.fit(model, train_loader, val_loader)
 
