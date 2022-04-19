@@ -267,8 +267,8 @@ class FineTuneFC(nn.Module):
             Defaults to None, meaning no dropout is applied.
         """
         super().__init__()
-        if out_features is None:
-            out_features = width
+        if feature_repr_width is None:
+            feature_repr_width = width
 
         ord_dict = OrderedDict()
         ord_dict["fc0"] = nn.Linear(input_size, width)
@@ -281,10 +281,10 @@ class FineTuneFC(nn.Module):
             ord_dict[f'{activation.__name__}{x}'] = activation()
 
         # Final dense / fully connected layer as output feature representation
-        ord_dict[f'fc{depth - 1}'] = nn.Linear(width, out_features)
+        ord_dict[f'fc{depth - 1}'] = nn.Linear(width, feature_repr_width)
 
         self.fcs = nn.Sequential(ord_dict)
-        self.classifier = nn.Linear(out_features, n_classes)
+        self.classifier = nn.Linear(feature_repr_width, n_classes)
 
     def forward(self, x):
         """Returns the last fully connected layer and the probs classifier"""
