@@ -14,6 +14,7 @@ import torch.nn.functional as F
 from torchvision.transforms import Compose, ToTensor
 
 from arn.data.dataloader_utils import status_video_frame_loader
+from arn.torch_utils import torch_dtype
 
 
 class KineticsRootDirs(object):
@@ -402,16 +403,7 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         see self
         """
         self.device = torch.device(device)
-        if isinstance(dtype, torch.dtype):
-            self.dtype = dtype
-        elif isinstance(dtype, str):
-            dtype = getattr(torch, dtype, None)
-            if isinstance(dtype, torch.dtype):
-                self.dtype = dtype
-            else:
-                raise TypeError('Expected torch.dtype for dtype not: {dtype}')
-        else:
-            raise TypeError('Expected torch.dtype for dtype not: {dtype}')
+        self.dtype = torch_dtype(dtype)
 
         # Load the kinetics class map.
         if isinstance(kinetics_class_map, str):

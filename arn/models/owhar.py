@@ -2,6 +2,7 @@
 import torch
 
 from arn.models.novelty_detector import WindowedMeanKLDiv
+from arn.torch_utils import torch_dtype
 
 
 class OWHAPredictor(object):
@@ -16,7 +17,13 @@ class OWHAPredictor(object):
     novelty_detector: WindowedMeanKLDiv
     feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
     """
-    def __init__(self, fine_tune, novelty_detector, feedback_interpreter=None):
+    def __init__(
+        self,
+        fine_tune,
+        novelty_detector,
+        feedback_interpreter=None,
+        dtype=torch.float32,
+    ):
         """Initializes the OWHAR.
 
         Args
@@ -26,18 +33,27 @@ class OWHAPredictor(object):
         self.fine_tune = fine_tune
         self.novelty_detector = novelty_detector
         self.feedback_interpreter = feedback_interpreter
+        self.dtype = torch_dtype(dtype)
         self._increment = 0
 
     @property
     def get_increment(self):
         return self._increment
 
-    def fit(self):
+    def fit(self, dataset, task_id=None):
+        """Incrementally fit the OWHAPredictor."""
         raise NotImplementedError()
 
-    def step(self):
-        raise NotImplementedError()
-        self._increment += 1
+        self.fine_tune.fit(input_samples, labels)
+
+        # TODO all the casting is hot fixes & need maintained by OWHAPredictor
+        test = self.fine_tune.extract(input_samples.to(self.fine_tune.device))
+        self.evm.fit(
+            test,
+            labels.argmax(1).float().to("cpu"),
+        )
+
+        # TODO update any other state for fititng, such as thresholds.
 
     def known_probs(self,):
         raise NotImplementedError()
