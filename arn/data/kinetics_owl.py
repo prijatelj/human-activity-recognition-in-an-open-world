@@ -71,54 +71,63 @@ class KineticsOWL(object):
     ----------
     environment : KineticsOWLExperiment
     predictor : OWHAPredictor
-    feedback : str = None
+    feedback : str = 'oracle'
     rng_state : int = None
         Random seed.
     measures : list = None
         String identifier of a measure or a callable that takes as input
         (target, predictions) and returns a measurement or measurement
         object, e.g., confusion matrix.
-    eval_on_start : False
+    eval_on_start : bool = False
         If False (the default), does not evaluate an untrained predictor. If
         True, evaluated an untrained predictor. May be a good idea to evaluate
         some untrained predictors, espcially if they were pre-trained.
     experience : DataSplits = None
         If `maintain_experience` is True in __init__, then the simulation
         maintains the past experienced data for the predictor.
+    tasks : str | list
+        A singular or list of string identifiers corresponding to a column in
+        the KineticsUnifed Datasets. These strings determine the task's
+        expected output under the assumption of the same input, where a task is
+        defined as learning a mapping of inputs to outputs.
     """
     def __init__(
         self,
         environment,
         predictor,
         #augmentation=None # sensors
-        feedback=None,
+        feedback='oracle',
         rng_state=None,
         measures=None,
         #inc_splits_per_dset : 10
         eval_on_start=False,
         maintain_experience=False,
-        task_ids=None,
+        tasks=None,
     ):
         """Initialize the KineticsOWL experiment.
 
         Args
         ----
         see self
-        """
+        maintain_experience : bool = False
+            If False, the default, the past experienced samples are not saved
+            in the simulation for use by the predictor. Otherwise, the
+            experienced samples are saved by concatenating the new data splits
+            to the end of the prior ones.
+       """
         # TODO handle seed/rng_state if given, otherwise randomly select seed.
         self.rng_state = rng_state
 
-        # TODO init the Kinetics data incremental loader(s)
         self.environment = environment
         self.predictor = predictor
         self.feedback = feedback
         self.measures = measures
         self.eval_on_start = eval_on_start
 
-        if task_ids is None:
-             #TODO support this in predictor and the datasets in labels
-             #returned!
-            self.task_ids = ['labels', 'detect']
+        #if tasks is None:
+        #     # NOTE support this in predictor and the datasets in labels
+        #     #returned!
+        #    self.tasks = ['labels', 'detect']
 
         # Maintain experience here for the predictor
         if maintain_experience:
@@ -128,63 +137,50 @@ class KineticsOWL(object):
 
     @property
     def increment(self):
-        self.environment.increment
+        return self.environment.increment
 
-    def step(self, state):
+    def step(self, state=None):
         """The incremental step in incremental learning of Kinetics OWL."""
         # 2. Inference/Eval on new data if self.eval_untrained_start
         if self.increment == 0 and self.eval_on_start:
             # 1. Get new data (input samples only)
             new_data_splits = self.environment.step()
 
-            # TODO Novelty Detection for the Task
+            # NOTE Predict for the Task(s), useful when multiple tasks to be
+            # handled by one predictor.
+            #for task_id in self.tasks:
+            #    pass
 
-            # TODO Predict for the Task(s)
-            pred = self.predictor.predict(new_data_splits) # TODO data pass!
+            # TODO data pass!
+            pred = self.predictor.predict(new_data_splits)
+            self.environment.eval(new_data_splits, pred, 'labels')
 
-            # TODO Optional log/save predictions or eval measures
-            self.eval(new_data_splits, pred)
+            detect = self.predictor.novelty_detect(new_data_splits)
+            self.environment.eval(new_data_splits, detect, 'novelty_detect')
 
         if self.feedback == 'oracle':
             # 3. Opt. Feedback on new data
             new_data_splits = self.environment.feedback(new_data_splits)
 
             if self.experience:
-                # TODO Add new data to experience
-                raise NotImplementedError('Added new data to experience')
-
+                # Add new data to experience
                 self.experience.update(new_data_splits)
 
-            # TODO 4. Opt. Predictor Update/train on new data w/ feedback
-            self.predictor.fit(self.experience)
+                # TODO 4. Opt. Predictor Update/train on new data w/ feedback
+                self.predictor.fit(self.experience)
+            else:
+                self.predictor.fit(new_data_splits.train, new_data_splits.val)
 
             # TODO 5. Opt. Predictor eval post update
-            self.eval(new_data_splits, pred)
+            self.environment.eval(new_data_splits, pred)
 
             # TODO 6. Opt. Evaluate the updated predictor on entire experience
             #self.eval(self.experience, self.predictor.predict(self.experience))
 
-            raise NotImplementedError()
-
-    def eval(self, dataset, pred):
-        # TODO evaluate the given dataset on all measures.
-        raise NotImplementedError()
-
     def run(self, max_steps=None, tqdm=None):
         """The entire experiment run loop."""
-
-        raise NotImplementedError()
-        while increment := self.environment.step():
-            # TODO Infer: Classify, novelty detect, novelty recognize
-            inc_preds, inc_detects = self.predictor.predict(
-                increment.features,
-                feedback_budget=increment.feedback_budget,
-            )
-
-            # TODO Request feedback and update.
-            if self.feedback:
-                if self.predictor.feedback_query():
-                    raise NotImplementedError()
+        for i in range(self.environment.total_increments):
+            self.step()
 
 
 class KineticsOWLExperiment(object):
@@ -223,9 +219,6 @@ class KineticsOWLExperiment(object):
         start,
         steps=None,
         inc_splits_per_dset=10,
-        #feature_extract=True,
-        #shared_dataloader_kwargs=None,
-        #maintain_predictor_experience=True,
         seed=None,
     ):
         """Initialize the Kinetics Open World Learning Experiment.
@@ -243,19 +236,9 @@ class KineticsOWLExperiment(object):
         self.start = start
         self.steps = steps
 
-        # TODO need to create a dataset from the provided start and step
-        # datasets.
-
-        # Experience: train, val, test? inferred by label presence?
-
-        #if maintain_predictor_experience:
-        #    # TODO, create an experience DataLoader that combines the
-        #    # dataloaders or subsets of them from past increments.
-        #    raise NotImplementedError()
-        #    self.experience = None
-        #else:
-        #    self.experience = None
-        self.experience = None
+        # NOTE possible that experience should be in the environment/experiment
+        # rather than the simulation, but this is an abstraction/semantics
+        # issue that doesn't affect practical end result.
 
     @property
     def increment(self):
@@ -269,17 +252,30 @@ class KineticsOWLExperiment(object):
     @property
     def total_increments(self):
         """Start increment + steps * increments per dataset in steps"""
-        return 1 + len(self.steps) * self.increments_per_dataset
+        if self.steps:
+            return 1 + len(self.steps) * self.increments_per_dataset
+        return 1
 
     def feedback(self, data_splits):
-        # TODO Oracle, exhaustive, no budget : labels are simply provided.
+        # Oracle, exhaustive, no budget : labels are simply provided.
         if data_splits.train and not data_splits.train.return_label:
             data_splits.train.return_label = True
         if data_splits.validate and not data_splits.validate.return_label:
             data_splits.validate.return_label = True
-        if data_splits.test and not data_splits.test.return_label:
-            data_splits.test.return_label = True
+        #if data_splits.test and not data_splits.test.return_label:
+        #    data_splits.test.return_label = True
         return data_splits
+
+    def eval(self, dataset, pred, task='labels'):
+        # TODO evaluate the given dataset on all measures.
+
+        # TODO novelty detect task is based on the NominalDataEncoder for the
+        # current time step as it knows when something is a known or unknown
+        # class at the current time step.
+
+        # Optional log/save predictions or eval measures
+        # 'labels' is the 'classify' task
+        raise NotImplementedError('KineticsOWLExperiment eval()')
 
     def step(self):
         """An incremental step's train, val, and test dataloaders?
@@ -290,7 +286,7 @@ class KineticsOWLExperiment(object):
             A NamedTuple of a Torch Dataset objects for the current increment's
             new data
         """
-        # TODO Manage the location of data and tensors to avoid memory issues.
+        # NOTE Manage the location of data and tensors to avoid memory issues.
         if self.increment == 0:
             self._increment += 1
             return self.start

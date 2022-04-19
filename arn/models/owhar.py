@@ -45,6 +45,7 @@ class OWHAPredictor(object):
     def predict(self, dataset, task_id=None):
         """Predictor performs the prediction (classification) tasks given
         dataset.
+
         Args
         ----
         dataset : torch.Dataset
@@ -53,6 +54,10 @@ class OWHAPredictor(object):
             This assumes the proper dataset input format is given for each task
             or that every task has the same input format.When task_id is None,
             default, it performs all tasks sequentially.
+        feedback_budget : int | float = None
+            TODO implement a feedback budget that allows the predictor to
+            request feedback for only so many samples, so the selection of
+            which samples to request feedback for matters.
         """
         raise NotImplementedError()
 
@@ -73,6 +78,8 @@ class OWHAPredictor(object):
             novelty detection ansewr based on the data relative to all tasks.
         """
         raise NotImplementedError()
+
+    # TODO def feedback_query(self, dataset, task_id=None):
 
 
 # TODO class OWHAPredictorEVM(OWHAPredictor):
