@@ -28,49 +28,72 @@ docstr:
   # config: # TODO add configuration file linking for convenience
   #   TimeSformer_features_dataloader: abs/path/to/the/config_file.yaml
   main: run #KineticsOWL.run
-  configs: # Docstr's beginnings towards config linking. See tag w/ name below
-    shared_data_kwargs:
-      annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-      kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
-      sample_dirs:
-        KineticsRootDirs:
-          kinetics400_dir: x3d-features-k400/
-          kinetics600_dir: x3d-features-k600/
-          kinetics700_2020_dir: x3d-features-k700_2020/
-          root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
-      device: cuda
-      dtype: float32
-      subset:
-        KineticsUnifiedSubset:
-          labels:
-            LabelConfig:
-              name: 'label_kinetics400'
-              known: True
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
-  seed: 0 # TODO is this even used?
   environment:
     KineticsOWLExperiment:
       start:
         DataSplits:
           train:
-            KineticsUnifiedFeatures: !docstr.configs:shared_data_kwargs
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
+              sample_dirs:
+                KineticsRootDirs:
+                  kinetics400_dir: x3d-features-k400/
+                  kinetics600_dir: x3d-features-k600/
+                  kinetics700_2020_dir: x3d-features-k700_2020/
+                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+              device: cuda
+              dtype: float32
               subset:
                 KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                      known: True
                   kinetics400:
                     KineticsSplitConfig:
                       train: True
-          val:
-            KineticsUnifiedFeatures: !docstr.configs:shared_data_kwargs
+          validate:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
+              sample_dirs:
+                KineticsRootDirs:
+                  kinetics400_dir: x3d-features-k400/
+                  kinetics600_dir: x3d-features-k600/
+                  kinetics700_2020_dir: x3d-features-k700_2020/
+                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+              device: cuda
+              dtype: float32
               subset:
                 KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                      known: True
                   kinetics400:
                     KineticsSplitConfig:
                       validate: True
           test:
-            KineticsUnifiedFeatures: !docstr.configs:shared_data_kwargs
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
+              sample_dirs:
+                KineticsRootDirs:
+                  kinetics400_dir: x3d-features-k400/
+                  kinetics600_dir: x3d-features-k600/
+                  kinetics700_2020_dir: x3d-features-k700_2020/
+                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+              device: cuda
+              dtype: float32
               subset:
                 KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                      known: True
                   kinetics400:
                     KineticsSplitConfig:
                       test: True
