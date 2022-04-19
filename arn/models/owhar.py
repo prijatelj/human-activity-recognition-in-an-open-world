@@ -23,6 +23,7 @@ class OWHAPredictor(object):
         novelty_detector,
         feedback_interpreter=None,
         dtype=torch.float32,
+        #TODO label_enc
     ):
         """Initializes the OWHAR.
 
@@ -38,25 +39,14 @@ class OWHAPredictor(object):
 
     @property
     def get_increment(self):
+        """Increments correspond to how many times the predictor was fit."""
         return self._increment
 
-    def fit(self, dataset, task_id=None):
-        """Incrementally fit the OWHAPredictor."""
-        raise NotImplementedError()
-
-        self.fine_tune.fit(input_samples, labels)
-
-        # TODO all the casting is hot fixes & need maintained by OWHAPredictor
-        test = self.fine_tune.extract(input_samples.to(self.fine_tune.device))
-        self.evm.fit(
-            test,
-            labels.argmax(1).float().to("cpu"),
-        )
-
-        # TODO update any other state for fititng, such as thresholds.
-
-    def known_probs(self,):
-        raise NotImplementedError()
+    def fit(self, dataset, val_dataset=None, task_id=None):
+        """Incrementally fit the OWHAPredictor's parts."""
+        self._increment += 1
+        self.fine_tune.fit(dataset, val=val_dataset)
+        # NOTE update any other state for fitting, such as thresholds.
 
     def predict(self, dataset, task_id=None):
         """Predictor performs the prediction (classification) tasks given
@@ -75,7 +65,7 @@ class OWHAPredictor(object):
             request feedback for only so many samples, so the selection of
             which samples to request feedback for matters.
         """
-        raise NotImplementedError()
+        self.fine_tune.predict(dataset)
 
     def novelty_detect(self, dataset, task_id=None):
         """Predictor performs novelty detection given the dataset, possibly
@@ -94,6 +84,7 @@ class OWHAPredictor(object):
             novelty detection ansewr based on the data relative to all tasks.
         """
         raise NotImplementedError()
+        self.fine_tune.feature_extract(dataset)
 
     # TODO def feedback_query(self, dataset, task_id=None):
 
@@ -242,7 +233,7 @@ class OWHAPredictorEVM(object):
         """Incrementally fit the OWHAR."""
         #self.increment_count += 1
         if not is_feature_repr:
-            # TODO fit when not frozen or apply special fitting overtime.
+            # Fit when not frozen or apply special fitting overtime.
             input_samples = self.feature_repr.extract(input_samples)
 
         self.fine_tune.fit(input_samples, labels)
@@ -253,4 +244,4 @@ class OWHAPredictorEVM(object):
             labels.argmax(1).float().to("cpu"),
         )
 
-        # TODO update any other state for fititng, such as thresholds.
+        # NOTE update any other state for fititng, such as thresholds.
