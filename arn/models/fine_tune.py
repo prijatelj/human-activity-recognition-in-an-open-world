@@ -78,9 +78,6 @@ class FineTune(object):
         val_dataset : torch.utils.data.Dataset | torch.Tensor = None
             features and labels that the model should be validated on.
         """
-        # TODO move to pytorch_lightning?
-        # trainer = pl.Trainer(gpus=4, precision=16, limit_train_batches=0.5)
-        # trainer.fit(model, train_loader, val_loader)
 
         if isinstance(dataset, tuple) and len(dataset) == 2:
             t_len = len(dataset[0])
@@ -194,6 +191,7 @@ class FineTune(object):
         # NOTE for our paper, we want this with ability to find a threshold
         # from all train and val data.
         features, prediction = self.model(features.to(self.device, self.dtype))
+        # Why softmax when the model has softmax?
         prediction = F.softmax(prediction.detach(), dim=1)
         return prediction
 
@@ -302,32 +300,3 @@ class FineTuneFC(nn.Module):
         for x in temp:
             state_dict.pop(x)
         self.load_state_dict(state_dict, strict=False)
-
-
-# TODO pytorch lightning for experience and speed, replace/new FineTune?
-"""
-import pytorch_lightning as pl
-class FineTuneFCLit(FineTuneFC, pl.LightningModule):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def configure_optimizers(self, **kwargs):
-        return torch.optim.Adam(self.parameters(), **kwargs)
-
-    def training_step(self, batch, batch_idx, df):
-        inputs, indices = batch
-        labels = df.iloc[indices]['labels']
-
-        fine_tune_reprs, classifications = self(inputs)
-
-        loss = self.loss(classifications, labels)
-        #logging.info('Training loss: %d', loss)
-        self.log('train_loss', loss)
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        raise NotImplementedError()
-
-    def test_step(self, batch, batch_idx):
-        raise NotImplementedError()
-#"""
