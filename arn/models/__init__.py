@@ -6,6 +6,8 @@ __all__ = [
     'feature_extraction',
     'owhar',
     'feedback',
+    'fine_tune',
+    'fine_tune_lit',
 ]
 
 for module in __all__:

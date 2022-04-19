@@ -5,6 +5,7 @@ __all__ = [
     'data',
     'models',
     'transforms',
+    'torch_utils',
     #'visuals',
     #'utils',
     # TODO really should rely on external install for X3D and TimeSformer if we
