@@ -82,7 +82,7 @@ class KineticsOWL(object):
     experience : DataSplits = None
         If `maintain_experience` is True in __init__, then the simulation
         maintains the past experienced data for the predictor.
-    tasks : str | list
+    tasks : str | list = None
         A singular or list of string identifiers corresponding to a column in
         the KineticsUnifed Datasets. These strings determine the task's
         expected output under the assumption of the same input, where a task is

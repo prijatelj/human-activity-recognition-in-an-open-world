@@ -354,6 +354,8 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     sample_dirs : KineticsRootDirs = None
     subset : KineticsUnifiedSubset = None
     unlabeled_token : str = None
+    device : str | torch.device = 'cpu'
+    dtype : str | torch.dtype = torch.float32
     return_label : bool = False
         If True, which is the default, returns the label along with the
         input sample. The label typically is the smaple index to access
@@ -362,7 +364,6 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         If True, returns only the contents within the self.data DataFrame's
         column `labels` for the sample. Otherwise, the default, returns
         the index of the sample with the dataframe.
-
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str]
@@ -393,6 +394,10 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         ----
         annotation_path : str
             The filepath to the annotations for the data.
+        kinetics_class_map : see self
+        sample_dirs : see self
+        subset : see self
+        unlabeled_token : see self
         filepath_order : list = None
             The order of the pd.DataFrame columns to use for filepath priority.
         reorder : list = None
@@ -400,7 +405,8 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         ext : str = '_feat.pt'
             The string suffix to expect at the end of feature files and
             includes the file extention within it.
-        see self
+        device : see self
+        dtype : see self
         """
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
