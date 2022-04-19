@@ -37,6 +37,7 @@ class FineTune(object):
         epochs=25,
         device='cpu',
         dtype=torch.float32,
+        shuffle=True,
     ):
         """Init the FineTune model.
 
@@ -45,6 +46,9 @@ class FineTune(object):
         model : see self
         batch_size : int = 1000
         epochs : int = 25
+            Number of epochs to use during fitting.
+        shuffle : bool = True
+            If True, shuffle the data when fitting. If False, no shuffling.
         device : str | torch.device = 'cpu'
         dtype : torch.dtype = torch.float32
         """
@@ -56,46 +60,57 @@ class FineTune(object):
         self.model = model
         self.batch_size = batch_size
         self.epochs = epochs
+        self.shuffle = shuffle
+
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
 
     def fit(
         self,
-        features_t,
-        labels_t,
-        features_v=None,
-        labels_v=None,
+        dataset,
+        val_dataset=None,
         verbose=False,
     ):
         """Fits the model with fit_args and the given features and labels in a
         supervised learning fashion.
-        features_t labels_t:
+        dataset : torch.utils.data.Dataset | torch.Tensor
             features and labels that the model should be trained on.
-        features_v labels_v:
+        val_dataset : torch.utils.data.Dataset | torch.Tensor = None
             features and labels that the model should be validated on.
         """
         # TODO move to pytorch_lightning?
         # trainer = pl.Trainer(gpus=4, precision=16, limit_train_batches=0.5)
         # trainer.fit(model, train_loader, val_loader)
 
-        features_t = features_t.float()
-        t_len = len(features_t.float())
-        dataset = torch.utils.data.TensorDataset(features_t, labels_t)
+        if isinstance(dataset, tuple) and len(dataset) == 2:
+            t_len = len(dataset[0])
+            dataset = torch.utils.data.TensorDataset(
+                dataset[0].to(self.device, self.dtype),
+                dataset[1],
+            )
+        else:
+            t_len = len(dataset)
+
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=self.shuffle,
         )
 
-        if features_v is not None:
-            v_len = len(features_v)
-            print(v_len)
+        if val_dataset is not None:
+            if isinstance(val_dataset, tuple) and len(val_dataset) == 2:
+                v_len = len(val_dataset[0])
+                val_dataset = torch.utils.data.TensorDataset(
+                    val_dataset[0].to(self.device, self.dtype),
+                    val_dataset[1],
+                )
+            else:
+                v_len = len(val_dataset)
 
-            dataset_val = torch.utils.data.TensorDataset(features_v, labels_v)
             dataloader_val = torch.utils.data.DataLoader(
-                dataset_val,
+                val_dataset,
                 batch_size=self.batch_size,
-                shuffle=True,
+                shuffle=self.shuffle,
             )
 
         model = self.model.to(self.device)
@@ -131,7 +146,7 @@ class FineTune(object):
             right = 0
             tot_cls_loss = 0.0
 
-            if features_v is None: # Skip validation
+            if val_dataset is None: # Skip validation
                 continue
 
             for i, x in enumerate(dataloader_val):
@@ -169,7 +184,7 @@ class FineTune(object):
         -------
         torch.Tensor
         """
-        return self.model.fcs(features.to(self.device, dtype=self.dtype))
+        return self.model.fcs(features.to(self.device, self.dtype))
 
     def predict(self, features):
         # TODO If this eval/fwd pass loop overlaps with training loop, reuse
@@ -178,7 +193,7 @@ class FineTune(object):
 
         # NOTE for our paper, we want this with ability to find a threshold
         # from all train and val data.
-        features, prediction = self.model(features)
+        features, prediction = self.model(features.to(self.device, self.dtype))
         prediction = F.softmax(prediction.detach(), dim=1)
         return prediction
 
