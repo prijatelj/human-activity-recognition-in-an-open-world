@@ -15,9 +15,10 @@ docstr:
       - KineticsUnifiedSubset
       - LabelConfig
       - KineticsRootDirs
-    arn.models.fine_tune:
-      - FineTune
-      - FineTuneFC
+    arn.models.fine_tune_lit:
+      - FineTuneLit
+      - FineTuneFCLit
+      - init_trainer
     arn.models.novelty_detector:
       - WindowedMeanKLDiv
     arn.models.owhar:
@@ -92,16 +93,27 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
       #    - nmi
   predictor:
     OWHAPredictor: # the Open World Agent
-      fine_tuning:
-        FineTune:
+      fine_tune:
+        FineTuneLit:
           model:
-            FineTuneFC:
+            FineTuneFCLit:
               input_size: 512
               width: 512
               depth: 5
               dropout: 0.5
           batch_size: 1000
           epochs: 25
+          device: 'cuda'
+          # PytorchLightning.Trainer kwargs TODO parse unknown kwargs
+          # Could add another docstr tag: docstr.parse_kwargs for unknown args
+          # handled as YAML defaults or use other tags if provided or
+          # necessary.
+          # OR could just add a kwargs key w/ dict value and know to expand
+          # that when passed.
+          trainer:
+            init_trainer: # TODO idk if this will work... :/ It SHOULD.
+              enable_checkpointing: True
+              default_root_dir: /home/prijatelj/workspace/research/osr/har/data/kinetics400/x3d_fine_tune_chkpts/
       novelty_detector: # Classification + Clustering
         WindowedMeanKLDiv:
           kl_threshold: 5.365822113508410
