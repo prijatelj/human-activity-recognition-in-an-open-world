@@ -110,7 +110,13 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        raise NotImplementedError()
+        inputs, labels = batch
+        fine_tune_reprs, classifications = self(inputs)
+
+        loss = self.loss(classifications, labels)
+
+        #logging.info('Training loss: %d', loss)
+        self.log('train_loss', loss)
 
     def test_step(self, batch, batch_idx):
         raise NotImplementedError()
@@ -192,9 +198,10 @@ class FineTuneLit():
             val_dataloaders=val_loader,
         )
 
-    def predict(self, features):
-        return self.model(features.to(self.device, self.dtype))[1]
+    def predict(self, features, renable_train=True):
+        #preds = self.model(features.to(self.device, self.dtype))[1]
+        return self.trainer.predict(features)[1]
 
-    def extract(self, features):
-        self.model.eval()
-        return self.model(features.to(self.device, self.dtype))[0]
+    def extract(self, features, renable_train=True):
+        #extracts = self.model.predict(features.to(self.device, self.dtype))[0]
+        return self.trainer.predict(features)[0]
