@@ -51,7 +51,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   labels:
                     LabelConfig:
                       name: 'label_kinetics400'
-                      known: True
+                      #known: True
                   kinetics400:
                     KineticsSplitConfig:
                       train: True
@@ -72,7 +72,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   labels:
                     LabelConfig:
                       name: 'label_kinetics400'
-                      known: True
+                      #known: True
                   kinetics400:
                     KineticsSplitConfig:
                       validate: True
@@ -93,7 +93,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   labels:
                     LabelConfig:
                       name: 'label_kinetics400'
-                      known: True
+                      #known: True
                   kinetics400:
                     KineticsSplitConfig:
                       test: True
