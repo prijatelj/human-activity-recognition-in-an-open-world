@@ -73,7 +73,23 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   kinetics400:
                     KineticsSplitConfig:
                       test: True
-    label_id: 'kinetics700_map' # TODO check if any k400 are cut. or other changes.
+    #label_id: 'kinetics700_map' # TODO check if any k400 are cut. or other changes.
+      #measures:
+      #  per_step:
+      #    - acc
+      #    - top-5 acc
+      #    - loss
+      #    - mcc
+      #    - nmi
+      #    #- novelty_detection: # TODO
+      #    #  ConfusionMatrix:
+      #  cummulative:
+      #    - novelty_detection # TODO
+      #    - acc
+      #    - top-5 acc
+      #    - loss
+      #    - mcc
+      #    - nmi
   predictor:
     OWHAPredictor: # the Open World Agent
       fine_tuning:
@@ -96,21 +112,4 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           num_rounds: 40
           #threshold_scale: 3.0 # Hack to scale down early detection.
           #feedback_weight: 1.0 # binary novelty feedback
-
       # TODO checkpoints for saving the model results.
-  #measures:
-  #  per_step:
-  #    - acc
-  #    - top-5 acc
-  #    - loss
-  #    - mcc
-  #    - nmi
-  #    #- novelty_detection: # TODO
-  #    #  ConfusionMatrix:
-  #  cummulative:
-  #    - novelty_detection # TODO
-  #    - acc
-  #    - top-5 acc
-  #    - loss
-  #    - mcc
-  #    - nmi
