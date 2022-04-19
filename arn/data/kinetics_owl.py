@@ -118,7 +118,6 @@ class KineticsOWL(object):
         self.environment = environment
         self.predictor = predictor
         self.feedback = feedback
-        self.measures = measures
         self.eval_on_start = eval_on_start
 
         #if tasks is None:
