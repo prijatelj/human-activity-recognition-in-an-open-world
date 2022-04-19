@@ -39,14 +39,14 @@ class OWHAPredictor(object):
         # TODO Use the dtype in all interior predictor parts unless None.
 
     @property
-    def get_increment(self):
+    def increment(self):
         """Increments correspond to how many times the predictor was fit."""
         return self._increment
 
     def fit(self, dataset, val_dataset=None, task_id=None):
         """Incrementally fit the OWHAPredictor's parts."""
         self._increment += 1
-        self.fine_tune.fit(dataset, val=val_dataset)
+        self.fine_tune.fit(dataset, val_dataset=val_dataset)
         # NOTE update any other state for fitting, such as thresholds.
 
     def predict(self, dataset, task_id=None):
