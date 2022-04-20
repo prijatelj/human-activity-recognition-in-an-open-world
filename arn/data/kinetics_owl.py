@@ -14,7 +14,11 @@ from typing import NamedTuple
 
 import torch
 
-from arn.data.kinetics_unified import KineticsUnified, KineticsUnifiedFeatures
+from arn.data.kinetics_unified import (
+    KineticsUnified,
+    KineticsUnifiedFeatures,
+    load_file_list,
+)
 from arn.models.owhar import OWHAPredictor
 
 from exputils.data.labels import NominalDataEncoder
@@ -100,6 +104,7 @@ class KineticsOWL(object):
         eval_on_start=False,
         tasks=None,
         maintain_experience=False,
+        labels=None
     ):
         """Initialize the KineticsOWL experiment.
 
@@ -116,7 +121,8 @@ class KineticsOWL(object):
             in the simulation for use by the predictor. Otherwise, the
             experienced samples are saved by concatenating the new data splits
             to the end of the prior ones.
-       """
+        labels : str = None
+        """
         # TODO handle seed/rng_state if given, otherwise randomly select seed.
         self.rng_state = rng_state
 
@@ -124,6 +130,20 @@ class KineticsOWL(object):
         self.predictor = predictor
         self.feedback = feedback
         self.eval_on_start = eval_on_start
+
+        # TODO will have to change this if handling multi-tasks in same
+        # experiment!
+        # TODO handle datasets' label encs when it is set explicitly here?
+        if labels is None:
+            self.label_enc = self.environment.start.train.label_enc
+        elif isinstance(labels, str):
+            self.label_enc = NominalDataEncoder(load_file_list(labels))
+        elif isinstance(labels, list):
+            self.label_enc = NominalDataEncoder(labels)
+        else:
+            raise TypeError(
+                f'subset.labels.known unexpected type! {type(labels)}'
+            )
 
         #if tasks is None:
         #     # NOTE support this in predictor and the datasets in labels
@@ -261,6 +281,9 @@ class KineticsOWLExperiment(object):
         self.start = start
         self.steps = steps
 
+        # TODO LabelEncoder with the ability to be given a specific list of
+        # labels as knowns such that the order is correctomundo.
+
         # NOTE possible that experience should be in the environment/experiment
         # rather than the simulation, but this is an abstraction/semantics
         # issue that doesn't affect practical end result.
@@ -280,6 +303,8 @@ class KineticsOWLExperiment(object):
         if self.steps:
             return 1 + len(self.steps) * self.increments_per_dataset
         return 1
+
+    # TODO def reset(self, state):
 
     def feedback(self, data_splits):
         # Oracle, exhaustive, no budget : labels are simply provided.
