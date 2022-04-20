@@ -364,6 +364,9 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         If True, returns only the contents within the self.data DataFrame's
         column `labels` for the sample. Otherwise, the default, returns
         the index of the sample with the dataframe.
+    log_warn_file_not_found : bool = False
+        If True, logs a warning about a sample file not being found. Otherwise
+        raises the typical FileNotFoundError.
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str]
@@ -377,6 +380,7 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     dtype : InitVar[str] = torch.float32
     return_label : bool = False
     return_index : bool = False
+    log_warn_file_not_found : bool = False
 
     def __post_init__(
         self,
@@ -407,6 +411,9 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
             includes the file extention within it.
         device : see self
         dtype : see self
+        return_label : see self
+        return_index : see self
+        log_warn_file_not_found : see self
         """
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
@@ -533,10 +540,17 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         sample = self.data.iloc[index]
 
         # Load from file. Hopefully, this is efficient enough.
-        feature_extract = torch.load(
-            sample['sample_path'],
-            self.device,
-        ).to(self.dtype)
+        try:
+            feature_extract = torch.load(
+                sample['sample_path'],
+                self.device,
+            ).to(self.dtype)
+        except FileNotFoundError as e:
+            if self.log_warn_file_not_found:
+                logging.warning('%s: %s', e.strerror, e.filename)
+                return None
+            else:
+                raise e
 
         #if get_label:
         #    return feature_extract, sample['labels']

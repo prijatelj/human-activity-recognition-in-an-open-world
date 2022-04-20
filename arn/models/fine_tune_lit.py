@@ -10,6 +10,7 @@ from arn.torch_utils import torch_dtype
 def init_trainer(
     default_root_dir=None,
     enable_checkpointing=True,
+    gpus=None,
 ):
     """Hotfix docstr workaround for not being able to read Torch docs and not
     being able to accept/parse uknown kwargs to be passes as **kwargs.
@@ -18,6 +19,7 @@ def init_trainer(
     ----
     default_root_dir : str = None
     enable_checkpointing : bool = True
+    gpus : int = None
 
     Returns
     -------
@@ -28,6 +30,7 @@ def init_trainer(
     return pl.Trainer(
         default_root_dir=default_root_dir,
         enable_checkpointing=enable_checkpointing,
+        gpus=gpus,
     )
 
 
@@ -142,6 +145,8 @@ class FineTuneLit():
     dtype : torch.dtype = torch.float32
     shuffle : bool = True
         If True, shuffle the data when fitting. If False, no shuffling.
+    num_workers : int = 0
+        Number of works to ues for the DataLoader.
     """
     def __init__(
         self,
@@ -152,6 +157,7 @@ class FineTuneLit():
         device='cpu',
         dtype=torch.float32,
         shuffle=True,
+        num_workers=0,
         #*args,
         #**kwargs,
     ):
@@ -169,6 +175,7 @@ class FineTuneLit():
         self.batch_size = batch_size
         self.epochs = epochs
         self.shuffle = shuffle
+        self.num_workers = num_workers
 
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
@@ -181,6 +188,7 @@ class FineTuneLit():
             dataset,
             batch_size=self.batch_size,
             shuffle=self.shuffle,
+            num_workers=self.num_workers,
         )
 
         if isinstance(val_dataset, torch.utils.data.Dataset):
@@ -188,6 +196,7 @@ class FineTuneLit():
                 val_dataset,
                 batch_size=self.batch_size,
                 shuffle=self.shuffle,
+                num_workers=self.num_workers,
             )
         elif not isinstance(val_dataset, torch.utils.data.DataLoader):
             val_loader = None
