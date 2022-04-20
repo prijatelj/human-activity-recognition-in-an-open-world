@@ -8,10 +8,9 @@ import pandas as pd
 class OrderedCounter(Counter, OrderedDict):
     pass
 
-
 def get_filename(
     df,
-    id='youtube_id',
+    uid='youtube_id',
     start='time_start',
     end='time_end',
     ext='.mp4',
@@ -22,7 +21,7 @@ def get_filename(
     ----
     df : pd.DataFrame
         DataFrame with the columns `id`, `start`, and `end`.
-    id : str | object
+    uid : str | object
         The DataFrame column name of the youtube id for Kinetics.
     start : str | object
         The DataFrame column name of the start time in seconds as an integer
@@ -35,13 +34,19 @@ def get_filename(
 
     Returns
     -------
-    list(str)
-        List of string filenames for each row in the given DataFrame `df`.
+    pd.Series
+        Series of string filenames for each row in the given DataFrame `df`.
     """
     if ext is None:
         # No extention
-        return [f'{id}_{start:0{zfill}}_{end:0{zfill}}' for i in df.index]
-    return [f'{id}_{start:0{zfill}}_{end:0{zfill}}{ext}' for i in df.index]
+        return df.apply(
+            lambda x: f'{x[uid]}_{x[start]:0{zfill}}_{x[end]:0{zfill}}',
+            axis=1,
+        )
+    return df.apply(
+        lambda x: f'{x[uid]}_{x[start]:0{zfill}}_{x[end]:0{zfill}}{ext}',
+        axis=1,
+    )
 
 
 def get_unique_youtube_ids(df):
