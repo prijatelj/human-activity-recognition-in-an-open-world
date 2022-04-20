@@ -127,6 +127,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           batch_size: 1000
           epochs: 25
           device: 'cuda'
+          #num_workers: 16
           # PytorchLightning.Trainer kwargs TODO parse unknown kwargs
           # Could add another docstr tag: docstr.parse_kwargs for unknown args
           # handled as YAML defaults or use other tags if provided or
@@ -135,6 +136,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           # that when passed.
           trainer:
             init_trainer: # TODO idk if this will work... :/ It SHOULD.
+              gpus: 1
               enable_checkpointing: True
               default_root_dir: /home/prijatelj/workspace/research/osr/har/data/kinetics400/x3d_fine_tune_chkpts/
       novelty_detector: # Classification + Clustering
