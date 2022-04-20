@@ -15,6 +15,54 @@ from torchvision.transforms import Compose, ToTensor
 
 from arn.data.dataloader_utils import status_video_frame_loader
 from arn.torch_utils import torch_dtype
+from exputils.data.labels import NominalDataEncoder
+
+
+def load_file_list(path):
+    with open(path, 'r') as openf:
+        contents = openf.read().splitlines()
+    return contents
+
+
+def get_filename(
+    df,
+    uid='youtube_id',
+    start='time_start',
+    end='time_end',
+    ext='.mp4',
+    zfill=6,
+):
+    """Given the DataFrame, return the Kinetics filename, expecting `.mp4`.
+    Args
+    ----
+    df : pd.DataFrame
+        DataFrame with the columns `id`, `start`, and `end`.
+    uid : str | object
+        The DataFrame column name of the youtube id for Kinetics.
+    start : str | object
+        The DataFrame column name of the start time in seconds as an integer
+    end : str | object
+        The DataFrame column name of the end time in seconds as an integer
+    ext : str = '.mp4'
+        The str filename extention to use. If None, then no extention is added.
+    zfill : int = 0
+        The number of zeros to pad for each start and end time in the filename.
+
+    Returns
+    -------
+    pd.Series
+        Series of string filenames for each row in the given DataFrame `df`.
+    """
+    if ext is None:
+        # No extention
+        return df.apply(
+            lambda x: f'{x[uid]}_{x[start]:0{zfill}}_{x[end]:0{zfill}}',
+            axis=1,
+        )
+    return df.apply(
+        lambda x: f'{x[uid]}_{x[start]:0{zfill}}_{x[end]:0{zfill}}{ext}',
+        axis=1,
+    )
 
 
 class KineticsRootDirs(object):
@@ -237,6 +285,11 @@ class LabelConfig(NamedTuple):
     Otherwise, known labels in unknown or unlabeled will be masked in
     KineticsUnified with unknown masking taking precedence over unlabeled
     masking.
+
+    every labels : str = None
+            Path to file that loads a list of str label names. If not provided
+            and known is True in LabelConfig, then the label encoder is based
+            on the sorted unique labels from the knowns.
     """
     name : str
     known : list = True # TODO Currently KineticsUnifiedFeatures does nothing with this!
@@ -367,6 +420,11 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     log_warn_file_not_found : bool = False
         If True, logs a warning about a sample file not being found. Otherwise
         raises the typical FileNotFoundError.
+    label_enc : NominalDataEncoder
+        Label encoder for this dataset.
+    one_hot : bool = True
+        If the labels, if available, from the dataset should be given in one
+        hot encodings.
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str]
@@ -381,6 +439,9 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     return_label : bool = False
     return_index : bool = False
     log_warn_file_not_found : bool = False
+    blacklist : InitVar[str] = None
+    whitelist : InitVar[str] = None
+    one_hot : bool = True
 
     def __post_init__(
         self,
@@ -392,6 +453,8 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         ext,
         device,
         dtype,
+        blacklist,
+        whitelist,
     ):
         """
         Args
@@ -414,6 +477,14 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         return_label : see self
         return_index : see self
         log_warn_file_not_found : see self
+        blacklist : str = None
+            Path to a file that loads a list of str filenames that are the
+            files that are NOT allowed within the data, removing them if they
+            exist.
+        whitelist : str = None
+            Path to a file that loads a list of str filenames that are the only
+            ones to be allowed within the data, thus removing any others if
+            they exist.
         """
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
@@ -487,12 +558,42 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
                         ),
                         'labels',
                     ] = self.unlabeled_token
+
+                if isinstance(subset.labels.known, str):
+                    labels = load_file_list(labels)
+                elif subset.labels.known is True: # Yes, _IS_ True.
+                    labels = self.data['labels'].unique()
+                    labels.sort()
+                elif subset.labels.known is None:
+                    labels = []
+                elif not isinstance(subset.labels.known, list):
+                    raise TypeError(' '.join([
+                        'subset.labels.known unexpected type!',
+                        f'{type(subset.labels.known)}',
+                    ]))
+                self.label_enc = NominalDataEncoder(labels)
             else:
                 logging.warning(
                     'subset given but no labels! No changes to DataFrame',
                 )
         #else:
             #print('\nsubset was None!\n')
+
+        # Blacklist unique samples
+        if isinstance(blacklist, str):
+            blacklist = load_file_list(blacklist)
+        if isinstance(blacklist, list):
+            self.data = self.data[
+                ~get_filename(self.data, ext=None).isin(blacklist)
+            ]
+
+        # Whitelist unique samples
+        if isinstance(whitelist, str):
+            whitelist = load_file_list(whitelist)
+        if isinstance(whitelist, list):
+            self.data = self.data[
+                get_filename(self.data, ext=None).isin(whitelist)
+            ]
 
         # Create an index column for ease of accessing labels from DataLoader
         self.data['sample_index'] = self.data.index
@@ -544,7 +645,7 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
             feature_extract = torch.load(
                 sample['sample_path'],
                 self.device,
-            ).to(self.dtype)
+            ).squeeze().to(self.dtype)
         except FileNotFoundError as e:
             if self.log_warn_file_not_found:
                 logging.warning('%s: %s', e.strerror, e.filename)
@@ -557,6 +658,15 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         if self.return_label:
             if self.return_index:
                 return feature_extract, sample['sample_index']
+            if self.label_enc:
+                return feature_extract, \
+                    torch.as_tensor(
+                        self.label_enc.encode(
+                            [sample['labels']],
+                            one_hot=self.one_hot,
+                        ).squeeze(),
+                        dtype=self.dtype,
+                    )
             return feature_extract, sample['labels']
         return feature_extract
 
