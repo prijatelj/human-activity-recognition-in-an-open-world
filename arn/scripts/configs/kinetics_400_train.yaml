@@ -36,6 +36,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         DataSplits:
           train:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-features-missing-file-train-file.log
               annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
@@ -57,6 +58,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       train: True
           validate:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-features-missing-file-val-file.log
               annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
@@ -78,6 +80,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       validate: True
           test:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-features-missing-file-test-file.log
               annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
@@ -120,14 +123,17 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         FineTuneLit:
           model:
             FineTuneFCLit:
-              input_size: 512
+              input_size: 2048 #512
               width: 512
               depth: 5
               dropout: 0.5
+              n_classes: 400 # PAR's is 29, TODO wish docstr had lazy init,
+              #   could make input and output dependent on the experiment's
+              #   data at start.
           batch_size: 1000
           epochs: 25
           device: 'cuda'
-          #num_workers: 16
+          # num_workers: 16
           # PytorchLightning.Trainer kwargs TODO parse unknown kwargs
           # Could add another docstr tag: docstr.parse_kwargs for unknown args
           # handled as YAML defaults or use other tags if provided or
@@ -149,4 +155,3 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           num_rounds: 40
           #threshold_scale: 3.0 # Hack to scale down early detection.
           #feedback_weight: 1.0 # binary novelty feedback
-      # TODO checkpoints for saving the model results.
