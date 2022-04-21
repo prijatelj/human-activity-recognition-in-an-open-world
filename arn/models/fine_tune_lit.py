@@ -11,6 +11,7 @@ def init_trainer(
     default_root_dir=None,
     enable_checkpointing=True,
     gpus=None,
+    max_epochs=1000,
 ):
     """Hotfix docstr workaround for not being able to read Torch docs and not
     being able to accept/parse uknown kwargs to be passes as **kwargs.
@@ -20,6 +21,8 @@ def init_trainer(
     default_root_dir : str = None
     enable_checkpointing : bool = True
     gpus : int = None
+    max_epochs : int = 1000
+        Number of epochs to use during fitting.
 
     Returns
     -------
@@ -31,6 +34,7 @@ def init_trainer(
         default_root_dir=default_root_dir,
         enable_checkpointing=enable_checkpointing,
         gpus=gpus,
+        max_epochs=max_epochs,
     )
 
 
@@ -137,8 +141,6 @@ class FineTuneLit():
     trainer : init_trainer
         The pl.Trainer trainer used for the fine tune model.
     batch_size : int = 1000
-    epochs : int = 25
-        Number of epochs to use during fitting.
     device : str | torch.device = 'cpu'
         the device on which model should be trained
         default: cpu
@@ -153,7 +155,6 @@ class FineTuneLit():
         model,
         trainer,
         batch_size=1000,
-        epochs=25,
         device='cpu',
         dtype=torch.float32,
         shuffle=True,
@@ -173,7 +174,6 @@ class FineTuneLit():
             )
         self.model = model
         self.batch_size = batch_size
-        self.epochs = epochs
         self.shuffle = shuffle
         self.num_workers = num_workers
 

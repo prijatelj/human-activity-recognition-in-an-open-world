@@ -131,7 +131,6 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               #   could make input and output dependent on the experiment's
               #   data at start.
           batch_size: 1000
-          epochs: 25
           device: 'cuda'
           # num_workers: 16
           # PytorchLightning.Trainer kwargs TODO parse unknown kwargs
@@ -142,6 +141,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           # that when passed.
           trainer:
             init_trainer: # TODO idk if this will work... :/ It SHOULD.
+              max_epochs: 25
               gpus: 1
               enable_checkpointing: True
               default_root_dir: /home/prijatelj/workspace/research/osr/har/data/kinetics400/x3d_fine_tune_chkpts/
