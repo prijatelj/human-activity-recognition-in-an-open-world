@@ -69,8 +69,7 @@ class WindowedMeanKLDiv(object):
 
         # Kullback-Liebler Divergence attributes
         self.kl_threshold = kl_threshold
-        self.kl_threshold_decay = (num_rounds * kl_threshold_decay_rate) \
-            / float(num_rounds)
+        self.kl_threshold_decay = kl_threshold_decay_rate / float(num_rounds)
 
         # Moving average attributes
         self.mean_train = mean_train
