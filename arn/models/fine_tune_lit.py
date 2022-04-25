@@ -4,7 +4,7 @@ import torch
 nn = torch.nn
 
 from arn.models.fine_tune import FineTuneFC
-from arn.torch_utils import torch_dtype
+from arn.torch_utils import torch_dtype, get_kinetics_uni_dataloader
 
 
 def init_trainer(
@@ -184,33 +184,50 @@ class FineTuneLit():
         self.trainer = trainer
 
     def fit(self, dataset, val_dataset=None):
-        train_loader = torch.utils.data.DataLoader(
+        """Fit the fine tuning model with the given train and val datasets.
+
+        Args
+        ----
+        dataset : KineticsUnifiedFeatures | torch.utils.data.DataLoader
+            The dataset to be turned into a DataLoader or the DataLoader itself
+            used for fitting the model.
+        val_dataset : KineticsUnifiedFeatures
+            Same as `dataset`, except used for validation during the fitting
+            process.
+        """
+        dataset = get_kinetics_uni_dataloader(
             dataset,
             batch_size=self.batch_size,
             shuffle=self.shuffle,
             num_workers=self.num_workers,
         )
 
-        if isinstance(val_dataset, torch.utils.data.Dataset):
-            val_loader = torch.utils.data.DataLoader(
+        if val_dataset is not None:
+            val_dataset = get_kinetics_uni_dataloader(
                 val_dataset,
                 batch_size=self.batch_size,
                 shuffle=self.shuffle,
                 num_workers=self.num_workers,
             )
-        elif not isinstance(val_dataset, torch.utils.data.DataLoader):
-            val_loader = None
 
         self.trainer.fit(
             model=self.model,
-            train_dataloaders=train_loader,
-            val_dataloaders=val_loader,
+            train_dataloaders=dataset,
+            val_dataloaders=val_dataset,
         )
 
-    def predict(self, features, renable_train=True):
-        #preds = self.model(features.to(self.device, self.dtype))[1]
+    def eval(self, dataset):
+        # TODO add *args/**kwargs here and override self.* if provided on call.
+        dataset = get_kinetics_uni_dataloader(
+            dataset,
+            batch_size=self.batch_size,
+            shuffle=self.shuffle,
+            num_workers=self.num_workers,
+        )
+        return self.trainer.test(self.model, dataset)
+
+    def predict(self, features):
         return self.trainer.predict(features)[1]
 
-    def extract(self, features, renable_train=True):
-        #extracts = self.model.predict(features.to(self.device, self.dtype))[0]
+    def extract(self, features):
         return self.trainer.predict(features)[0]
