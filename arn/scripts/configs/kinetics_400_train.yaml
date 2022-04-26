@@ -100,23 +100,13 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   kinetics400:
                     KineticsSplitConfig:
                       test: True
-    #label_id: 'kinetics700_map' # TODO check if any k400 are cut. or other changes.
-      #measures:
-      #  per_step:
-      #    - acc
-      #    - top-5 acc
-      #    - loss
-      #    - mcc
-      #    - nmi
-      #    #- novelty_detection: # TODO
-      #    #  ConfusionMatrix:
-      #  cummulative:
-      #    - novelty_detection # TODO
-      #    - acc
-      #    - top-5 acc
-      #    - loss
-      #    - mcc
-      #    - nmi
+      #label_id: 'kinetics700_map' # TODO check if any k400 are cut. or other changes.
+      measures: 'ordered_confusion_tensor'
+        #per_step:
+        #  - OrderedConfusionTensor
+        #cummulative:
+        #  - OrderedConfusionTensor
+        #  #- novelty_detection # TODO
   predictor:
     OWHAPredictor: # the Open World Agent
       fine_tune:
