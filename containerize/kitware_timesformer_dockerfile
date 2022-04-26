@@ -1,0 +1,34 @@
+# The docker container root at at a dir above this repo `arn` that contains all
+# other repos listed below.
+# The Torch Docker container
+FROM nvcr.io/nvidia/pytorch:21.09-py3
+
+# Set a working directory for the app
+WORKDIR /tmp/docker/kitware-sail-on/
+
+# Deps for opencv-python, and necessary ARG/ENV for docker build
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/New_York
+RUN apt-get update && apt-get install -y python3-opencv
+
+# Copy all the repos' files into the container
+# The following repos are cloned before building. Could use remote clone
+COPY TimeSformer ./TimeSformer/
+COPY Sail-On-API ./Sail-On-API/
+COPY Sail_On_Evaluate ./Sail_On_Evaluate/
+COPY ND-Activity-Recognition-Feeback ./ND-Activity-Recognition-Feeback/
+COPY vast ./vast/
+
+# Install this repo's main package and its dependencies
+WORKDIR /tmp/docker/kitware-sail-on/TimeSformer/
+RUN pip install poetry
+RUN poetry install
+RUN poetry run pip install ../Sail-On-API/ ../Sail_On_Evaluate/
+# Editable installs for development.
+RUN poetry run pip install -e ../ND-Activity-Recognition-Feeback/
+RUN poetry run pip install -e ../vast/
+
+# Data is mounted to with bindings, thus downloaded manually.
+
+# Open interactive bash session. Run poetry shell environment when run.
+CMD bash
