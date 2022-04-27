@@ -157,6 +157,9 @@ class KineticsOWL(object):
         else:
             self.experience = None
 
+        # TODO callbacks or hooks would be wonderful for saving predictions and
+        # eval measures!
+
     @property
     def increment(self):
         return self.environment.increment
@@ -168,7 +171,7 @@ class KineticsOWL(object):
         new_data_splits = self.environment.step()
 
         # 2. Inference/Eval on new data if self.eval_untrained_start
-        if self.increment == 0 and self.eval_on_start:
+        if (self.increment == 0 and self.eval_on_start) or self.increment > 0:
             # NOTE Predict for the Task(s), useful when multiple tasks to be
             # handled by one predictor.
             #for task_id in self.tasks:
@@ -180,14 +183,22 @@ class KineticsOWL(object):
                 self.increment,
             )
             pred = self.predictor.predict(new_data_splits)
-            self.environment.eval(new_data_splits, pred, 'labels')
+            # TODO log preds OR save preds in csv or a database (ideal).
+
+            measures = self.environment.eval(new_data_splits, pred, 'labels')
+            # TODO log measures OR save measures in csv or a database (ideal).
 
             logging.info(
                 "Predicting `novelty_detection` for step %d's data.",
                 self.increment,
             )
-            detect = self.predictor.novelty_detect(new_data_splits)
-            self.environment.eval(new_data_splits, detect, 'novelty_detect')
+            detects = self.predictor.novelty_detect(new_data_splits)
+            # TODO log detects OR save detects in csv or a database (ideal).
+            detect_measures = self.environment.eval(
+                new_data_splits,
+                detects,
+                'novelty_detect',
+            )
 
         if self.feedback == 'oracle':
             # 3. Opt. Feedback on new data
