@@ -216,16 +216,6 @@ class FineTuneLit():
             val_dataloaders=val_dataset,
         )
 
-    def eval(self, dataset):
-        # TODO add *args/**kwargs here and override self.* if provided on call.
-        dataset = get_kinetics_uni_dataloader(
-            dataset,
-            batch_size=self.batch_size,
-            shuffle=self.shuffle,
-            num_workers=self.num_workers,
-        )
-        return self.trainer.test(self.model, dataset)
-
     def predict(self, features):
         return self.trainer.predict(features)[1]
 
