@@ -201,8 +201,11 @@ class KineticsOWL(object):
                 # Add new data to experience
                 self.experience.update(new_data_splits)
 
-                # TODO 4. Opt. Predictor Update/train on new data w/ feedback
-                self.predictor.fit(self.experience)
+                # 4. Opt. Predictor Update/train on new data w/ feedback
+                self.predictor.fit(
+                    self.experience.train,
+                    self.experience.validate,
+                )
             else:
                 self.predictor.fit(
                     new_data_splits.train,
