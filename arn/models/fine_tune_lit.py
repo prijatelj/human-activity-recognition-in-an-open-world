@@ -4,7 +4,8 @@ import torch
 nn = torch.nn
 
 from arn.models.fine_tune import FineTuneFC
-from arn.torch_utils import torch_dtype, get_kinetics_uni_dataloader
+from arn.torch_utils import torch_dtype
+from arn.data.kinetics_unified import get_kinetics_uni_dataloader
 
 
 def init_trainer(
@@ -12,6 +13,7 @@ def init_trainer(
     enable_checkpointing=True,
     gpus=None,
     max_epochs=1000,
+    logger=None,
 ):
     """Hotfix docstr workaround for not being able to read Torch docs and not
     being able to accept/parse uknown kwargs to be passes as **kwargs.
@@ -23,6 +25,7 @@ def init_trainer(
     gpus : int = None
     max_epochs : int = 1000
         Number of epochs to use during fitting.
+    logger : pytorch_lightning.loggers.TensorBoardLogger = None
 
     Returns
     -------
@@ -35,6 +38,7 @@ def init_trainer(
         enable_checkpointing=enable_checkpointing,
         gpus=gpus,
         max_epochs=max_epochs,
+        logger=logger,
     )
 
 
