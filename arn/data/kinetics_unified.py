@@ -65,6 +65,15 @@ def get_filename(
     )
 
 
+def get_kinetics_uni_dataloader(dataset, *args, **kwargs):
+    """Get torch DataLoader of a KineticsUnifiedFeatures (subclass) dataset."""
+    if isinstance(dataset, KineticsUnifiedFeatures):
+        return torch.utils.data.DataLoader(dataset, *args, **kwargs)
+    elif not isinstance(dataset, torch.utils.data.dataloader):
+        raise TypeError(f'Unexpected dataset type: `{type(dataset)}`')
+    return dataset
+
+
 class KineticsRootDirs(object):
     """Stores the root directory paths for each Kinetics dataset.
 
