@@ -9,9 +9,11 @@ Actuators: Feedback request system
     - Oracle feedback budgeted amount overall
     - Feedback Translation?
 """
+from dataclasses import dataclass, InitVar
 import logging
 from typing import NamedTuple
 
+import pandas as pd
 import torch
 
 from arn.data.kinetics_unified import (
@@ -22,7 +24,150 @@ from arn.data.kinetics_unified import (
 from arn.models.owhar import OWHAPredictor
 
 from exputils.data.labels import NominalDataEncoder
-#from exputils.data.confusion_matrix import ConfusionMatrix
+from exputils.data.confusion_matrix import ConfusionMatrix
+from exputils.io import create_filepath
+
+
+class EvalDataSplitConfig(NamedTuple):
+    """Configure the data split's saving of predictions or evaluation measures.
+    Defaults to saving nothing.
+
+    Attributes
+    ----------
+    pred_dir: str = None
+        The directory where the predictions will be saved.
+        Defaults to None and when None no predictions are saved.
+    eval_dir: str  = None
+        The directory where the evaluation measures will be saved.
+        Defaults to None and when None no evaluations are saved.
+        NOTE should probably just use tensorboard for this? except for
+        confusion matrices.
+    prefix: str = ''
+        Shared prefix path to pred_dir and eval_dir.
+    save_preds_with_labels: bool = True
+        If True, saves the predictions with the labels. Otherwise only saves
+        the predictions.
+    """
+    # TODO should make this optionally save to a database, like PostgreSQL.
+    pred_dir: str = None
+    eval_dir: str = None
+    prefix: str = None
+    save_preds_with_labels: bool = True
+
+    def __bool__(self):
+        return bool(self.pred_dir) or bool(self.eval_dir)
+
+    def eval(data_split, preds, measures, prefix=None):
+        if self.pred_dir:
+            if isinstance(preds, torch.Tensor):
+                preds = preds.numpy()
+            # TODO fin preds
+            raise NotImplementedError()
+            if self.save_preds_with_labels:
+                pd.DataFrame().to_csv(
+                    create_filepath(f'{self}')
+                )
+            else:
+                pd.DataFrame().to_csv()
+        if self.eval_dir:
+            # TODO fin eval
+            raise NotImplementedError()
+            for measure in measures:
+                if measure.lower() == 'confusion_matrix':
+                elif measure.lower() == 'confusion_tensor':
+                else:
+                    measurements = measure(data_split, preds)
+
+
+@dataclass
+class EvalConfig:
+    """Configure the saving of predictions or evaluation measures.
+    Defaults to saving nothing.
+
+    Attributes
+    ----------
+    train: EvalDataSplitConfig = None
+    validate: EvalDataSplitConfig = None
+    test: EvalDataSplitConfig = None
+    prefix: str = ''
+    """
+    train: EvalDataSplitConfig = None
+    validate: EvalDataSplitConfig = None
+    test: EvalDataSplitConfig = None
+    root_dir: str = None
+    measures: InitVar[list] = 'confusion_tensor'
+
+    def __post_init__(self, measures):
+        """Handles init of measures when a single str.
+
+        Args
+        ----
+        see self
+        """
+        if isinstance(measures, str):
+            if measures in {'confusion matrix', 'confusion_matrix'}:
+                # TODO self.measures = [ConfusionMatrix]
+                raise NotImplementedError()
+            elif measures in {'confusion tensor', 'confusion_tensor'}:
+                # TODO self.measures = [OrderedConfusionTensor]
+                raise NotImplementedError()
+            else:
+                raise TypeError(f'Expected a list, not a str! Got {measures}')
+        else:
+            self.measures = measures
+
+    def __bool__(self):
+        return self.train or self.validate or self.test
+
+    def eval(self, data_splits, predictor, measures, prefix=None):
+        """Given the datasplits, performs the predictions and evaluations to
+        be saved.
+
+        Args
+        ----
+        data_splits : DataSplits
+            The data splits to potentially be predicted on and evaluated.
+        predictor : callable
+            A function of the predictor to perform predictions given a dataset
+            within the data_splits object.
+        measures : list
+            A list of callables that expect 2 args, the target labels and
+            predictions. The object they return is to be saved.
+        prefix : str = None
+            An optoinal prefix to add to the paths AFTER the root_dir. This
+            would be useful for adding the step number and phase of that step,
+            such as if inference on new unlabeled data, or inference on data
+            after feedback update.
+        """
+        if prefix:
+            prefix = f'{self.root_dir}{os.path.sep}{prefix}{os.path.sep}'
+        else:
+            prefix = f'{self.root_dir}{os.path.sep}'
+
+        if data_splits.train is not None and self.train:
+            logging.info("Predicting `label` for `{prefix}`'s train.", prefix)
+            self.train(
+                data_splits.train,
+                predictor(data_splits.train),
+                measures,
+                f'{prefix}{os.path.sep}train_',
+            )
+        if data_splits.validate is not None and self.validate:
+            logging.info("Predicting `label` for `{prefix}`'s val.", prefix)
+            self.validate(
+                data_splits.validate,
+                predictor(data_splits.validate),
+                measures,
+                f'{prefix}{os.path.sep}validate_',
+            )
+        if data_splits.test is not None and self.test:
+            logging.info("Predicting `label` for `{prefix}`'s test.", prefix)
+            self.test(
+                data_splits.test,
+                predictor(data_splits.test),
+                measures,
+                f'{prefix}{os.path.sep}test_',
+            )
 
 
 class DataSplits(NamedTuple):
@@ -106,6 +251,8 @@ class KineticsOWL(object):
         tasks=None,
         maintain_experience=False,
         labels=None
+        # configure logging ...
+        # configure state saving ...
     ):
         """Initialize the KineticsOWL experiment.
 
@@ -177,23 +324,26 @@ class KineticsOWL(object):
             #for task_id in self.tasks:
             #    pass
 
-            # TODO data pass!
-            logging.info(
-                "Predicting `label` for step %d's data.",
-                self.increment,
+            self.pred_eval.eval(
+                new_data_splits,
+                self.predictor.predict,
+                self.measures,
+                #prefix,
             )
-            pred = self.predictor.predict(new_data_splits)
-            # TODO log preds OR save preds in csv or a database (ideal).
+            #pred = self.predictor.predict(new_data_splits.test)
+            #measures = self.environment.eval(new_data_splits, pred, 'labels')
 
-            measures = self.environment.eval(new_data_splits, pred, 'labels')
-            # TODO log measures OR save measures in csv or a database (ideal).
-
+            self.pred_eval.eval(
+                new_data_splits,
+                self.predictor.novelty_detect,
+                self.measures,
+                #prefix,
+            )
             logging.info(
                 "Predicting `novelty_detection` for step %d's data.",
                 self.increment,
             )
             detects = self.predictor.novelty_detect(new_data_splits)
-            # TODO log detects OR save detects in csv or a database (ideal).
             detect_measures = self.environment.eval(
                 new_data_splits,
                 detects,
@@ -224,7 +374,16 @@ class KineticsOWL(object):
                 )
 
             # TODO 5. Opt. Predictor eval post update
-            self.environment.eval(new_data_splits, pred)
+            measrures_post_feedback = self.environment.eval(
+                new_data_splits,
+                pred,
+                'labels',
+            )
+            detect_measrures_post_feedback = self.environment.eval(
+                new_data_splits,
+                pred,
+                'novelty_detect',
+            )
 
             # TODO 6. Opt. Evaluate the updated predictor on entire experience
             #self.eval(self.experience, self.predictor.predict(self.experience))
@@ -321,14 +480,14 @@ class KineticsOWLExperiment(object):
 
     # TODO def reset(self, state):
 
-    def feedback(self, data_splits):
+    def feedback(self, data_splits, test=False):
         # Oracle, exhaustive, no budget : labels are simply provided.
         if data_splits.train and not data_splits.train.return_label:
             data_splits.train.return_label = True
         if data_splits.validate and not data_splits.validate.return_label:
             data_splits.validate.return_label = True
-        #if data_splits.test and not data_splits.test.return_label:
-        #    data_splits.test.return_label = True
+        if test and data_splits.test and not data_splits.test.return_label:
+            data_splits.test.return_label = True
         return data_splits
 
     def eval(self, dataset, pred, task='labels'):
