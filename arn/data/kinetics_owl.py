@@ -11,8 +11,10 @@ Actuators: Feedback request system
 """
 from dataclasses import dataclass, InitVar
 import logging
+import os
 from typing import NamedTuple
 
+import numpy as np
 import pandas as pd
 import torch
 
@@ -25,6 +27,7 @@ from arn.models.owhar import OWHAPredictor
 
 from exputils.data.labels import NominalDataEncoder
 from exputils.data.confusion_matrix import ConfusionMatrix
+from exputils.data.ordered_confusion_matrix import OrderedConfusionMatrices
 from exputils.io import create_filepath
 
 
@@ -42,8 +45,9 @@ class EvalDataSplitConfig(NamedTuple):
         Defaults to None and when None no evaluations are saved.
         NOTE should probably just use tensorboard for this? except for
         confusion matrices.
-    prefix: str = ''
-        Shared prefix path to pred_dir and eval_dir.
+    file_prefix: str = ''
+        A prefix to be added to prior to the filename, but AFTER any given
+        `prefix` in eval().
     save_preds_with_labels: bool = True
         If True, saves the predictions with the labels. Otherwise only saves
         the predictions.
@@ -51,32 +55,59 @@ class EvalDataSplitConfig(NamedTuple):
     # TODO should make this optionally save to a database, like PostgreSQL.
     pred_dir: str = None
     eval_dir: str = None
-    prefix: str = None
+    file_prefix: str = ''
     save_preds_with_labels: bool = True
 
     def __bool__(self):
         return bool(self.pred_dir) or bool(self.eval_dir)
 
-    def eval(data_split, preds, measures, prefix=None):
+    def eval(self, data_split, preds, measures, prefix=None):
+        prefix = os.path.join(prefix, self.file_prefix)
+        labels = None
+
         if self.pred_dir:
             if isinstance(preds, torch.Tensor):
                 preds = preds.numpy()
-            # TODO fin preds
-            raise NotImplementedError()
             if self.save_preds_with_labels:
-                pd.DataFrame().to_csv(
-                    create_filepath(f'{self}')
+                labels = [row[1] for row in data_split]
+                if len(preds.shape) == 2 and len(preds.shape[1]) > 1:
+                    contents = np.hstack(labels, preds)
+                else:
+                    contents = [labels, preds]
+                pd.DataFrame(
+                    contents,
+                    columns=['target_labels', 'preds'],
+                ).to_csv(
+                    create_filepath(os.path.join(prefix, 'preds.csv')),
+                    index=False,
                 )
             else:
-                pd.DataFrame().to_csv()
+                pd.DataFrame(
+                    preds,
+                    columns=['preds'],
+                ).to_csv(
+                    create_filepath(os.path.join(prefix, 'preds.csv')),
+                    index=False,
+                )
+
         if self.eval_dir:
-            # TODO fin eval
-            raise NotImplementedError()
+            if isinstance(preds, torch.Tensor):
+                preds = preds.numpy()
+            if labels is None:
+                labels = [row[1] for row in data_split]
+
             for measure in measures:
-                if measure.lower() == 'confusion_matrix':
-                elif measure.lower() == 'confusion_tensor':
+                if issubclass(
+                    measurements,
+                    (ConfusionMatrix, OrderedConfusionMatrices),
+                ):
+                    measurements = measure(labels, preds, data_split.label_enc)
+                    measurements.save(os.path.join(prefix, 'preds.csv'))
                 else:
-                    measurements = measure(data_split, preds)
+                    raise NotImplementedError('TODO: non-confusion matrix.')
+                    measurements = measure(labels, preds)
+                    # TODO scalars? store in dict?
+                    # TODO Tensorboard hook?
 
 
 @dataclass
@@ -87,15 +118,27 @@ class EvalConfig:
     Attributes
     ----------
     train: EvalDataSplitConfig = None
+        The configuration for saving the predictions and evaluation measures of
+        the training split of the data.
     validate: EvalDataSplitConfig = None
+        The configuration for saving the predictions and evaluation measures of
+        the validation split of the data.
     test: EvalDataSplitConfig = None
-    prefix: str = ''
+        The configuration for saving the predictions and evaluation measures of
+        the testing split of the data.
+    root_dir: str = ''
+        An optional root directory that is appeneded to all paths accessed
+        withing the EvalConfig.
+    measures : list = 'ordered_confusion_matrix'
+        A list of callables or a str stating confusion tensor or confusion
+        matrix. If `ordered_confusion_matrix`, then the k = 5 ordered confusion
+        matrices are stored.
     """
     train: EvalDataSplitConfig = None
     validate: EvalDataSplitConfig = None
     test: EvalDataSplitConfig = None
-    root_dir: str = None
-    measures: InitVar[list] = 'confusion_tensor'
+    root_dir: str = ''
+    measures: InitVar[list] = 'ordered_confusion_matrix'
 
     def __post_init__(self, measures):
         """Handles init of measures when a single str.
@@ -105,12 +148,13 @@ class EvalConfig:
         see self
         """
         if isinstance(measures, str):
-            if measures in {'confusion matrix', 'confusion_matrix'}:
-                # TODO self.measures = [ConfusionMatrix]
-                raise NotImplementedError()
-            elif measures in {'confusion tensor', 'confusion_tensor'}:
-                # TODO self.measures = [OrderedConfusionTensor]
-                raise NotImplementedError()
+            if measures.lower() in {'confusion matrix', 'confusion_matrix'}:
+                self.measures = [ConfusionMatrix]
+            elif measures.lower().replace(' ', '_') in {
+                'ordered_confusion_matrix',
+                'ordered_confusion_matrices',
+            }: # Assumes top 5
+                self.measures = [OrderedConfusionMatrices]
             else:
                 raise TypeError(f'Expected a list, not a str! Got {measures}')
         else:
@@ -119,7 +163,7 @@ class EvalConfig:
     def __bool__(self):
         return self.train or self.validate or self.test
 
-    def eval(self, data_splits, predictor, measures, prefix=None):
+    def eval(self, data_splits, predict, measures, prefix=None):
         """Given the datasplits, performs the predictions and evaluations to
         be saved.
 
@@ -127,12 +171,10 @@ class EvalConfig:
         ----
         data_splits : DataSplits
             The data splits to potentially be predicted on and evaluated.
-        predictor : callable
+        predict : Callable
             A function of the predictor to perform predictions given a dataset
             within the data_splits object.
         measures : list
-            A list of callables that expect 2 args, the target labels and
-            predictions. The object they return is to be saved.
         prefix : str = None
             An optoinal prefix to add to the paths AFTER the root_dir. This
             would be useful for adding the step number and phase of that step,
@@ -140,33 +182,33 @@ class EvalConfig:
             after feedback update.
         """
         if prefix:
-            prefix = f'{self.root_dir}{os.path.sep}{prefix}{os.path.sep}'
+            prefix = os.path.join(self.root_dir, prefix)
         else:
-            prefix = f'{self.root_dir}{os.path.sep}'
+            prefix = self.root_dir
 
         if data_splits.train is not None and self.train:
-            logging.info("Predicting `label` for `{prefix}`'s train.", prefix)
-            self.train(
+            logging.info("Predicting `label` for `%s`'s train.", prefix)
+            self.train.eval(
                 data_splits.train,
-                predictor(data_splits.train),
-                measures,
-                f'{prefix}{os.path.sep}train_',
+                predict(data_splits.train),
+                self.measures,
+                os.path.join(prefix, 'train_'),
             )
         if data_splits.validate is not None and self.validate:
-            logging.info("Predicting `label` for `{prefix}`'s val.", prefix)
-            self.validate(
+            logging.info("Predicting `label` for `%s`'s val.", prefix)
+            self.validate.eval(
                 data_splits.validate,
-                predictor(data_splits.validate),
-                measures,
-                f'{prefix}{os.path.sep}validate_',
+                predict(data_splits.validate),
+                self.measures,
+                os.path.join(prefix, 'validate_'),
             )
         if data_splits.test is not None and self.test:
-            logging.info("Predicting `label` for `{prefix}`'s test.", prefix)
-            self.test(
+            logging.info("Predicting `label` for `%s`'s test.", prefix)
+            self.test.eval(
                 data_splits.test,
-                predictor(data_splits.test),
-                measures,
-                f'{prefix}{os.path.sep}test_',
+                predict(data_splits.test),
+                self.measures,
+                os.path.join(prefix, 'test_'),
             )
 
 
