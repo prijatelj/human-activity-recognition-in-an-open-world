@@ -394,6 +394,10 @@ class KineticsOWL(object):
             # the current time step as it knows when something is a known or
             # unknown class at the current time step.
             #   Keep experience/datasplit label encoders in sync.
+            #   Use proper novelty detection measures of performance!
+            #       - Confusion Matrix : which class is confused w/ novelty?
+            #       - Difference to actual novelty occurrence (by sample idx)
+            #           If early detection, negative, otherwise positive.
 
         if self.feedback == 'oracle':
             # 3. Opt. Feedback on this step's new data
