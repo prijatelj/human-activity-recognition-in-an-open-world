@@ -52,7 +52,7 @@ class EvalDataSplitConfig(NamedTuple):
         If True, saves the predictions with the labels. Otherwise only saves
         the predictions.
     """
-    # TODO should make this optionally save to a database, like PostgreSQL.
+    # NOTE should make this optionally save to a database, like PostgreSQL.
     pred_dir: str = None
     eval_dir: str = None
     file_prefix: str = ''
@@ -163,7 +163,7 @@ class EvalConfig:
     def __bool__(self):
         return self.train or self.validate or self.test
 
-    def eval(self, data_splits, predict, measures, prefix=None):
+    def eval(self, data_splits, predict, prefix=None):
         """Given the datasplits, performs the predictions and evaluations to
         be saved.
 
@@ -174,7 +174,6 @@ class EvalConfig:
         predict : Callable
             A function of the predictor to perform predictions given a dataset
             within the data_splits object.
-        measures : list
         prefix : str = None
             An optoinal prefix to add to the paths AFTER the root_dir. This
             would be useful for adding the step number and phase of that step,
@@ -186,30 +185,22 @@ class EvalConfig:
         else:
             prefix = self.root_dir
 
-        if data_splits.train is not None and self.train:
-            logging.info("Predicting `label` for `%s`'s train.", prefix)
-            self.train.eval(
-                data_splits.train,
-                predict(data_splits.train),
-                self.measures,
-                os.path.join(prefix, 'train_'),
-            )
-        if data_splits.validate is not None and self.validate:
-            logging.info("Predicting `label` for `%s`'s val.", prefix)
-            self.validate.eval(
-                data_splits.validate,
-                predict(data_splits.validate),
-                self.measures,
-                os.path.join(prefix, 'validate_'),
-            )
-        if data_splits.test is not None and self.test:
-            logging.info("Predicting `label` for `%s`'s test.", prefix)
-            self.test.eval(
-                data_splits.test,
-                predict(data_splits.test),
-                self.measures,
-                os.path.join(prefix, 'test_'),
-            )
+        for name, dsplit in data_splits._asdict().items():
+            if dsplit is not None and self.train:
+                logging.info("Predicting `label` for `%s`'s %s.", prefix, name)
+                if not dsplit.return_label:
+                    dsplit.return_label = True
+                    reset_return_label = False
+                else:
+                    reset_return_label = True
+                self.train.eval(
+                    dsplit,
+                    predict(dsplit),
+                    self.measures,
+                    os.path.join(prefix, f'{name}_'),
+                )
+                if not reset_return_label:
+                    dsplit.return_label = reset_return_label
 
 
 class DataSplits(NamedTuple):
@@ -271,6 +262,23 @@ class KineticsOWL(object):
         If False (the default), does not evaluate an untrained predictor. If
         True, evaluated an untrained predictor. May be a good idea to evaluate
         some untrained predictors, espcially if they were pre-trained.
+    eval_config : EvalConfig = None
+        The configuration of prediction and evaluation saving for the specified
+        data splits: train, validate, and test.
+
+        Considering multiple EvalConfigs, one for initial inference given new
+        data, one for after fitting. Posisbly 2 for separate predict and
+        novelty detection for each case.
+
+        Defaults to no saving of predictions or configurations when None.
+    post_feedback_eval_config : EvalConfig = None
+        An optional EvalConfig for specifically after feedback has been
+        provided on the same step to assess the predictor on the same data
+        split given to it on that step.
+
+        When None or False, this evaluation after feedback does not occur. When
+        True, this uses the same EvalConfig object as `eval_config`, otherwise
+        when an EvalConfig uses that object's configuration.
     experience : DataSplits = None
         If `maintain_experience` is True in __init__, then the simulation
         maintains the past experienced data for the predictor.
@@ -290,6 +298,8 @@ class KineticsOWL(object):
         measures=None,
         #inc_splits_per_dset : 10
         eval_on_start=False,
+        eval_config=None,
+        post_feedback_eval_config=None,
         tasks=None,
         maintain_experience=False,
         labels=None
@@ -305,6 +315,8 @@ class KineticsOWL(object):
         feedback : see self
         rng_state : see self
         eval_on_start : see self
+        eval_config : see self
+        post_feedback_eval_config : see self
         tasks : see self
         maintain_experience : bool = False
             If False, the default, the past experienced samples are not saved
@@ -320,6 +332,11 @@ class KineticsOWL(object):
         self.predictor = predictor
         self.feedback = feedback
         self.eval_on_start = eval_on_start
+        self.eval_config = eval_config
+        if post_feedback_eval_config is True:
+            self.post_feedback_eval_config = eval_config
+        else:
+            self.post_feedback_eval_config = post_feedback_eval_config
 
         # TODO will have to change this if handling multi-tasks in same
         # experiment!
@@ -346,9 +363,6 @@ class KineticsOWL(object):
         else:
             self.experience = None
 
-        # TODO callbacks or hooks would be wonderful for saving predictions and
-        # eval measures!
-
     @property
     def increment(self):
         return self.environment.increment
@@ -366,36 +380,26 @@ class KineticsOWL(object):
             #for task_id in self.tasks:
             #    pass
 
-            self.pred_eval.eval(
+            self.eval_config.eval(
                 new_data_splits,
                 self.predictor.predict,
-                self.measures,
                 #prefix,
             )
-            #pred = self.predictor.predict(new_data_splits.test)
-            #measures = self.environment.eval(new_data_splits, pred, 'labels')
-
-            self.pred_eval.eval(
+            self.eval_config.eval(
                 new_data_splits,
                 self.predictor.novelty_detect,
-                self.measures,
                 #prefix,
             )
-            logging.info(
-                "Predicting `novelty_detection` for step %d's data.",
-                self.increment,
-            )
-            detects = self.predictor.novelty_detect(new_data_splits)
-            detect_measures = self.environment.eval(
-                new_data_splits,
-                detects,
-                'novelty_detect',
-            )
+            # TODO novelty detect task is based on the NominalDataEncoder for
+            # the current time step as it knows when something is a known or
+            # unknown class at the current time step.
+            #   Keep experience/datasplit label encoders in sync.
 
         if self.feedback == 'oracle':
-            # 3. Opt. Feedback on new data
+            # 3. Opt. Feedback on this step's new data
             logging.info(
-                "Requesting feedback ({self.feedback}) for step %d's data.",
+                "Requesting feedback (%s) for step %d's data.",
+                self.feedback,
                 self.increment,
             )
             new_data_splits = self.environment.feedback(new_data_splits)
@@ -415,20 +419,19 @@ class KineticsOWL(object):
                     new_data_splits.validate,
                 )
 
-            # TODO 5. Opt. Predictor eval post update
-            measrures_post_feedback = self.environment.eval(
+            # 5. Opt. Predictor eval post update
+            self.post_feedback_eval_config.eval(
                 new_data_splits,
-                pred,
-                'labels',
+                self.predictor.predict,
+                #prefix,
             )
-            detect_measrures_post_feedback = self.environment.eval(
+            self.post_feedback_eval_config.eval(
                 new_data_splits,
-                pred,
-                'novelty_detect',
+                self.predictor.novelty_detect,
+                #prefix,
             )
 
             # TODO 6. Opt. Evaluate the updated predictor on entire experience
-            #self.eval(self.experience, self.predictor.predict(self.experience))
 
     def run(self, max_steps=None, tqdm=None):
         """The entire experiment run loop."""
@@ -468,17 +471,12 @@ class KineticsOWLExperiment(object):
         after a step is complete. After initial increment is increment = 1.
     label_encoder : exputils.data.labels.NominalDataEncoder
         Keep the labels consistent at the current step.
-    measures : list = None
-        String identifier of a measure or a callable that takes as input
-        (target, predictions) and returns a measurement or measurement
-        object, e.g., confusion matrix.
     """
     def __init__(
         self,
         start,
         steps=None,
         inc_splits_per_dset=10,
-        measures=None,
         seed=None,
     ):
         """Initialize the Kinetics Open World Learning Experiment.
@@ -488,7 +486,6 @@ class KineticsOWLExperiment(object):
         start : see self
         steps : see self
         inc_splits_per_dset : see self _inc_splits_per_dset
-        measures : see self
         seed : int = None
             The seed for the random number generator
         """
@@ -531,17 +528,6 @@ class KineticsOWLExperiment(object):
         if test and data_splits.test and not data_splits.test.return_label:
             data_splits.test.return_label = True
         return data_splits
-
-    def eval(self, dataset, pred, task='labels'):
-        # TODO evaluate the given dataset on all measures.
-
-        # TODO novelty detect task is based on the NominalDataEncoder for the
-        # current time step as it knows when something is a known or unknown
-        # class at the current time step.
-
-        # Optional log/save predictions or eval measures
-        # 'labels' is the 'classify' task
-        raise NotImplementedError('KineticsOWLExperiment eval()')
 
     def step(self):
         """An incremental step's train, val, and test dataloaders?
