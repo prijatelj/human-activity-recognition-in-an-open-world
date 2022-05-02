@@ -58,7 +58,6 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
         the correct number of dimensions (number of classes). The log_softmax
         is applied to the first dimension in the `forward()` method.
 
-
     TODO
     ----
     todo `see FineTuneFC`
