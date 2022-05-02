@@ -383,12 +383,12 @@ class KineticsOWL(object):
             self.eval_config.eval(
                 new_data_splits,
                 self.predictor.predict,
-                #prefix,
+                # TODO prefix,
             )
             self.eval_config.eval(
                 new_data_splits,
                 self.predictor.novelty_detect,
-                #prefix,
+                # TODO prefix,
             )
             # TODO novelty detect task is based on the NominalDataEncoder for
             # the current time step as it knows when something is a known or
@@ -427,12 +427,12 @@ class KineticsOWL(object):
             self.post_feedback_eval_config.eval(
                 new_data_splits,
                 self.predictor.predict,
-                #prefix,
+                # TODO prefix,
             )
             self.post_feedback_eval_config.eval(
                 new_data_splits,
                 self.predictor.novelty_detect,
-                #prefix,
+                # TODO prefix,
             )
 
             # TODO 6. Opt. Evaluate the updated predictor on entire experience
