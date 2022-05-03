@@ -6,8 +6,9 @@ tqdm>=4.62.2
 #pytorch>=1.9.1
 #torchsummary>=1.5.1
 pytorch-lightning>=1.5.10
+ray-lightning
 
-exputils>=0.1.5
+exputils>=0.1.6
 
 cython
 hdbscan
