@@ -6,6 +6,8 @@ docstr:
   style: numpy
   from import:
     arn.data.kinetics_owl:
+      - EvalConfig
+      - EvalDataSplitConfig
       - DataSplits
       - KineticsOWL
       - KineticsOWLExperiment
@@ -19,17 +21,44 @@ docstr:
       - FineTuneLit
       - FineTuneFCLit
       - init_trainer
+      - init_ray_plugin
     arn.models.novelty_detector:
       - WindowedMeanKLDiv
     arn.models.owhar:
       - OWHAPredictor
-  #import:
-  #  - torch
-  # config: # TODO add configuration file linking for convenience
-  #   TimeSformer_features_dataloader: abs/path/to/the/config_file.yaml
   main: run #KineticsOWL.run
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
+  eval_config:
+    EvalConfig:
+      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  post_feedback_eval_config:
+    EvalConfig:
+      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
   environment:
     KineticsOWLExperiment:
       start:
@@ -100,13 +129,6 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   kinetics400:
                     KineticsSplitConfig:
                       test: True
-      #label_id: 'kinetics700_map' # TODO check if any k400 are cut. or other changes.
-      measures: 'ordered_confusion_tensor'
-        #per_step:
-        #  - OrderedConfusionTensor
-        #cummulative:
-        #  - OrderedConfusionTensor
-        #  #- novelty_detection # TODO
   predictor:
     OWHAPredictor: # the Open World Agent
       fine_tune:
@@ -135,6 +157,10 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               gpus: 1
               enable_checkpointing: True
               default_root_dir: /home/prijatelj/workspace/research/osr/har/data/kinetics400/x3d_fine_tune_chkpts/
+              strategy:
+                init_ray_plugin:
+                  num_workers: 8
+                  use_gpu: True
       novelty_detector: # Classification + Clustering
         WindowedMeanKLDiv:
           kl_threshold: 5.365822113508410
