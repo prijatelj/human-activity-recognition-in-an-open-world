@@ -59,7 +59,7 @@ class EvalDataSplitConfig(NamedTuple):
     save_preds_with_labels: bool = True
 
     def __bool__(self):
-        return bool(self.pred_dir) or bool(self.eval_dir)
+        return self.pred_dir is not None or self.eval_dir is not None
 
     def eval(self, data_split, preds, measures, prefix=None):
         prefix = os.path.join(prefix, self.file_prefix)
@@ -129,7 +129,7 @@ class EvalConfig:
     root_dir: str = ''
         An optional root directory that is appeneded to all paths accessed
         withing the EvalConfig.
-    measures : list = 'ordered_confusion_matrix'
+    measures : str = 'ordered_confusion_matrix'
         A list of callables or a str stating confusion tensor or confusion
         matrix. If `ordered_confusion_matrix`, then the k = 5 ordered confusion
         matrices are stored.
@@ -185,22 +185,25 @@ class EvalConfig:
         else:
             prefix = self.root_dir
 
+        # NOTE relies on predictor to turn data_split into a DataLoader
+
         for name, dsplit in data_splits._asdict().items():
             if dsplit is not None and self.train:
                 logging.info("Predicting `label` for `%s`'s %s.", prefix, name)
-                if not dsplit.return_label:
-                    dsplit.return_label = True
-                    reset_return_label = False
-                else:
-                    reset_return_label = True
-                self.train.eval(
+
+                reset_return_label = dsplit.return_label
+                if dsplit.return_label:
+                    dsplit.return_label = False
+                preds = predict(dsplit)
+                dsplit.return_label = True
+
+                getattr(self, name).eval(
                     dsplit,
-                    predict(dsplit),
+                    preds,
                     self.measures,
                     os.path.join(prefix, f'{name}_'),
                 )
-                if not reset_return_label:
-                    dsplit.return_label = reset_return_label
+                dsplit.return_label = reset_return_label
 
 
 class DataSplits(NamedTuple):
@@ -283,6 +286,8 @@ class KineticsOWL(object):
         If `maintain_experience` is True in __init__, then the simulation
         maintains the past experienced data for the predictor.
     tasks : str | list = None
+        Not Implemented atm! Future TODO!
+
         A singular or list of string identifiers corresponding to a column in
         the KineticsUnifed Datasets. These strings determine the task's
         expected output under the assumption of the same input, where a task is
