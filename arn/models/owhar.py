@@ -66,7 +66,7 @@ class OWHAPredictor(object):
             request feedback for only so many samples, so the selection of
             which samples to request feedback for matters.
         """
-        self.fine_tune.predict(dataset)
+        return self.fine_tune.predict(dataset)
 
     def novelty_detect(self, dataset, task_id=None):
         """Predictor performs novelty detection given the dataset, possibly
@@ -84,7 +84,7 @@ class OWHAPredictor(object):
             default, it performs detection across all tasks and returns an
             novelty detection ansewr based on the data relative to all tasks.
         """
-        self.fine_tune.feature_extract(dataset)
+        return self.fine_tune.feature_extract(dataset)
 
     # TODO def feedback_query(self, dataset, task_id=None):
 
