@@ -1,5 +1,7 @@
 """FineTune written in Pytorch Lightning for simplicty."""
 import pytorch_lightning as pl
+import ray
+from ray_lightning import RayPlugin
 import torch
 nn = torch.nn
 
@@ -8,12 +10,40 @@ from arn.torch_utils import torch_dtype
 from arn.data.kinetics_unified import get_kinetics_uni_dataloader
 
 
+def init_ray_plugin(
+    num_workers=1,
+    num_cpus_per_worker=1,
+    use_gpu=False,
+):
+    """Hotfix docstr workaround for not being able to read these docs and not
+    being able to accept/parse uknown kwargs to be passes as **kwargs.
+
+    Args
+    ----
+    num_workers : int = 1
+    num_cpus_per_worker : int = 1
+    use_gpu : bool = False
+
+    Returns
+    -------
+    ray_lightning.RayPlugin
+        The configured RayPlugin
+    """
+    #ray.init()
+    return RayPlugin(
+        num_workers=num_workers,
+        num_cpus_per_worker=num_cpus_per_worker,
+        use_gpu=use_gpu,
+    )
+
+
 def init_trainer(
     default_root_dir=None,
     enable_checkpointing=True,
     gpus=None,
     max_epochs=1000,
     logger=None,
+    strategy=None,
 ):
     """Hotfix docstr workaround for not being able to read Torch docs and not
     being able to accept/parse uknown kwargs to be passes as **kwargs.
@@ -26,12 +56,18 @@ def init_trainer(
     max_epochs : int = 1000
         Number of epochs to use during fitting.
     logger : pytorch_lightning.loggers.TensorBoardLogger = None
+    strategy : str = None
 
     Returns
     -------
     pytorch_lightning.Trainer
         docstr TODO check the module's namespace to support `as pl` and then
         pl.Trainer in docs.
+
+    Notes
+    -----
+    strategy : init_ray_plugin = None
+        ray plugin does not support pl.Trainer.predict()
     """
     return pl.Trainer(
         default_root_dir=default_root_dir,
@@ -39,6 +75,7 @@ def init_trainer(
         gpus=gpus,
         max_epochs=max_epochs,
         logger=logger,
+        strategy=strategy,
     )
 
 
@@ -180,11 +217,18 @@ class FineTuneLit():
         self.shuffle = shuffle
         self.num_workers = num_workers
 
+        # Multiprocessing params for DataLoaders
+        self.pin_memory = False #num_workers > 0
+
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
 
         #self.trainer = pl.Trainer(*args, **kwargs)
         self.trainer = trainer
+
+        if self.trainer._accelerator_connector.strategy is not None \
+            and self.trainer._accelerator_connector.strategy.use_gpu:
+            self.model.to('cuda')
 
     def fit(self, dataset, val_dataset=None):
         """Fit the fine tuning model with the given train and val datasets.
@@ -203,6 +247,7 @@ class FineTuneLit():
             batch_size=self.batch_size,
             shuffle=self.shuffle,
             num_workers=self.num_workers,
+            pin_memory=self.pin_memory,
         )
 
         if val_dataset is not None:
@@ -211,6 +256,7 @@ class FineTuneLit():
                 batch_size=self.batch_size,
                 shuffle=self.shuffle,
                 num_workers=self.num_workers,
+                pin_memory=self.pin_memory,
             )
 
         self.trainer.fit(
@@ -219,8 +265,33 @@ class FineTuneLit():
             val_dataloaders=val_dataset,
         )
 
+    def _predict(self, features):
+        # Work around because pl.Trainer.predict() does not support multiple
+        # cpu processes for DataLoaders, but we want that for fitting, so if
+        # set then have to turn it off when predicting.
+        reset_strategy = self.trainer._accelerator_connector.strategy
+        if reset_strategy:
+            self.trainer._accelerator_connector.strategy = None
+        preds = self.trainer.predict(
+            model=self.model,
+            dataloaders=get_kinetics_uni_dataloader(
+                features,
+                batch_size=1,
+                shuffle=False,
+                num_workers=0,
+                pin_memory=self.pin_memory,
+            ),
+            return_predictions=True,
+        )
+        if reset_strategy:
+            self.trainer._accelerator_connector.strategy = reset_strategy
+        print(type(preds))
+        print(len(preds))
+        #print(preds)
+        return preds
+
     def predict(self, features):
-        return self.trainer.predict(features)[1]
+        return torch.stack([t[1] for t in self._predict(features)])
 
     def extract(self, features):
-        return self.trainer.predict(features)[0]
+        return torch.stack([t[0] for t in self._predict(features)])
