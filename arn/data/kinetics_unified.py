@@ -69,6 +69,24 @@ def get_kinetics_uni_dataloader(dataset, *args, **kwargs):
     """Get torch DataLoader of a KineticsUnifiedFeatures (subclass) dataset."""
     if isinstance(dataset, KineticsUnifiedFeatures):
         return torch.utils.data.DataLoader(dataset, *args, **kwargs)
+    elif isinstance(dataset, torch.Tensor):
+        return torch.utils.data.DataLoader(
+            torch.utils.data.TensorDataset(dataset),
+            *args,
+            **kwargs,
+        )
+    elif isinstance(dataset, (list, tuple)):
+        for is_tensor in dataset:
+            if not isinstance(is_tensor, torch.Tensor):
+                raise TypeError(' '.join([
+                    'If dataset a list or tuple, all elements must be',
+                    f'torch.Tensor not `{type(is_tensor)}`',
+                ]))
+        return torch.utils.data.DataLoader(
+            torch.utils.data.TensorDataset(*dataset),
+            *args,
+            **kwargs,
+        )
     elif not isinstance(dataset, torch.utils.data.dataloader):
         raise TypeError(f'Unexpected dataset type: `{type(dataset)}`')
     return dataset
