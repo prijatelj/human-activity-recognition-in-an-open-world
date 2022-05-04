@@ -68,23 +68,40 @@ class EvalDataSplitConfig(NamedTuple):
         if self.pred_dir:
             if isinstance(preds, torch.Tensor):
                 preds = preds.numpy()
+
             if self.save_preds_with_labels:
-                labels = [row[1] for row in data_split]
-                if len(preds.shape) == 2 and len(preds.shape[1]) > 1:
-                    contents = np.hstack(labels, preds)
+                if data_split.one_hot:
+                    labels = np.vstack(
+                        [row[1] for row in data_split]
+                    )#.reshape(-1, 1)
+                    preds = preds.reshape(labels.shape[0], preds.shape[-1])
+                    contents = np.hstack([
+                        data_split.label_enc.decode(
+                            labels,
+                            one_hot_axis=-1,
+                        ).reshape(-1, 1),
+                        preds,
+                    ])
                 else:
+                    labels = data_split.label_enc.decode(
+                        np.vstack([row[1] for row in data_split]),
+                    )
                     contents = [labels, preds]
+
                 pd.DataFrame(
                     contents,
-                    columns=['target_labels', 'preds'],
+                    columns=['target_labels'] + list(data_split.label_enc),
                 ).to_csv(
                     create_filepath(os.path.join(prefix, 'preds.csv')),
                     index=False,
                 )
             else:
+                # TODO single class prediction case ['pred']
+                # TODO verify the datasplit and predictor encoders have the
+                # same order for known classes. Perhaps check after every fit.
                 pd.DataFrame(
                     preds,
-                    columns=['preds'],
+                    columns=list(data_split.label_enc),
                 ).to_csv(
                     create_filepath(os.path.join(prefix, 'preds.csv')),
                     index=False,
@@ -94,15 +111,26 @@ class EvalDataSplitConfig(NamedTuple):
             if isinstance(preds, torch.Tensor):
                 preds = preds.numpy()
             if labels is None:
-                labels = [row[1] for row in data_split]
+                labels = [row[1].numpy for row in data_split]
+
+            if data_split.one_hot:
+                # NOTE when eval measures compare one hot vs prob vectors, then
+                # the conversion of single class to prov vec of class needs
+                # handled.
+                labels = labels.argmax(axis=-1).reshape(-1, 1)
 
             for measure in measures:
-                if issubclass(
-                    measurements,
-                    (ConfusionMatrix, OrderedConfusionMatrices),
-                ):
+                if issubclass(measure, ConfusionMatrix):
                     measurements = measure(labels, preds, data_split.label_enc)
-                    measurements.save(os.path.join(prefix, 'preds.csv'))
+                    measurements.save(os.path.join(prefix, 'preds_cm.csv'))
+                elif issubclass(measure, OrderedConfusionMatrices):
+                    measurements = measure(
+                        labels,
+                        preds,
+                        data_split.label_enc,
+                        5,
+                    )
+                    measurements.save(os.path.join(prefix, 'preds_top-cm.h5'))
                 else:
                     raise NotImplementedError('TODO: non-confusion matrix.')
                     measurements = measure(labels, preds)
@@ -201,7 +229,7 @@ class EvalConfig:
                     dsplit,
                     preds,
                     self.measures,
-                    os.path.join(prefix, f'{name}_'),
+                    os.path.join(prefix, f'{name}'),
                 )
                 dsplit.return_label = reset_return_label
 
