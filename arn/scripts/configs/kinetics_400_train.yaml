@@ -156,11 +156,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               max_epochs: 25
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /home/prijatelj/workspace/research/osr/har/data/kinetics400/x3d_fine_tune_chkpts/
-              strategy:
-                init_ray_plugin:
-                  num_workers: 8
-                  use_gpu: True
+              default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d_fine_tune_chkpts/
+              #strategy:
+              #  init_ray_plugin:
+              #    num_workers: 8
+              #    use_gpu: True
       novelty_detector: # Classification + Clustering
         WindowedMeanKLDiv:
           kl_threshold: 5.365822113508410
