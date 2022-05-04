@@ -1,4 +1,6 @@
 """FineTune written in Pytorch Lightning for simplicty."""
+import logging
+
 import pytorch_lightning as pl
 import ray
 from ray_lightning import RayPlugin
@@ -95,8 +97,8 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
         the correct number of dimensions (number of classes). The log_softmax
         is applied to the first dimension in the `forward()` method.
 
-    TODO
-    ----
+    Notes
+    -----
     todo `see FineTuneFC`
         In docstr, add see across classes/objects in general, not just in
         functions for self.
@@ -156,6 +158,10 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
 
         return loss
 
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        fine_tune_reprs, log_softmax_classifs = self(batch)
+        return fine_tune_reprs, torch.exp(log_softmax_classifs)
+
     def validation_step(self, batch, batch_idx):
         inputs, labels = batch
         fine_tune_reprs, classifications = self(inputs)
@@ -164,6 +170,8 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
 
         #logging.info('Training loss: %d', loss)
         self.log('train_loss', loss)
+
+        return {'loss': loss}
 
     def test_step(self, batch, batch_idx):
         raise NotImplementedError()
@@ -283,11 +291,20 @@ class FineTuneLit():
             ),
             return_predictions=True,
         )
+        logging.debug('type(preds): %s', type(preds))
+        logging.debug('len(preds): %d', len(preds))
+
+        logging.debug('type(preds[0]): %s', type(preds[0]))
+        logging.debug('len(preds[0]): %d', len(preds[0]))
+
+        logging.debug('type(preds[0][0]): %s', type(preds[0][0]))
+        logging.debug('preds[0][0].shape %s', preds[0][0].shape)
+
+        logging.debug('type(preds[0][1]): %s', type(preds[0][1]))
+        logging.debug('preds[0][1].shape: %s', preds[0][1].shape)
+
         if reset_strategy:
             self.trainer._accelerator_connector.strategy = reset_strategy
-        print(type(preds))
-        print(len(preds))
-        #print(preds)
         return preds
 
     def predict(self, features):
