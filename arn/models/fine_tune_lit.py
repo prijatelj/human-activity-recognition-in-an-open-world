@@ -152,9 +152,11 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
         fine_tune_reprs, classifications = self(inputs)
 
         loss = self.loss(classifications, labels)
+        acc = (labels.argmax(-1)==classifications.argmax(-1)).to(float).mean()
 
         #logging.info('Training loss: %d', loss)
         self.log('train_loss', loss)
+        self.log('train_accuracy', acc)
 
         return loss
 
@@ -167,11 +169,13 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
         fine_tune_reprs, classifications = self(inputs)
 
         loss = self.loss(classifications, labels)
+        acc = (labels.argmax(-1)==classifications.argmax(-1)).to(float).mean()
 
         #logging.info('Training loss: %d', loss)
         self.log('train_loss', loss)
+        self.log('train_accuracy', acc)
 
-        return {'loss': loss}
+        return {'loss': loss, 'accuracy': acc}
 
     def test_step(self, batch, batch_idx):
         raise NotImplementedError()
