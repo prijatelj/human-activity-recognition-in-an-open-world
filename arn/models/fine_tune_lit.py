@@ -234,8 +234,11 @@ class FineTuneLit():
         #self.trainer = pl.Trainer(*args, **kwargs)
         self.trainer = trainer
 
-        if self.trainer._accelerator_connector.strategy is not None \
-            and self.trainer._accelerator_connector.strategy.use_gpu:
+        if (
+            self.trainer._accelerator_connector.strategy is not None
+            and not isinstance(self.trainer._accelerator_connector.strategy, str)
+            and self.trainer._accelerator_connector.strategy.use_gpu
+        ):
             self.model.to('cuda')
 
     def fit(self, dataset, val_dataset=None):
@@ -277,9 +280,16 @@ class FineTuneLit():
         # Work around because pl.Trainer.predict() does not support multiple
         # cpu processes for DataLoaders, but we want that for fitting, so if
         # set then have to turn it off when predicting.
-        reset_strategy = self.trainer._accelerator_connector.strategy
+        #reset_strategy = self.trainer._accelerator_connector.strategy
+        """
+        reset_strategy = self.trainer.training_type_plugin
         if reset_strategy:
-            self.trainer._accelerator_connector.strategy = None
+            logging.debug(
+                'self.trainer.training_type_plugin: %s',
+                self.trainer.training_type_plugin,
+            )
+            self.trainer.training_type_plugin = None
+        #"""
         preds = self.trainer.predict(
             model=self.model,
             dataloaders=get_kinetics_uni_dataloader(
@@ -303,8 +313,8 @@ class FineTuneLit():
         logging.debug('type(preds[0][1]): %s', type(preds[0][1]))
         logging.debug('preds[0][1].shape: %s', preds[0][1].shape)
 
-        if reset_strategy:
-            self.trainer._accelerator_connector.strategy = reset_strategy
+        #if reset_strategy:
+        #    self.trainer.training_type_plugin = reset_strategy
         return preds
 
     def predict(self, features):
