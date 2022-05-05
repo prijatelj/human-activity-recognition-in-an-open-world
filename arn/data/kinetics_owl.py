@@ -407,7 +407,7 @@ class KineticsOWL(object):
         new_data_splits = self.environment.step()
 
         # 2. Inference/Eval on new data if self.eval_untrained_start
-        if (self.increment == 0 and self.eval_on_start) or self.increment > 0:
+        if (self.increment == 1 and self.eval_on_start) or self.increment > 1:
             # NOTE Predict for the Task(s), useful when multiple tasks to be
             # handled by one predictor.
             #for task_id in self.tasks:
@@ -416,13 +416,13 @@ class KineticsOWL(object):
             self.eval_config.eval(
                 new_data_splits,
                 self.predictor.predict,
-                f'step-{self.increment + 1}_new-data_predict',
+                f'step-{self.increment}_new-data_predict',
             )
             """ TODO Novelty Detect
             self.eval_config.eval(
                 new_data_splits,
                 self.predictor.novelty_detect,
-                f'step-{self.increment + 1}_new-data_novelty-detect',
+                f'step-{self.increment}_new-data_novelty-detect',
             )
             #"""
             # TODO novelty detect task is based on the NominalDataEncoder for
@@ -462,13 +462,13 @@ class KineticsOWL(object):
             self.post_feedback_eval_config.eval(
                 new_data_splits,
                 self.predictor.predict,
-                f'step-{self.increment + 1}_post-feedback_predict',
+                f'step-{self.increment}_post-feedback_predict',
             )
             """ TODO Novelty Detect
             self.post_feedback_eval_config.eval(
                 new_data_splits,
                 self.predictor.novelty_detect,
-                f'step-{self.increment + 1}_post-feedback_novelty-detect',
+                f'step-{self.increment}_post-feedback_novelty-detect',
             )
             #"""
 
