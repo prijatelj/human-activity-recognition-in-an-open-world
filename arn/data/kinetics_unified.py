@@ -599,6 +599,7 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
                         f'{type(subset.labels.known)}',
                     ]))
                 self.label_enc = NominalDataEncoder(labels)
+                #self.label_enc = NominalDataEncoder(labels, neg_label=-1)
             else:
                 logging.warning(
                     'subset given but no labels! No changes to DataFrame',
