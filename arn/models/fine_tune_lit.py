@@ -6,6 +6,7 @@ import ray
 from ray_lightning import RayPlugin
 import torch
 nn = torch.nn
+F = torch.nn.functional
 
 from arn.models.fine_tune import FineTuneFC
 from arn.torch_utils import torch_dtype
@@ -39,6 +40,40 @@ def init_ray_plugin(
     )
 
 
+def init_tensorboard_logger(
+    save_dir,
+    name=None,
+    version=None,
+    sub_dir=None,
+    kwargs=None,
+):
+    """Hotfix docstr to init pl.loggers.tensorboard.TensorBoardLogger
+
+    Args
+    ----
+    save_dir: str = None
+    name: str = None
+    version: str = None
+    sub_dir: str = None
+    kwargs: dict = None
+    """
+    if kwargs is None:
+        return pl.loggers.TensorBoardLogger(
+            save_dir,
+            name=name,
+            version=version,
+            sub_dir=sub_dir,
+        )
+    else:
+        return pl.loggers.TensorBoardLogger(
+            save_dir,
+            name=name,
+            version=version,
+            sub_dir=sub_dir,
+            **kwargs,
+        )
+
+
 def init_trainer(
     default_root_dir=None,
     enable_checkpointing=True,
@@ -57,7 +92,7 @@ def init_trainer(
     gpus : int = None
     max_epochs : int = 1000
         Number of epochs to use during fitting.
-    logger : pytorch_lightning.loggers.TensorBoardLogger = None
+    logger : init_tensorboard_logger = None
     strategy : str = None
 
     Returns
@@ -133,7 +168,8 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
         super().__init__(*args, **kwargs)
 
         if loss is None:
-            self.loss = nn.BCEWithLogitsLoss()
+            #self.loss = nn.BCEWithLogitsLoss()
+            self.loss = nn.CrossEntropyLoss()
         else:
             self.loss = loss
 
@@ -151,8 +187,16 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
         inputs, labels = batch
         fine_tune_reprs, classifications = self(inputs)
 
-        loss = self.loss(classifications, labels)
-        acc = (labels.argmax(-1)==classifications.argmax(-1)).to(float).mean()
+        #print('labels shape: ', labels.shape)
+        #print('classifications shape: ', classifications.shape)
+        #print(labels.argmax(1))
+
+        loss = self.loss(F.log_softmax(classifications, 1), labels)
+        acc = (
+            labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
+        ).to(float).mean()
+
+        #print(F.softmax(classifications, 1).argmax(1))
 
         #logging.info('Training loss: %d', loss)
         self.log('train_loss', loss)
@@ -162,23 +206,33 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         fine_tune_reprs, log_softmax_classifs = self(batch)
-        return fine_tune_reprs, torch.exp(log_softmax_classifs)
+        #return fine_tune_reprs, torch.exp(log_softmax_classifs)
+        return fine_tune_reprs, F.softmax(log_softmax_classifs, 1)
 
     def validation_step(self, batch, batch_idx):
         inputs, labels = batch
         fine_tune_reprs, classifications = self(inputs)
 
         loss = self.loss(classifications, labels)
-        acc = (labels.argmax(-1)==classifications.argmax(-1)).to(float).mean()
+        acc = (
+            labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
+        ).to(float).mean()
 
         #logging.info('Training loss: %d', loss)
-        self.log('train_loss', loss)
-        self.log('train_accuracy', acc)
+        self.log('val_loss', loss)
+        self.log('val_accuracy', acc)
 
         return {'loss': loss, 'accuracy': acc}
 
     def test_step(self, batch, batch_idx):
         raise NotImplementedError()
+
+    def training_epoch_end(self, outputs):
+        if self.current_epoch == 1:
+            self.logger.experiment.add_graph(
+                self,
+                torch.rand((1,1, 2048)).to('cuda'),
+            )
 
 
 class FineTuneLit():

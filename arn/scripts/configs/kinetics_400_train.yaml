@@ -22,6 +22,7 @@ docstr:
       - FineTuneFCLit
       - init_trainer
       - init_ray_plugin
+      - init_tensorboard_logger
     arn.models.novelty_detector:
       - WindowedMeanKLDiv
     arn.models.owhar:
@@ -156,11 +157,14 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               max_epochs: 25
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d_fine_tune_chkpts/
+              default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/chkpts/
               #strategy:
               #  init_ray_plugin:
               #    num_workers: 8
               #    use_gpu: True
+              logger:
+                init_tensorboard_logger:
+                  save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/tb_log/
       novelty_detector: # Classification + Clustering
         WindowedMeanKLDiv:
           kl_threshold: 5.365822113508410

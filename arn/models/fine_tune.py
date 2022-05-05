@@ -216,6 +216,26 @@ class FineTune(object):
         return FineTune(model, **kwargs)
 
 
+def dense_layer(
+    ord_dict,
+    layer_num,
+    inputs,
+    width,
+    dropout_prob=None,
+    activation=None,
+):
+    """Creates the 'dense layer' with opt. dropout and activation."""
+    ord_dict[f'fc{layer_num}'] = nn.Linear(inputs, width)
+
+    if dropout_prob and isinstance(dropout_prob, float):
+        ord_dict[f'Dropout{layer_num}'] = nn.Dropout(dropout_prob)
+    elif dropout_prob:
+        ord_dict[f'Dropout{layer_num}'] = nn.Dropout(dropout_prob[layer_num])
+
+    if activation is not None:
+        ord_dict[f'{activation.__name__}{layer_num}'] = activation()
+
+
 class FineTuneFC(nn.Module):
     """Fully Connected Dense ANN for fine tuning.
 
@@ -241,6 +261,7 @@ class FineTuneFC(nn.Module):
         n_classes=29,
         activation=nn.LeakyReLU,
         dropout_prob=None,
+        dropout_feature_repr=True,
     ):
         """Fine-tuning ANN consisting of fully-connected dense layers.
 
@@ -251,7 +272,10 @@ class FineTuneFC(nn.Module):
         width : int = 512
             The width of the hidden layers within the ANN.
         depth : int = 5
-            The depth or number of hidden layers within the ANN.
+            The depth or total Linear layers within the ANN. This includes the
+            input layer, so the number of hidden layers is depth - 1. Does
+            not include the final output layer used for classification, which
+            is the size of the number of classes.
         feature_repr_width : int = None
             The width of the penultamite layer of this ANN, which is the layer
             just before the output(softmax) and serves as the feature
@@ -265,23 +289,38 @@ class FineTuneFC(nn.Module):
         dropout_prob : float = None
             The probability for the dropout layers after the linear layers.
             Defaults to None, meaning no dropout is applied.
+        dropout_feature_repr : bool = True
+            If True, dropout is applied to the last hidden layer.
         """
         super().__init__()
         if feature_repr_width is None:
             feature_repr_width = width
 
-        ord_dict = OrderedDict()
-        ord_dict["fc0"] = nn.Linear(input_size, width)
-        ord_dict[f"{activation.__name__}0"] = activation()
+        if (
+            dropout_prob and not isinstance(dropout_prob, float)
+            and (
+                (dropout_feature_repr and len(dropout_prob) != depth)
+                or (not dropout_feature_repr and len(dropout_prob) != depth-1)
+            )
+        ):
+            raise ValueError('Length of dropout does not match depth!')
 
+        ord_dict = OrderedDict()
+        dense_layer(ord_dict, 0, input_size, width, dropout_prob, activation)
+
+        # NOTE that depth includes input and the feature_repr_width can be diff
         for x in range(1, depth-1):
-            ord_dict[f'fc{x}'] = nn.Linear(width, width)
-            if dropout_prob:
-                ord_dict[f'Dropout{x}'] = nn.Dropout(dropout_prob)
-            ord_dict[f'{activation.__name__}{x}'] = activation()
+            dense_layer(ord_dict, x, width, width, dropout_prob, activation)
 
         # Final dense / fully connected layer as output feature representation
-        ord_dict[f'fc{depth - 1}'] = nn.Linear(width, feature_repr_width)
+        dense_layer(
+            ord_dict,
+            depth - 1,
+            width,
+            feature_repr_width,
+            dropout_prob if dropout_feature_repr else None,
+            activation,
+        )
 
         self.fcs = nn.Sequential(ord_dict)
         self.classifier = nn.Linear(feature_repr_width, n_classes)
@@ -289,8 +328,10 @@ class FineTuneFC(nn.Module):
     def forward(self, x):
         """Returns the last fully connected layer and the probs classifier"""
         x = self.fcs(x)
-        classification = F.log_softmax(self.classifier(x), dim=1)
-        return x, classification
+        #classification = F.log_softmax(self.classifier(x), dim=1)
+        #classification = F.softmax(self.classifier(x), dim=1)
+        #return x, classification
+        return x, self.classifier(x)
 
     def load_interior_weights(self, state_dict):
         temp = []
