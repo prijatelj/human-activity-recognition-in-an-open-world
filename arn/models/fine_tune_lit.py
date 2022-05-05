@@ -169,7 +169,7 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
 
         if loss is None:
             #self.loss = nn.BCEWithLogitsLoss()
-            self.loss = nn.CrossEntropyLoss()
+            self.loss = nn.CrossEntropyLoss(label_smoothing=0.1)
         else:
             self.loss = loss
 
@@ -186,12 +186,14 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
     def training_step(self, batch, batch_idx):
         inputs, labels = batch
         fine_tune_reprs, classifications = self(inputs)
+        #fine_tune_reprs, classifications = self(torch.rand(inputs.shape).to('cuda'))
 
+        #print(inputs)
         #print('labels shape: ', labels.shape)
         #print('classifications shape: ', classifications.shape)
         #print(labels.argmax(1))
 
-        loss = self.loss(F.log_softmax(classifications, 1), labels)
+        loss = self.loss(classifications, labels)
         acc = (
             labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
         ).to(float).mean()
@@ -255,6 +257,8 @@ class FineTuneLit():
         If True, shuffle the data when fitting. If False, no shuffling.
     num_workers : int = 0
         Number of works to ues for the DataLoader.
+    pin_memory : bool = False
+        Pin memory for data loaders.
     """
     def __init__(
         self,
@@ -265,6 +269,7 @@ class FineTuneLit():
         dtype=torch.float32,
         shuffle=True,
         num_workers=0,
+        pin_memory=False,
         #*args,
         #**kwargs,
     ):
@@ -284,7 +289,7 @@ class FineTuneLit():
         self.num_workers = num_workers
 
         # Multiprocessing params for DataLoaders
-        self.pin_memory = False #num_workers > 0
+        self.pin_memory = pin_memory #num_workers > 0
 
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)

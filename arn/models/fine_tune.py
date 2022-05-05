@@ -228,9 +228,12 @@ def dense_layer(
     ord_dict[f'fc{layer_num}'] = nn.Linear(inputs, width)
 
     if dropout_prob and isinstance(dropout_prob, float):
-        ord_dict[f'Dropout{layer_num}'] = nn.Dropout(dropout_prob)
+        ord_dict[f'Dropout{layer_num}'] = nn.Dropout(dropout_prob, True)
     elif dropout_prob:
-        ord_dict[f'Dropout{layer_num}'] = nn.Dropout(dropout_prob[layer_num])
+        ord_dict[f'Dropout{layer_num}'] = nn.Dropout(
+            dropout_prob[layer_num],
+            True,
+        )
 
     if activation is not None:
         ord_dict[f'{activation.__name__}{layer_num}'] = activation()
