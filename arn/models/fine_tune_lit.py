@@ -1,5 +1,6 @@
 """FineTune written in Pytorch Lightning for simplicty."""
 import logging
+from collections import OrderedDict
 
 import pytorch_lightning as pl
 import ray
@@ -79,8 +80,10 @@ def init_trainer(
     enable_checkpointing=True,
     gpus=None,
     max_epochs=1000,
-    logger=None,
     strategy=None,
+    logger=None,
+    log_every_n_steps=50,
+    #flush_logs_every_n_steps=None,
 ):
     """Hotfix docstr workaround for not being able to read Torch docs and not
     being able to accept/parse uknown kwargs to be passes as **kwargs.
@@ -92,8 +95,9 @@ def init_trainer(
     gpus : int = None
     max_epochs : int = 1000
         Number of epochs to use during fitting.
-    logger : init_tensorboard_logger = None
     strategy : str = None
+    logger : init_tensorboard_logger = None
+    log_every_n_steps : int = 50
 
     Returns
     -------
@@ -111,26 +115,24 @@ def init_trainer(
         enable_checkpointing=enable_checkpointing,
         gpus=gpus,
         max_epochs=max_epochs,
-        logger=logger,
         strategy=strategy,
+        logger=logger,
+        log_every_n_steps=log_every_n_steps,
     )
 
 
-class FineTuneFCLit(FineTuneFC, pl.LightningModule):
-    """The FineTune model exteneded as a pl.LightningModule
+#class FineTuneFCLit(FineTuneFC, pl.LightningModule):
+class FineTuneFCLit(pl.LightningModule):
+    """The FineTune model contained within a pl.LightningModule
 
     Attributes
     ----------
-    fcs : torch.nn.Sequential
-        The fully connected sequential dense ANN whose output is the
-        penultamite layer of the network just before the linear, softmaxed
-        layer.
-    classifier : torch.nn.Linear
-        The remaining portion of the sequential model that takes as input
-        the output of fcs and maps that to a dense layer. Note that this does
-        not apply log_softmax to the output of the linear, only puts it into
-        the correct number of dimensions (number of classes). The log_softmax
-        is applied to the first dimension in the `forward()` method.
+    model : FineTuneFC
+        The model of this pytorch lightning module.
+    loss : torch.nn.modules.loss._Loss = None
+        TODO in docstr add support for `see FineTuneFC.__init__`
+    lr : float = 0.001
+        The learning rate for the optimizer.
 
     Notes
     -----
@@ -138,46 +140,28 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
         In docstr, add see across classes/objects in general, not just in
         functions for self.
     """
-    def __init__(self, loss=None, *args, **kwargs):
+    def __init__(self, model, loss=None, lr=0.001, *args, **kwargs):
         """Initialize the FineTune model
 
         Args
         ----
-        loss : torch.nn.modules.loss._Loss = None
-            TODO in docstr add support for `see FineTuneFC.__init__`
-        input_size : int
-            The input size of the input linear layer.
-        width : int = 512
-            The width of the hidden layers within the ANN.
-        depth : int = 5
-            The depth or number of hidden layers within the ANN.
-        feature_repr_width : int = None
-            The width of the penultamite layer of this ANN, which is the layer
-            just before the output(softmax) and serves as the feature
-            representation of the ANN. By default, this is None and not set,
-            which means the feature representation layer will use the same
-            `width` as the other hidden layers.
-        n_classes : int = 29
-            The number of classes to expect for the output layer of this ANN.
-        activation : torch.nn.Module = torch.nn.LeakyReLU
-            The activation to apply after every linaer layer.
-        dropout_prob : float = None
-            The probability for the dropout layers after the linear layers.
-            Defaults to None, meaning no dropout is applied.
+        see self
         """
         super().__init__(*args, **kwargs)
+        self.model = model
 
         if loss is None:
-            #self.loss = nn.BCEWithLogitsLoss()
-            self.loss = nn.CrossEntropyLoss(label_smoothing=0.1)
+            self.loss = nn.CrossEntropyLoss()
         else:
             self.loss = loss
 
+        self.lr = lr
+
     def configure_optimizers(self, optimizer_cls=None, **kwargs):
         if optimizer_cls is None:
-            return torch.optim.Adam(self.parameters(), **kwargs)
+            return torch.optim.Adam(self.parameters(), self.lr, **kwargs)
         if issubclass(optimizer_cls, torch.optim.Optimizer):
-            return optimizer_cls(self.parameters(), **kwargs)
+            return optimizer_cls(self.parameters(), lr=self.lr, **kwargs)
         raise TypeError(' '.join([
             'Expected `optimizer_cls` subclass `torch.optim.Optimizer`,',
             f'but recieved {optimizer_cls}',
@@ -185,35 +169,53 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         inputs, labels = batch
-        fine_tune_reprs, classifications = self(inputs)
-        #fine_tune_reprs, classifications = self(torch.rand(inputs.shape).to('cuda'))
+        fine_tune_reprs, classifications = self.model(inputs)
 
-        #print(inputs)
-        #print('labels shape: ', labels.shape)
-        #print('classifications shape: ', classifications.shape)
-        #print(labels.argmax(1))
+        #print(labels.argmax(1).unique())
+        #print(F.softmax(classifications, 1).argmax(1).unique())
 
         loss = self.loss(classifications, labels)
+        #loss = F.cross_entropy(classifications, labels)
         acc = (
             labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
         ).to(float).mean()
 
-        #print(F.softmax(classifications, 1).argmax(1))
-
-        #logging.info('Training loss: %d', loss)
         self.log('train_loss', loss)
         self.log('train_accuracy', acc)
 
         return loss
 
+    def training_epoch_end(self, outputs):
+        if self.current_epoch == 1:
+            self.logger.experiment.add_graph(
+                self.model,
+                torch.rand((1,1, 2048)).to('cuda'),
+            )
+        for name, params in self.named_parameters():
+            # Log Weights
+            self.logger.experiment.add_histogram(
+                name,
+                params,
+                self.current_epoch,
+            )
+
+            # Log Gradients
+            self.logger.experiment.add_histogram(
+                f'{name}-grad',
+                params.grad,
+                self.current_epoch,
+            )
+
+    def forward(self, x):
+        return self.model(x)
+
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        fine_tune_reprs, log_softmax_classifs = self(batch)
-        #return fine_tune_reprs, torch.exp(log_softmax_classifs)
-        return fine_tune_reprs, F.softmax(log_softmax_classifs, 1)
+        fine_tune_reprs, classifs = self.model(batch)
+        return fine_tune_reprs, F.softmax(classifs, 1)
 
     def validation_step(self, batch, batch_idx):
         inputs, labels = batch
-        fine_tune_reprs, classifications = self(inputs)
+        fine_tune_reprs, classifications = self.model(inputs)
 
         loss = self.loss(classifications, labels)
         acc = (
@@ -228,13 +230,6 @@ class FineTuneFCLit(FineTuneFC, pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         raise NotImplementedError()
-
-    def training_epoch_end(self, outputs):
-        if self.current_epoch == 1:
-            self.logger.experiment.add_graph(
-                self,
-                torch.rand((1,1, 2048)).to('cuda'),
-            )
 
 
 class FineTuneLit():
