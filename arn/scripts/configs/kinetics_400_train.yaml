@@ -17,6 +17,8 @@ docstr:
       - KineticsUnifiedSubset
       - LabelConfig
       - KineticsRootDirs
+    arn.models.fine_tune:
+      - FineTuneFC
     arn.models.fine_tune_lit:
       - FineTuneLit
       - FineTuneFCLit
@@ -136,13 +138,15 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         FineTuneLit:
           model:
             FineTuneFCLit:
-              input_size: 2048 #512
-              width: 512
-              depth: 5
-              dropout: 0.5
-              n_classes: 400 # PAR's is 29, TODO wish docstr had lazy init,
-              #   could make input and output dependent on the experiment's
-              #   data at start.
+              model:
+                FineTuneFC:
+                  input_size: 2048 #512
+                  width: 512
+                  depth: 5
+                  dropout: 0.5
+                  n_classes: 400 # PAR's is 29, TODO wish docstr had lazy init,
+                  #   could make input and output dependent on the experiment's
+                  #   data at start.
           batch_size: 1000
           device: 'cuda'
           # num_workers: 16

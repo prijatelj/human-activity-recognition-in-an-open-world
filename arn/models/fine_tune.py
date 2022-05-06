@@ -221,17 +221,17 @@ def dense_layer(
     layer_num,
     inputs,
     width,
-    dropout_prob=None,
+    dropout=None,
     activation=None,
 ):
     """Creates the 'dense layer' with opt. dropout and activation."""
     ord_dict[f'fc{layer_num}'] = nn.Linear(inputs, width)
 
-    if dropout_prob and isinstance(dropout_prob, float):
-        ord_dict[f'Dropout{layer_num}'] = nn.Dropout(dropout_prob, True)
-    elif dropout_prob:
+    if dropout and isinstance(dropout, float):
+        ord_dict[f'Dropout{layer_num}'] = nn.Dropout(dropout, True)
+    elif dropout:
         ord_dict[f'Dropout{layer_num}'] = nn.Dropout(
-            dropout_prob[layer_num],
+            dropout[layer_num],
             True,
         )
 
@@ -263,7 +263,7 @@ class FineTuneFC(nn.Module):
         feature_repr_width=None,
         n_classes=29,
         activation=nn.LeakyReLU,
-        dropout_prob=None,
+        dropout=None,
         dropout_feature_repr=True,
     ):
         """Fine-tuning ANN consisting of fully-connected dense layers.
@@ -289,31 +289,33 @@ class FineTuneFC(nn.Module):
             The number of classes to expect for the output layer of this ANN.
         activation : torch.nn.Module = torch.nn.LeakyReLU
             The activation to apply after every linaer layer.
-        dropout_prob : float = None
+        dropout : float = None
             The probability for the dropout layers after the linear layers.
             Defaults to None, meaning no dropout is applied.
         dropout_feature_repr : bool = True
             If True, dropout is applied to the last hidden layer.
         """
         super().__init__()
+        if depth < 2:
+            raise ValueError('Depth less than 2 is not supported!')
         if feature_repr_width is None:
             feature_repr_width = width
 
         if (
-            dropout_prob and not isinstance(dropout_prob, float)
+            dropout and not isinstance(dropout, float)
             and (
-                (dropout_feature_repr and len(dropout_prob) != depth)
-                or (not dropout_feature_repr and len(dropout_prob) != depth-1)
+                (dropout_feature_repr and len(dropout) != depth)
+                or (not dropout_feature_repr and len(dropout) != depth-1)
             )
         ):
             raise ValueError('Length of dropout does not match depth!')
 
         ord_dict = OrderedDict()
-        dense_layer(ord_dict, 0, input_size, width, dropout_prob, activation)
+        dense_layer(ord_dict, 0, input_size, width, dropout, activation)
 
         # NOTE that depth includes input and the feature_repr_width can be diff
         for x in range(1, depth-1):
-            dense_layer(ord_dict, x, width, width, dropout_prob, activation)
+            dense_layer(ord_dict, x, width, width, dropout, activation)
 
         # Final dense / fully connected layer as output feature representation
         dense_layer(
@@ -321,7 +323,7 @@ class FineTuneFC(nn.Module):
             depth - 1,
             width,
             feature_repr_width,
-            dropout_prob if dropout_feature_repr else None,
+            dropout if dropout_feature_repr else None,
             activation,
         )
 
@@ -331,9 +333,6 @@ class FineTuneFC(nn.Module):
     def forward(self, x):
         """Returns the last fully connected layer and the probs classifier"""
         x = self.fcs(x)
-        #classification = F.log_softmax(self.classifier(x), dim=1)
-        #classification = F.softmax(self.classifier(x), dim=1)
-        #return x, classification
         return x, self.classifier(x)
 
     def load_interior_weights(self, state_dict):
