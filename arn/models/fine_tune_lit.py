@@ -13,6 +13,8 @@ from arn.models.fine_tune import FineTuneFC
 from arn.torch_utils import torch_dtype
 from arn.data.kinetics_unified import get_kinetics_uni_dataloader
 
+#import IPython.terminal.debugger as ipdb
+
 
 def init_ray_plugin(
     num_workers=1,
@@ -84,6 +86,8 @@ def init_trainer(
     logger=None,
     log_every_n_steps=50,
     #flush_logs_every_n_steps=None,
+    track_grad_norm=-1,
+    num_sanity_val_steps=2,
 ):
     """Hotfix docstr workaround for not being able to read Torch docs and not
     being able to accept/parse uknown kwargs to be passes as **kwargs.
@@ -98,6 +102,8 @@ def init_trainer(
     strategy : str = None
     logger : init_tensorboard_logger = None
     log_every_n_steps : int = 50
+    track_grad_norm : int = -1
+    num_sanity_val_steps : int = 2
 
     Returns
     -------
@@ -118,6 +124,8 @@ def init_trainer(
         strategy=strategy,
         logger=logger,
         log_every_n_steps=log_every_n_steps,
+        track_grad_norm=track_grad_norm,
+        num_sanity_val_steps=num_sanity_val_steps,
     )
 
 
@@ -170,6 +178,8 @@ class FineTuneFCLit(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         inputs, labels = batch
         fine_tune_reprs, classifications = self.model(inputs)
+
+        #ipdb.set_trace()
 
         #print(labels.argmax(1).unique())
         #print(F.softmax(classifications, 1).argmax(1).unique())
@@ -292,12 +302,14 @@ class FineTuneLit():
         #self.trainer = pl.Trainer(*args, **kwargs)
         self.trainer = trainer
 
+        #"""
         if (
             self.trainer._accelerator_connector.strategy is not None
             and not isinstance(self.trainer._accelerator_connector.strategy, str)
             and self.trainer._accelerator_connector.strategy.use_gpu
         ):
             self.model.to('cuda')
+        #"""
 
     def fit(self, dataset, val_dataset=None):
         """Fit the fine tuning model with the given train and val datasets.
@@ -323,7 +335,7 @@ class FineTuneLit():
             val_dataset = get_kinetics_uni_dataloader(
                 val_dataset,
                 batch_size=self.batch_size,
-                shuffle=self.shuffle,
+                shuffle=False, #self.shuffle,
                 num_workers=self.num_workers,
                 pin_memory=self.pin_memory,
             )
