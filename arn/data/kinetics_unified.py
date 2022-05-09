@@ -155,6 +155,7 @@ def get_path(
     end='time_end',
     ext='.mp4',
     zfill=6,
+    k700_suffix_label=True,
     #split_prefix=['kinetics-dataset-400-', None, None],
     #split_suffix=[None, None, ''],
 ):
@@ -180,6 +181,9 @@ def get_path(
         NOT Implemented. An attempt at generalizaiton postponed.
         The suffix to add to the end of the Kinetics split portion of the
         data directory.
+    k700_suffix_label : bool = True
+        When True, add the label name in lower as a directory suffix in the
+        path. Otherwise do not add any suffix directories.
 
     Returns
     -------
@@ -233,7 +237,7 @@ def get_path(
                 + 'kinetics-dataset-400-'
                 + df[col].replace('validate', 'val')[mask],
             )
-        elif '600' in col:
+        elif '600' in col or ('700_2020' in col and not k700_suffix_label):
             df_order.append(
                 root_dirs[i]
                 + os.path.sep
@@ -249,7 +253,6 @@ def get_path(
 
             #other_splits = df[col][(df[col] != 'test') & mask]
             #test_split = df[col][(df[col] == 'test') & mask]
-
             df_order.append(
                 root_dirs[i]
                 + os.path.sep
@@ -469,6 +472,7 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
     blacklist : InitVar[str] = None
     whitelist : InitVar[str] = None
     one_hot : bool = True
+    k700_suffix_label : InitVar[bool] = True
 
     def __post_init__(
         self,
@@ -482,6 +486,7 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         dtype,
         blacklist,
         whitelist,
+        k700_suffix_label,
     ):
         """
         Args
@@ -512,6 +517,9 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
             Path to a file that loads a list of str filenames that are the only
             ones to be allowed within the data, thus removing any others if
             they exist.
+        k700_suffix_label : bool = True
+            When True, add the label name in lower as a directory suffix in the
+            path. Otherwise do not add any suffix directories.
         """
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
@@ -644,6 +652,7 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
                 if reorder is None else self.sample_dirs[reorder],
                 order=filepath_order,
                 ext=ext,
+                k700_suffix_label=k700_suffix_label,
             )
 
     def __len__(self):
