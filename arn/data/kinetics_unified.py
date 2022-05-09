@@ -232,14 +232,14 @@ def get_path(
         # Check which dataset this is and treat its path accordingly.. hardcode
         if '400' in col:
             df_order.append(
-                root_dirs[i]
+                root_dirs.kinetics400_dir
                 + os.path.sep
                 + 'kinetics-dataset-400-'
                 + df[col].replace('validate', 'val')[mask],
             )
-        elif '600' in col or ('700_2020' in col and not k700_suffix_label):
+        elif '600' in col:
             df_order.append(
-                root_dirs[i]
+                root_dirs.kinetics600_dir
                 + os.path.sep
                 + df[col][mask]
             )
@@ -253,13 +253,20 @@ def get_path(
 
             #other_splits = df[col][(df[col] != 'test') & mask]
             #test_split = df[col][(df[col] == 'test') & mask]
-            df_order.append(
-                root_dirs[i]
-                + os.path.sep
-                + df[col][mask]
-                + os.path.sep
-                + df[col.replace('split', 'label')][mask]
-            )
+            if k700_suffix_label:
+                df_order.append(
+                    root_dirs.kinetics700_2020_dir
+                    + os.path.sep
+                    + df[col][mask]
+                    + os.path.sep
+                    + df[col.replace('split', 'label')][mask]
+                )
+            else:
+                df_order.append(
+                    root_dirs.kinetics700_2020_dir
+                    + os.path.sep
+                    + df[col][mask]
+                )
 
     video_filename = (
         os.path.sep
