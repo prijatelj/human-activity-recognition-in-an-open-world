@@ -10,7 +10,6 @@ nn = torch.nn
 F = torch.nn.functional
 
 from arn.models.fine_tune import FineTuneFC
-from arn.torch_utils import torch_dtype
 from arn.data.kinetics_unified import get_kinetics_uni_dataloader
 
 #import IPython.terminal.debugger as ipdb
@@ -165,15 +164,8 @@ class FineTuneFCLit(pl.LightningModule):
 
         self.lr = lr
 
-    def configure_optimizers(self, optimizer_cls=None, **kwargs):
-        if optimizer_cls is None:
-            return torch.optim.Adam(self.parameters(), self.lr, **kwargs)
-        if issubclass(optimizer_cls, torch.optim.Optimizer):
-            return optimizer_cls(self.parameters(), lr=self.lr, **kwargs)
-        raise TypeError(' '.join([
-            'Expected `optimizer_cls` subclass `torch.optim.Optimizer`,',
-            f'but recieved {optimizer_cls}',
-        ]))
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), self.lr)
 
     def training_step(self, batch, batch_idx):
         inputs, labels = batch
@@ -236,7 +228,7 @@ class FineTuneFCLit(pl.LightningModule):
         self.log('val_loss', loss)
         self.log('val_accuracy', acc)
 
-        return {'loss': loss, 'accuracy': acc}
+        return OrderedDict({'loss': loss, 'accuracy': acc})
 
     def test_step(self, batch, batch_idx):
         raise NotImplementedError()
@@ -254,10 +246,6 @@ class FineTuneLit():
     trainer : init_trainer
         The pl.Trainer trainer used for the fine tune model.
     batch_size : int = 1000
-    device : str | torch.device = 'cpu'
-        the device on which model should be trained
-        default: cpu
-    dtype : torch.dtype = torch.float32
     shuffle : bool = True
         If True, shuffle the data when fitting. If False, no shuffling.
     num_workers : int = 0
@@ -270,8 +258,6 @@ class FineTuneLit():
         model,
         trainer,
         batch_size=1000,
-        device='cpu',
-        dtype=torch.float32,
         shuffle=True,
         num_workers=0,
         pin_memory=False,
@@ -295,9 +281,6 @@ class FineTuneLit():
 
         # Multiprocessing params for DataLoaders
         self.pin_memory = pin_memory #num_workers > 0
-
-        self.device = torch.device(device)
-        self.dtype = torch_dtype(dtype)
 
         #self.trainer = pl.Trainer(*args, **kwargs)
         self.trainer = trainer
