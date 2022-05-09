@@ -7,6 +7,7 @@ import torch
 nn = torch.nn
 F = torch.nn.functional
 
+from arn.data.kinetics_unified import get_kinetics_uni_dataloader
 from arn.torch_utils import torch_dtype
 
 
@@ -19,16 +20,23 @@ class FineTune(object):
         docstr needs to support subclasses of a given class: torch.nn.Module
         The model to be used for fine tuning. This is expected to support
         FineTuneFC.
-    fit_args : dict
-        The hyperparameters for fitting the fine tuning model. This includes
-        the optimizer, epochs, etc. to run a complete run of fitting the model.
-
-        Though, batch size is handled by DataLoaders I believe. Let dataloaders
-        handle what they can and their outputs be intput args. Everything will
-        be torch.Tensors in and torch.Tensors out.
-    device : torch.device
+    batch_size : int = 1000
+    epochs : int = 25
+        Number of epochs to use during fitting.
+    device : str | torch.device = 'cpu'
         the device on which model should be trained
         default: cpu
+    dtype : torch.dtype = torch.float32
+    shuffle : bool = True
+        If True, shuffle the data when fitting. If False, no shuffling.
+    num_workers : int = 0
+        Number of works to ues for the DataLoader.
+    pin_memory : bool = False
+        Pin memory for data loaders.
+    loss : torch.nn.modules.loss._Loss = None
+        TODO in docstr add support for `see FineTuneFC.__init__`
+    lr : float = 0.001
+        The learning rate for the optimizer. Optimizer is ADAM.
     """
     def __init__(
         self,
@@ -38,19 +46,16 @@ class FineTune(object):
         device='cpu',
         dtype=torch.float32,
         shuffle=True,
+        num_workers=0,
+        pin_memory=False,
+        loss=None,
+        lr=0.001,
     ):
         """Init the FineTune model.
 
         Args
         ----
-        model : see self
-        batch_size : int = 1000
-        epochs : int = 25
-            Number of epochs to use during fitting.
-        shuffle : bool = True
-            If True, shuffle the data when fitting. If False, no shuffling.
-        device : str | torch.device = 'cpu'
-        dtype : torch.dtype = torch.float32
+        see self
         """
         if not isinstance(model, torch.nn.Module):
             raise TypeError(
@@ -61,58 +66,68 @@ class FineTune(object):
         self.batch_size = batch_size
         self.epochs = epochs
         self.shuffle = shuffle
+        self.num_workers = num_workers
+
+        # Multiprocessing params for DataLoaders
+        self.pin_memory = pin_memory #num_workers > 0
 
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
 
-    def fit(
-        self,
-        dataset,
-        val_dataset=None,
-        verbose=False,
-    ):
+        # Optimizer things
+        self.loss = loss
+        self.lr = lr
+        self.optimizer_cls = torch.optim.Adam
+
+        # TODO Torch checkpoint stuffs
+
+        # TODO TensorBoard logger stuffs
+
+    def configure_optimizer(self):
+        """Re-init optimizer every fitting."""
+        return self.optimizer_cls(
+            self.model.parameters(),
+            self.lr,
+        )
+
+    def fit(self, dataset, val_dataset=None, verbose=False):
         """Fits the model with fit_args and the given features and labels in a
         supervised learning fashion.
-        dataset : torch.utils.data.Dataset | torch.Tensor
-            features and labels that the model should be trained on.
-        val_dataset : torch.utils.data.Dataset | torch.Tensor = None
-            features and labels that the model should be validated on.
+
+        Args
+        ----
+        dataset : KineticsUnifiedFeatures | torch.utils.data.DataLoader
+            The dataset to be turned into a DataLoader or the DataLoader itself
+            used for fitting the model.
+        val_dataset : KineticsUnifiedFeatures
+            Same as `dataset`, except used for validation during the fitting
+            process.
+        verbose : bool = False
+            If True, prints out progress to std out.
         """
-
-        if isinstance(dataset, tuple) and len(dataset) == 2:
-            t_len = len(dataset[0])
-            dataset = torch.utils.data.TensorDataset(
-                dataset[0].to(self.device, self.dtype),
-                dataset[1],
-            )
-        else:
-            t_len = len(dataset)
-
-        dataloader = torch.utils.data.DataLoader(
+        dataset = get_kinetics_uni_dataloader(
             dataset,
             batch_size=self.batch_size,
             shuffle=self.shuffle,
+            num_workers=self.num_workers,
+            pin_memory=self.pin_memory,
         )
+        train_len = len(dataset)
 
         if val_dataset is not None:
-            if isinstance(val_dataset, tuple) and len(val_dataset) == 2:
-                v_len = len(val_dataset[0])
-                val_dataset = torch.utils.data.TensorDataset(
-                    val_dataset[0].to(self.device, self.dtype),
-                    val_dataset[1],
-                )
-            else:
-                v_len = len(val_dataset)
-
-            dataloader_val = torch.utils.data.DataLoader(
+            val_dataset = get_kinetics_uni_dataloader(
                 val_dataset,
                 batch_size=self.batch_size,
-                shuffle=self.shuffle,
+                shuffle=False, #self.shuffle,
+                num_workers=self.num_workers,
+                pin_memory=self.pin_memory,
             )
+            val_len = len(val_dataset)
 
         model = self.model.to(self.device)
-        criterion = torch.nn.BCEWithLogitsLoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
+        #criterion = torch.nn.BCEWithLogitsLoss()
+        #optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
+        optimizer = self.configure_optimizer()
 
         best_cls_loss = 99999999999999999
         best_val_acc = 0
@@ -122,31 +137,38 @@ class FineTune(object):
                 print("Epoch: " + str(epoch) + "---------------")
             tot_cls_loss = 0.0
             right = 0
-            for i, x in enumerate(dataloader):
+
+            for i, x in enumerate(dataset):
                 torch.autograd.set_grad_enabled(True)
+
                 sfeatures, slabels = x
                 sfeatures = sfeatures.to(self.device)
                 slabels = slabels.to(self.device).float()
+
                 prediction = model(sfeatures)[1]
+
                 right += torch.sum(
                     torch.eq(
                         torch.argmax(prediction, dim=1),
                         torch.argmax(slabels, dim=1)
                     ).int()
                 ).cpu().numpy()
-                loss = criterion(prediction, slabels)
+
+                loss = self.loss(prediction, slabels)
+
                 loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
+
                 tot_cls_loss += loss.item()
-            tacc = str(right / t_len)
+            tacc = str(right / train_len)
             right = 0
             tot_cls_loss = 0.0
 
             if val_dataset is None: # Skip validation
                 continue
 
-            for i, x in enumerate(dataloader_val):
+            for i, x in enumerate(val_dataset):
                 torch.autograd.set_grad_enabled(False)
                 sfeatures, slabels = x
                 sfeatures = sfeatures.cuda()
@@ -158,7 +180,7 @@ class FineTune(object):
                         torch.argmax(slabels, dim=1)
                     ).int()
                 ).cpu().numpy()
-                loss = criterion(prediction, slabels)
+                loss = self.loss(prediction, slabels)
                 tot_cls_loss += loss.item()
             if best_cls_loss > tot_cls_loss:
                 best_cls_loss = tot_cls_loss
@@ -170,6 +192,20 @@ class FineTune(object):
                     print("Val Accuracy: " + str(right / v_len))
 
         self.model = model
+
+    def training_step(self, batch, batch_idx):
+        inputs, labels = batch
+        classifications = self.model(inputs)[1]
+
+        loss = self.loss(classifications, labels)
+        acc = (
+            labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
+        ).to(float).mean()
+
+        #self.log('train_loss', loss)
+        #self.log('train_accuracy', acc)
+
+        return loss
 
     def extract(self, features):
         """Given features, outputs the fully connected encoding of them.
