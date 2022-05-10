@@ -446,10 +446,6 @@ class KineticsUnified(torch.utils.data.Dataset):
     unlabeled_token : str = None
     device : str = 'cpu'
     dtype : str = torch.float32
-    return_label : bool = False
-        If True, which is the default, returns the label along with the
-        input sample. The label typically is the smaple index to access
-        the DataFrame row which contains all labels.
     return_index : bool = False
         If True, returns only the contents within the self.data DataFrame's
         column `labels` for the sample. Otherwise, the default, returns
@@ -473,7 +469,6 @@ class KineticsUnified(torch.utils.data.Dataset):
     ext : InitVar[str] = '_feat.pt'
     device : InitVar[str] = 'cpu'
     dtype : InitVar[str] = torch.float32
-    return_label : bool = False
     return_index : bool = False
     log_warn_file_not_found : bool = False
     blacklist : InitVar[str] = None
@@ -513,7 +508,6 @@ class KineticsUnified(torch.utils.data.Dataset):
             includes the file extention within it.
         device : see self
         dtype : see self
-        return_label : see self
         return_index : see self
         log_warn_file_not_found : see self
         blacklist : str = None
@@ -666,8 +660,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        """For the given index, load the corresponding sample feature encoding
-        and labels.
+        """For the given index, load the corresponding sample labels.
 
         Args
         ----
@@ -683,33 +676,17 @@ class KineticsUnified(torch.utils.data.Dataset):
         # Given the index, obtain the sample's row from the DataFrame.
         sample = self.data.iloc[index]
 
-        # Load from file. Hopefully, this is efficient enough.
-        try:
-            feature_extract = torch.load(
-                sample['sample_path'],
-                self.device,
-            ).squeeze().to(self.dtype)
-        except FileNotFoundError as e:
-            if self.log_warn_file_not_found:
-                logging.warning('%s: %s', e.strerror, e.filename)
-                return None
-            else:
-                raise e
-
-        if self.return_label:
-            if self.return_index:
-                return feature_extract, sample['sample_index']
-            if self.label_enc:
-                return feature_extract, \
-                    torch.as_tensor(
-                        self.label_enc.encode(
-                            [sample['labels']],
-                            one_hot=self.one_hot,
-                        ).squeeze(),
-                        dtype=self.dtype,
-                    )
-            return feature_extract, sample['labels']
-        return feature_extract
+        if self.return_index:
+            return sample['sample_index']
+        if self.label_enc:
+            return torch.as_tensor(
+                    self.label_enc.encode(
+                        [sample['labels']],
+                        one_hot=self.one_hot,
+                    ).squeeze(),
+                    dtype=self.dtype,
+                )
+        return sample['labels']
 
 
 class KineticsUnifiedFeatures(KineticsUnified):
@@ -718,7 +695,13 @@ class KineticsUnifiedFeatures(KineticsUnified):
     Attributes
     ----------
     see KineticsUnified
+    return_label : bool = False
+        If True, which is the default, returns the label along with the
+        input sample. The label typically is the smaple index to access
+        the DataFrame row which contains all labels.
     """
+    return_label : bool = False
+
     def __post_init__(self, *args, **kwargs):
         """Python dataclass post init
 
@@ -761,8 +744,6 @@ class KineticsUnifiedFeatures(KineticsUnified):
             else:
                 raise e
 
-        #if get_label:
-        #    return feature_extract, sample['labels']
         if self.return_label:
             if self.return_index:
                 return feature_extract, sample['sample_index']
@@ -779,7 +760,6 @@ class KineticsUnifiedFeatures(KineticsUnified):
         return feature_extract
 
 
-#class KineticsUnified(KineticsUnifiedFeatures):
 class KineticsUnifiedVideos(KineticsUnified):
     """The video sample aligned dataset for Kinetics 400, 600, and 700_2020.
 
