@@ -177,7 +177,6 @@ class FineTuneFCLit(pl.LightningModule):
         #print(F.softmax(classifications, 1).argmax(1).unique())
 
         loss = self.loss(classifications, labels)
-        #loss = F.cross_entropy(classifications, labels)
         acc = (
             labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
         ).to(float).mean()
