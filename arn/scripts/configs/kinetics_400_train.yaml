@@ -12,6 +12,7 @@ docstr:
       - KineticsOWL
       - KineticsOWLExperiment
     arn.data.kinetics_unified:
+      - KineticsUnified
       - KineticsUnifiedFeatures
       - KineticsSplitConfig
       - KineticsUnifiedSubset
@@ -68,7 +69,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         DataSplits:
           train:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-features-missing-file-train-file.log
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-train-file.log
               annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
@@ -90,7 +91,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       train: True
           validate:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-features-missing-file-val-file.log
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-val-file.log
               annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
@@ -112,7 +113,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       validate: True
           test:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-features-missing-file-test-file.log
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-test-file.log
               annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
