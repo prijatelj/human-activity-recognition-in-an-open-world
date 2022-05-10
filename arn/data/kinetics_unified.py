@@ -429,7 +429,7 @@ def subset_kinetics_unified(df, subset):
 
 
 @dataclass
-class KineticsUnifiedFeatures(torch.utils.data.Dataset):
+class KineticsUnified(torch.utils.data.Dataset):
     """The features extracted sample aligned dataset for Kinetics 400, 600, and
     700_2020.
 
@@ -696,6 +696,71 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
             else:
                 raise e
 
+        if self.return_label:
+            if self.return_index:
+                return feature_extract, sample['sample_index']
+            if self.label_enc:
+                return feature_extract, \
+                    torch.as_tensor(
+                        self.label_enc.encode(
+                            [sample['labels']],
+                            one_hot=self.one_hot,
+                        ).squeeze(),
+                        dtype=self.dtype,
+                    )
+            return feature_extract, sample['labels']
+        return feature_extract
+
+
+class KineticsUnifiedFeatures(KineticsUnified):
+    """The Feature Extracted sample for Kinetics 400, 600, and 700_2020.
+
+    Attributes
+    ----------
+    see KineticsUnified
+    """
+    def __post_init__(self, *args, **kwargs):
+        """Python dataclass post init
+
+        Args
+        ----
+        see KineticsUnified.__post_init__
+            This errors due to including the attributes as args, when only
+            the args of __post_init__ are what is expected.
+        """
+        super().__post_init__(*args, **kwargs)
+
+    def __getitem__(self, index):
+        """For the given index, load the corresponding sample feature encoding
+        and labels.
+
+        Args
+        ----
+        index : int
+
+        Returns
+        -------
+        torch.Tensor | tuple
+            A tuple whose first item is the sample feature encoding as a
+            torch.Tensor, second is the sample index in the DataSet's DataFrame
+            `data` to access labels etc outside of Torch computation.
+        """
+        # Given the index, obtain the sample's row from the DataFrame.
+        sample = self.data.iloc[index]
+
+        # Load from file. Hopefully, this is efficient enough.
+        try:
+            feature_extract = torch.load(
+                sample['sample_path'],
+                self.device,
+            ).squeeze().to(self.dtype)
+        except FileNotFoundError as e:
+            if self.log_warn_file_not_found:
+                logging.warning('%s: %s', e.strerror, e.filename)
+                return None
+            else:
+                raise e
+
         #if get_label:
         #    return feature_extract, sample['labels']
         if self.return_label:
@@ -714,13 +779,13 @@ class KineticsUnifiedFeatures(torch.utils.data.Dataset):
         return feature_extract
 
 
-@dataclass
-class KineticsUnified(KineticsUnifiedFeatures):
+#class KineticsUnified(KineticsUnifiedFeatures):
+class KineticsUnifiedVideos(KineticsUnified):
     """The video sample aligned dataset for Kinetics 400, 600, and 700_2020.
 
     Attributes
     ----------
-    see KineticsUnifiedFeatures
+    see KineticsUnified
     spatial_transform : torchvision.transforms.Compose = None
         An image transformation that is applied to every video frame. Default
         is at least a Compose consisting of ToTensor to ensure the np.array
@@ -749,7 +814,7 @@ class KineticsUnified(KineticsUnifiedFeatures):
     ext : InitVar[str] = '.mp4'
 
     def __post_init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__post_init__(*args, **kwargs)
 
     def __getitem__(self, index, get_label=False):
         """For the given index, load the corresponding sample video frames and
