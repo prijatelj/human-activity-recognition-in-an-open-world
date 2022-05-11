@@ -169,7 +169,7 @@ def increment(
     # Append the new test samples to the old samples
     if test_features is not None and test_labels is not None:
         test_features = torch.cat([test_features, inc_test_features])
-        test_labels = torch.cat([test_labels, inc_test_labels]).to('int')
+        test_labels = torch.cat([test_labels, inc_test_labels])
     else:
         test_features = inc_test_features
         test_labels = inc_test_labels
@@ -190,6 +190,7 @@ def run(
     inc_train_num_each=100,
     inc_test_num_each=100,
     total_increments=1,
+    log_level='INFO',
 ):
     """The setup for all tests in this class.
 
@@ -213,6 +214,14 @@ def run(
     test_features = None
     test_labels = None
     # TODO running_cm = None
+
+    logging.basicConfig(
+        #filename='../results/toy_test.log',
+        #filemode='w',
+        level=getattr(logging, log_level, None),
+        #format='%(asctime)s; %(levelname)s: %(message)s',
+        #datefmt=None,
+    )
 
     # Simulated incremental steps of environment/experiment
     for i in range(total_increments):
