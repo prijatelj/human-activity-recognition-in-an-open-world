@@ -158,7 +158,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           # OR could just add a kwargs key w/ dict value and know to expand
           # that when passed.
           trainer:
-            init_trainer: # TODO idk if this will work... :/ It SHOULD.
+            init_trainer:
               max_epochs: 25
               gpus: 1
               enable_checkpointing: True
