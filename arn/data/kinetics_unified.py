@@ -87,7 +87,7 @@ def get_kinetics_uni_dataloader(dataset, *args, **kwargs):
             *args,
             **kwargs,
         )
-    elif not isinstance(dataset, torch.utils.data.dataloader):
+    elif not isinstance(dataset, torch.utils.data.DataLoader):
         raise TypeError(f'Unexpected dataset type: `{type(dataset)}`')
     return dataset
 
