@@ -190,7 +190,7 @@ class FineTuneFCLit(pl.LightningModule):
         if self.current_epoch == 1:
             self.logger.experiment.add_graph(
                 self.model,
-                torch.rand((1,1, 2048)).to('cuda'),
+                torch.rand((1,1, self.model.fcs.fc0.in_features)).to('cuda'),
             )
         for name, params in self.named_parameters():
             # Log Weights
@@ -233,7 +233,7 @@ class FineTuneFCLit(pl.LightningModule):
         raise NotImplementedError()
 
 
-class FineTuneLit():
+class FineTuneLit(object):
     """FineTune modified to manage Pytorch Lightning models.
 
     Attributes
@@ -346,7 +346,7 @@ class FineTuneLit():
             model=self.model,
             dataloaders=get_kinetics_uni_dataloader(
                 features,
-                batch_size=1,
+                batch_size=self.batch_size,#1,
                 shuffle=False,
                 num_workers=0,
                 pin_memory=self.pin_memory,
