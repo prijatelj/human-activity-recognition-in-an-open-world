@@ -1,0 +1,51 @@
+# Docstr config for the toy simulated classification test.
+docstr:
+  style: numpy
+  from import:
+    arn.models.fine_tune_lit:
+      - FineTuneLit
+      - FineTuneFCLit
+      - init_trainer
+      - init_ray_plugin
+      - init_tensorboard_logger
+    arn.models.fine_tune:
+      - FineTuneFC
+    tests.script_toy_classification_test:
+      - ToyClassify2D4MVNs
+      - run
+  main: run
+
+# TODO fix: docstr misbehaves when main is a function and is the entry_obj
+# TODO fix: docstr also misbehaves in finding config values when named program
+
+run:
+  visualize: False
+  train_num_each: 30
+  test_num_each: 100
+  inc_train_num_each: 100
+  inc_test_num_each: 100
+  total_increments: 1
+  toy_sim:
+    ToyClassify2D4MVNs:
+      seed: 0
+  predictor:
+    FineTuneLit:
+      model:
+        FineTuneFCLit:
+          model:
+            FineTuneFC:
+              input_size: 2 #512
+              width: 512
+              depth: 5
+              dropout: 0.5
+              n_classes: 4
+      batch_size: 16
+      trainer:
+        init_trainer:
+          max_epochs: 5 #25
+          gpus: 1
+          enable_checkpointing: True
+          default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/toy_test/fine-tune-lit/chkpts/
+          logger:
+            init_tensorboard_logger:
+              save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/toy_test/fine-tune-lit/tb_log/
