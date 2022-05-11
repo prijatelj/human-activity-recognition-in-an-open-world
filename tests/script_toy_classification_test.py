@@ -99,7 +99,7 @@ def visualize_space(features, labels, preds):
     return fig
 
 
-def evaluate(inc_idx, split, features, labels, predictor):
+def evaluate(inc_idx, split, features, labels, predictor, running_cm=None):
     preds = predictor.predict(get_kinetics_uni_dataloader(
         features,
         collate_fn=lambda batch: batch[0][0].unsqueeze(0)
@@ -124,6 +124,31 @@ def evaluate(inc_idx, split, features, labels, predictor):
         cm.accuracy(),
     )
 
+    if running_cm is None:
+        return cm
+
+    running_cm = running_cm + cm
+
+    logging.info(
+        'Increment %d: Running: %s eval: NMI = %.4f',
+        inc_idx,
+        split,
+        running_cm.mutual_information('arithmetic'),
+    )
+    logging.info('Increment %d: Running: %s eval: MCC = %.4f',
+        inc_idx,
+        split,
+        running_cm.mcc(),
+    )
+    logging.info(
+        'Increment %d: Running: %s eval: Accuracy = %.4f',
+        inc_idx,
+        split,
+        running_cm.accuracy(),
+    )
+
+    return running_cm
+
 
 def increment(
     inc_idx,
@@ -131,10 +156,8 @@ def increment(
     toy_sim,
     inc_train_num_each,
     inc_test_num_each,
-    train_features=None,
-    train_labels=None,
-    test_features=None,
-    test_labels=None,
+    running_train_cm=None,
+    running_test_cm=None,
 ):
     logging.info('Starting increment #: %d', inc_idx)
 
@@ -146,47 +169,55 @@ def increment(
     inc_train_labels = torch.nn.functional.one_hot(inc_train_labels.to(int)).to(float)
 
     # Append the new train samples to the old samples
-    if train_features is not None and train_labels is not None:
-        train_features = torch.cat([train_features, inc_train_features])
-        train_labels = torch.cat([train_labels, inc_train_labels])
-    else:
-        train_features = inc_train_features
-        train_labels = inc_train_labels
+    #if train_features is not None and train_labels is not None:
+    #    train_features = torch.cat([train_features, inc_train_features])
+    #    train_labels = torch.cat([train_labels, inc_train_labels])
+    #else:
+    #    train_features = inc_train_features
+    #    train_labels = inc_train_labels
 
     logging.info('Increment %d: Fit train samples', inc_idx)
     # Incremental fit by keeping prior points
-    predictor.fit([train_features, train_labels])
+    predictor.fit([inc_train_features, inc_train_labels])
 
-    evaluate(inc_idx, 'train', train_features, train_labels, predictor)
+    running_train_cm = evaluate(
+        inc_idx,
+        'train',
+        inc_train_features,
+        inc_train_labels,
+        predictor,
+        running_train_cm,
+    )
 
     logging.info('Increment %d: Generate test samples', inc_idx)
     # Generate the incremental test samples
-    inc_test_features, inc_test_labels = toy_sim.eq_sample_n(
-        inc_test_num_each,
-    )
+    inc_test_features, inc_test_labels = toy_sim.eq_sample_n(inc_test_num_each)
     inc_test_labels = torch.nn.functional.one_hot(inc_test_labels.to(int)).to(float)
 
-    # Append the new test samples to the old samples
-    if test_features is not None and test_labels is not None:
-        test_features = torch.cat([test_features, inc_test_features])
-        test_labels = torch.cat([test_labels, inc_test_labels])
-    else:
-        test_features = inc_test_features
-        test_labels = inc_test_labels
+    running_test_cm = evaluate(
+        inc_idx,
+        'test',
+        inc_test_features,
+        inc_test_labels,
+        predictor,
+        running_test_cm,
+    )
 
-    evaluate(inc_idx, 'test', test_features, test_labels, predictor)
+    return (
+        #train_features,
+        #train_labels,
+        #test_features,
+        #test_labels,
+        running_train_cm,
+        running_test_cm,
+    )
 
-    # TODO record eval per inc, and show running train and test cm evals.
-
-    return train_features, train_labels, test_features, test_labels #, run_cm
 
 
 def run(
     predictor,
     toy_sim=None,
     visualize=False,
-    train_num_each=30,
-    test_num_each=100,
     inc_train_num_each=100,
     inc_test_num_each=100,
     total_increments=1,
@@ -201,39 +232,38 @@ def run(
         TODO docstr support:  allow required arg when its config args all have
         defaults.
     visualize : bool = False
-    train_num_each : int = 32
-    test_num_each : int = 100
     inc_train_num_each : int = 100
     inc_test_num_each : int = 100
     total_increments : int = 1
         The number of increments to perform. Always performs one pass, which is
         the initial start of incremental learning.
+    log_level : str = 'INFO'
     """
-    train_features = None
-    train_labels = None
-    test_features = None
-    test_labels = None
-    # TODO running_cm = None
+    #train_features = None
+    #train_labels = None
+    #test_features = None
+    #test_labels = None
+
+    running_train_cm = None
+    running_test_cm = None
 
     logging.basicConfig(
         #filename='../results/toy_test.log',
         #filemode='w',
         level=getattr(logging, log_level, None),
-        #format='%(asctime)s; %(levelname)s: %(message)s',
-        #datefmt=None,
+        format='%(asctime)s; %(levelname)s: %(message)s',
+        datefmt=None,
     )
 
     # Simulated incremental steps of environment/experiment
     for i in range(total_increments):
-        train_features, train_labels, test_features, test_labels \
-        = increment(
+        #train_features, train_labels, test_features, test_labels, \
+        running_train_cm, running_test_cm = increment(
             i,
             predictor,
             toy_sim,
             inc_train_num_each,
             inc_test_num_each,
-            train_features,
-            train_labels,
-            test_features,
-            test_labels,
+            running_train_cm,
+            running_test_cm,
         )
