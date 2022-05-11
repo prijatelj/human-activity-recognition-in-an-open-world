@@ -156,6 +156,8 @@ def increment(
     toy_sim,
     inc_train_num_each,
     inc_test_num_each,
+    train_features=None,
+    train_labels=None,
     running_train_cm=None,
     running_test_cm=None,
 ):
@@ -169,16 +171,16 @@ def increment(
     inc_train_labels = torch.nn.functional.one_hot(inc_train_labels.to(int)).to(float)
 
     # Append the new train samples to the old samples
-    #if train_features is not None and train_labels is not None:
-    #    train_features = torch.cat([train_features, inc_train_features])
-    #    train_labels = torch.cat([train_labels, inc_train_labels])
-    #else:
-    #    train_features = inc_train_features
-    #    train_labels = inc_train_labels
+    if train_features is not None and train_labels is not None:
+        train_features = torch.cat([train_features, inc_train_features])
+        train_labels = torch.cat([train_labels, inc_train_labels])
+    else:
+        train_features = inc_train_features
+        train_labels = inc_train_labels
 
     logging.info('Increment %d: Fit train samples', inc_idx)
     # Incremental fit by keeping prior points
-    predictor.fit([inc_train_features, inc_train_labels])
+    predictor.fit([train_features, train_labels])
 
     running_train_cm = evaluate(
         inc_idx,
@@ -204,8 +206,8 @@ def increment(
     )
 
     return (
-        #train_features,
-        #train_labels,
+        train_features,
+        train_labels,
         #test_features,
         #test_labels,
         running_train_cm,
@@ -239,8 +241,8 @@ def run(
         the initial start of incremental learning.
     log_level : str = 'INFO'
     """
-    #train_features = None
-    #train_labels = None
+    train_features = None
+    train_labels = None
     #test_features = None
     #test_labels = None
 
@@ -257,13 +259,15 @@ def run(
 
     # Simulated incremental steps of environment/experiment
     for i in range(total_increments):
-        #train_features, train_labels, test_features, test_labels, \
-        running_train_cm, running_test_cm = increment(
+        train_features, train_labels, running_train_cm, running_test_cm = \
+        increment(
             i,
             predictor,
             toy_sim,
             inc_train_num_each,
             inc_test_num_each,
+            train_features,
+            train_labels,
             running_train_cm,
             running_test_cm,
         )
