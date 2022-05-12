@@ -1,8 +1,72 @@
 """Open World Human Activity Recognition pipeline class."""
+import logging
+
 import torch
+
+from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 
 from arn.models.novelty_detector import WindowedMeanKLDiv
 from arn.torch_utils import torch_dtype
+from arn.data.kinetics_unified import KineticsUnifiedFeatures
+
+
+class EVMPredictor(ExtremeValueMachine):
+    """Wraps the ExtremeValueMachine so it works with KineticsUnifiedFeatures.
+
+    Attributes
+    ----------
+    see ExtremeValueMachine
+    """
+    def __init__(self, *args, **kwargs):
+        """Docstr hotfix cuz otherwise this is unnecessary...
+
+        Args
+        ----
+        see ExtremeValueMachine.__init__
+        """
+        super().__init__(*args, **kwargs)
+
+    def fit(self, dataset, val_dataset=None, *args, **kwargs):
+        if val_dataset is not None:
+            logging.warning(
+                'Given a validation dataset, but '
+                'the EVMPredictor does not support validation in fitting!'
+            )
+        if isinstance(dataset, KineticsUnifiedFeatures):
+            features = []
+            labels = []
+            for feature, label in dataset:
+                features.append(feature)
+                labels.append(label.argmax(-1))
+            return super().fit(
+                torch.stack(features),
+                torch.stack(labels),
+                *args,
+                **kwargs,
+            )
+        return super().fit(dataset, *args, **kwargs)
+
+    def predict(self, features, *args, **kwargs):
+        if isinstance(dataset, KineticsUnifiedFeatures):
+            return super().fit(
+                torch.Tensor(features),
+                #torch.stack([t for t in self._predict(features)]),
+                *args,
+                **kwargs,
+            )
+        return super().predict(features,  *args, **kwargs)
+
+    def novelty_detect(self, features, unknown_last_dim=True):
+        unknown_dim = -1 if unknown_last_dim else 0
+
+        if isinstance(dataset, KineticsUnifiedFeatures):
+            return super().fit(
+                torch.Tensor(features),
+                #torch.stack([t for t in self._predict(features)]),
+                *args,
+                **kwargs,
+            )[:, unknown_dim]
+        return super().predict(features,  *args, **kwargs)[:, unknown_dim]
 
 
 class OWHAPredictor(object):
