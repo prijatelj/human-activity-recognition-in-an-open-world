@@ -47,9 +47,9 @@ class EVMPredictor(ExtremeValueMachine):
         return super().fit(dataset, *args, **kwargs)
 
     def predict(self, features, *args, **kwargs):
-        if isinstance(dataset, KineticsUnifiedFeatures):
+        if isinstance(features, KineticsUnifiedFeatures):
             return super().fit(
-                torch.Tensor(features),
+                torch.stack(list(features)),
                 #torch.stack([t for t in self._predict(features)]),
                 *args,
                 **kwargs,
@@ -59,14 +59,12 @@ class EVMPredictor(ExtremeValueMachine):
     def novelty_detect(self, features, unknown_last_dim=True):
         unknown_dim = -1 if unknown_last_dim else 0
 
-        if isinstance(dataset, KineticsUnifiedFeatures):
+        if isinstance(features, KineticsUnifiedFeatures):
             return super().fit(
-                torch.Tensor(features),
-                #torch.stack([t for t in self._predict(features)]),
-                *args,
-                **kwargs,
+                torch.stack(list(features)),
+                unknown_last_dim,
             )[:, unknown_dim]
-        return super().predict(features,  *args, **kwargs)[:, unknown_dim]
+        return super().predict(features,  unknown_last_dim)[:, unknown_dim]
 
 
 class OWHAPredictor(object):

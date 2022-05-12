@@ -285,7 +285,11 @@ class KineticsOWL(object):
     Attributes
     ----------
     environment : KineticsOWLExperiment
-    predictor : OWHAPredictor
+    predictor : arn.models.owhar.EVMPredictor
+        OWHAPredictor
+        TODO docstr: support at least basic checking of multiple configurable
+        types. Or maybe just parse all of them as options and support so in
+        MultiType.
     feedback : str = 'oracle'
     rng_state : int = None
         Random seed.
