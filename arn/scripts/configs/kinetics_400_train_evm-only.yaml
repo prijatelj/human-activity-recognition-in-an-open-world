@@ -31,6 +31,7 @@ docstr:
     arn.models.owhar:
       - OWHAPredictor
       - EVMPredictor
+      - load_evm_predictor
     vast.opensetAlgos.extreme_value_machine:
       - ExtremeValueMachine
   main: run #KineticsOWL.run
@@ -38,7 +39,7 @@ docstr:
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig:
-      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/'
+      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/evm-only/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -53,7 +54,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/'
+      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/evm-only/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -88,7 +89,6 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   labels:
                     LabelConfig:
                       name: 'label_kinetics400'
-                      #known: True
                   kinetics400:
                     KineticsSplitConfig:
                       train: True
@@ -110,7 +110,6 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   labels:
                     LabelConfig:
                       name: 'label_kinetics400'
-                      #known: True
                   kinetics400:
                     KineticsSplitConfig:
                       validate: True
@@ -132,18 +131,18 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   labels:
                     LabelConfig:
                       name: 'label_kinetics400'
-                      #known: True
                   kinetics400:
                     KineticsSplitConfig:
                       test: True
   predictor:
-    EVMPredictor.load: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/evm-only/evm-only-state.h5
-    #EVMPredictor:
-    #  tail_size: 4000
-    #  cover_threshold: 0.7
-    #  distance_multiplier: 0.23
-    #  distance_metric: cosine
-    #  labels: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/train_known_labels.txt
-    #  device: cpu
-    #  chunk_size: 1
-    #  atol: 1e-5
+    #load_evm_predictor:
+    #  h5: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/evm-only/evm-only-state.h5
+    EVMPredictor:
+      tail_size: 4000
+      cover_threshold: 0.7
+      distance_multiplier: 1.0 # 0.23
+      distance_metric: cosine
+      labels: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/train_known_labels.txt
+      device: cpu
+      chunk_size: 1
+      atol: 1e-5
