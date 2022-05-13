@@ -1,5 +1,6 @@
 """Open World Human Activity Recognition pipeline class."""
 import logging
+import os
 
 import torch
 
@@ -10,53 +11,77 @@ from arn.torch_utils import torch_dtype
 from arn.data.kinetics_unified import KineticsUnifiedFeatures
 
 
+def load_evm_predictor(*args, **kwargs):
+    """Docstr hotfix cuz cannot easily link/use staticmethods as funcs.
+
+    Args
+    ----
+    h5 : str
+    skip_fit : bool = False
+    """
+    return EVMPredictor.load(load_cls=EVMPredictor, *args, **kwargs)
+
+
 class EVMPredictor(ExtremeValueMachine):
     """Wraps the ExtremeValueMachine so it works with KineticsUnifiedFeatures.
 
     Attributes
     ----------
+    skip_fit : bool = False
+        If True, skips all calls to fit(), never training the EVM.
     see ExtremeValueMachine
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, skip_fit=False, *args, **kwargs):
         """Docstr hotfix cuz otherwise this is unnecessary...
 
         Args
         ----
+        skip_fit : see self
         see ExtremeValueMachine.__init__
         """
         super().__init__(*args, **kwargs)
+        #self.store_preds # TODO speed up novelty detect from predict
+        self.skip_fit = skip_fit
 
     def fit(self, dataset, val_dataset=None, *args, **kwargs):
+        if self.skip_fit:
+            return
         if val_dataset is not None:
             logging.warning(
                 'Given a validation dataset, but '
                 'the EVMPredictor does not support validation in fitting!'
             )
+        # TODO handle being given unknowns in first dim of encoded labels!
         if isinstance(dataset, KineticsUnifiedFeatures):
             features = []
             labels = []
+            extra_ns = []
             for feature, label in dataset:
-                features.append(feature)
-                labels.append(label.argmax(-1))
+                label = label.argmax(-1) - 1
+                if label == -1: # Given unknown, rm from fitting.
+                    extra_ns.append(feature)
+                else:
+                    features.append(feature)
+                    labels.append()
             return super().fit(
                 torch.stack(features),
                 torch.stack(labels),
+                None if not extra_ns else torch.stack(extra_ns),
                 *args,
                 **kwargs,
             )
-        return super().fit(dataset, *args, **kwargs)
+        super().fit(dataset, *args, **kwargs)
 
-    def predict(self, features, *args, **kwargs):
+
+    def predict(self, features, unknown_last_dim=False):
         if isinstance(features, KineticsUnifiedFeatures):
             return super().predict(
                 torch.stack(list(features)),
-                #torch.stack([t for t in self._predict(features)]),
-                *args,
-                **kwargs,
+                unknown_last_dim,
             )
-        return super().predict(features,  *args, **kwargs)
+        return super().predict(features, unknown_last_dim)
 
-    def novelty_detect(self, features, unknown_last_dim=True):
+    def novelty_detect(self, features, unknown_last_dim=False):
         unknown_dim = -1 if unknown_last_dim else 0
 
         if isinstance(features, KineticsUnifiedFeatures):
