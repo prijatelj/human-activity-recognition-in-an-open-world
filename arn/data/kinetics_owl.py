@@ -285,7 +285,8 @@ class KineticsOWL(object):
     Attributes
     ----------
     environment : KineticsOWLExperiment
-    predictor : arn.models.owhar.EVMPredictor
+    predictor : arn.models.owhar.load_evm_predictor
+        arn.models.owhar.EVMPredictor
         OWHAPredictor
         TODO docstr: support at least basic checking of multiple configurable
         types. Or maybe just parse all of them as options and support so in
