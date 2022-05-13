@@ -48,7 +48,7 @@ class EVMPredictor(ExtremeValueMachine):
 
     def predict(self, features, *args, **kwargs):
         if isinstance(features, KineticsUnifiedFeatures):
-            return super().fit(
+            return super().predict(
                 torch.stack(list(features)),
                 #torch.stack([t for t in self._predict(features)]),
                 *args,
@@ -60,7 +60,7 @@ class EVMPredictor(ExtremeValueMachine):
         unknown_dim = -1 if unknown_last_dim else 0
 
         if isinstance(features, KineticsUnifiedFeatures):
-            return super().fit(
+            return super().predict(
                 torch.stack(list(features)),
                 unknown_last_dim,
             )[:, unknown_dim]
