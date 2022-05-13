@@ -1,0 +1,149 @@
+# The Open World Human Activity Recognition pipeline from given features
+# extracted from a feature representaiton model to the end. This will probably
+# be broken down into smaller chunks for convenience.
+
+docstr:
+  style: numpy
+  from import:
+    arn.data.kinetics_owl:
+      - EvalConfig
+      - EvalDataSplitConfig
+      - DataSplits
+      - KineticsOWL
+      - KineticsOWLExperiment
+    arn.data.kinetics_unified:
+      - KineticsUnified
+      - KineticsUnifiedFeatures
+      - KineticsSplitConfig
+      - KineticsUnifiedSubset
+      - LabelConfig
+      - KineticsRootDirs
+    arn.models.fine_tune:
+      - FineTuneFC
+    arn.models.fine_tune_lit:
+      - FineTuneLit
+      - FineTuneFCLit
+      - init_trainer
+      - init_ray_plugin
+      - init_tensorboard_logger
+    arn.models.novelty_detector:
+      - WindowedMeanKLDiv
+    arn.models.owhar:
+      - OWHAPredictor
+      - EVMPredictor
+    vast.opensetAlgos.extreme_value_machine:
+      - ExtremeValueMachine
+  main: run #KineticsOWL.run
+
+KineticsOWL: # Pipeline for the Open World Learning Data process
+  eval_config:
+    EvalConfig:
+      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  post_feedback_eval_config:
+    EvalConfig:
+      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  environment:
+    KineticsOWLExperiment:
+      start:
+        DataSplits:
+          train:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-train-file.log
+              annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
+              sample_dirs:
+                KineticsRootDirs:
+                  kinetics400_dir: x3d-features-k400/
+                  kinetics600_dir: x3d-features-k600/
+                  kinetics700_2020_dir: x3d-features-k700_2020/
+                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                      #known: True
+                  kinetics400:
+                    KineticsSplitConfig:
+                      train: True
+          validate:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-val-file.log
+              annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
+              sample_dirs:
+                KineticsRootDirs:
+                  kinetics400_dir: x3d-features-k400/
+                  kinetics600_dir: x3d-features-k600/
+                  kinetics700_2020_dir: x3d-features-k700_2020/
+                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                      #known: True
+                  kinetics400:
+                    KineticsSplitConfig:
+                      validate: True
+          test:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-test-file.log
+              annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
+              sample_dirs:
+                KineticsRootDirs:
+                  kinetics400_dir: x3d-features-k400/
+                  kinetics600_dir: x3d-features-k600/
+                  kinetics700_2020_dir: x3d-features-k700_2020/
+                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                      #known: True
+                  kinetics400:
+                    KineticsSplitConfig:
+                      test: True
+  predictor:
+    EVMPredictor.load: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/evm-only/evm-only-state.h5
+    #EVMPredictor:
+    #  tail_size: 4000
+    #  cover_threshold: 0.7
+    #  distance_multiplier: 0.23
+    #  distance_metric: cosine
+    #  labels: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/train_known_labels.txt
+    #  device: cpu
+    #  chunk_size: 1
+    #  atol: 1e-5
