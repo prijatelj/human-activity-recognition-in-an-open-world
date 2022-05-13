@@ -308,7 +308,7 @@ class LabelConfig(NamedTuple):
         The name of the label set expressed by this label configuration.
     known : list = True
         The known labels whose symbols are used as is.
-    unknown : list = None
+    unknown : list = True
         The labels that are kept but whose symbols are masked as `unknown`.
     unlabeled : list = None
         The labels that are kept but whose symbols are masked as `None`. This
@@ -329,8 +329,8 @@ class LabelConfig(NamedTuple):
             on the sorted unique labels from the knowns.
     """
     name : str
-    known : list = True # TODO Currently KineticsUnifiedFeatures does nothing with this!
-    unknown : list = None
+    known : list = True
+    unknown : list = True
     unlabeled : list = None
 
 
@@ -413,12 +413,17 @@ def subset_kinetics_unified(df, subset):
         label_set = set()
         if subset.labels.known is True: # Use all unique labels
             label_set |= set(df[subset.labels.name].unique())
-        elif subset.labels.known is not None:
+        elif subset.labels.known not in {None, False}:
             label_set |= set(subset.labels.known)
-        if subset.labels.unknown is not None:
+
+        if subset.labels.unknown is True: # Include 'unknown' label in unknowns
+            label_set |= set(['unknown'])
+        elif subset.labels.unknown not in {None, False}:
             label_set |= set(subset.labels.unknown)
+
         if subset.labels.unlabeled is not None:
             label_set |= set(subset.labels.unlabeled)
+
         # Update the mask to exlude all samples whose labels are not in config
         mask &= np.logical_or.reduce(
             [df[subset.labels.name] == label for label in label_set],
@@ -571,7 +576,8 @@ class KineticsUnified(torch.utils.data.Dataset):
                 self.data[['labels']] = self.data[[subset.labels.name]]
 
                 # Mask the unknowns and unlabeled samples.
-                if subset.labels.unknown is not None: # Mask the unknowns
+                if subset.labels.unknown not in {None, False, True}:
+                    # Mask the unknowns
                     self.data.loc[
                         np.logical_or.reduce(
                             [
@@ -607,7 +613,10 @@ class KineticsUnified(torch.utils.data.Dataset):
                         'subset.labels.known unexpected type!',
                         f'{type(subset.labels.known)}',
                     ]))
-                self.label_enc = NominalDataEncoder(labels)
+                self.label_enc = NominalDataEncoder(
+                    labels,
+                    unknown_key='unknown' if subset.labels.unknown else None,
+                )
             else:
                 logging.warning(
                     'subset given but no labels! No changes to DataFrame',
