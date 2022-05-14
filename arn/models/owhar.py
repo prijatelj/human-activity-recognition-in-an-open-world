@@ -62,7 +62,7 @@ class EVMPredictor(ExtremeValueMachine):
                     extra_ns.append(feature)
                 else:
                     features.append(feature)
-                    labels.append()
+                    labels.append(label)
             return super().fit(
                 torch.stack(features),
                 torch.stack(labels),
@@ -100,7 +100,8 @@ class OWHAPredictor(object):
 
     Attributes
     ----------
-    fine_tune: arn.models.fine_tune_lit.FineTuneLit
+    fine_tune: arn.models.fine_tune.FineTune
+        arn.models.fine_tune_lit.FineTuneLit
     novelty_detector: WindowedMeanKLDiv
     feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
     """
