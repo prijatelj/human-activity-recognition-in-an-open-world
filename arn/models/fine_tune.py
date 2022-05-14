@@ -75,7 +75,10 @@ class FineTune(object):
         self.dtype = torch_dtype(dtype)
 
         # Optimizer things
-        self.loss = loss
+        if loss is None:
+            self.loss = torch.nn.BCEWithLogitsLoss()
+        else:
+            self.loss = loss
         self.lr = lr
         self.optimizer_cls = torch.optim.Adam
 
@@ -189,7 +192,7 @@ class FineTune(object):
                 if verbose:
                     print("New Best " + str(tot_cls_loss))
                     print("Train Accuracy: " + tacc)
-                    print("Val Accuracy: " + str(right / v_len))
+                    print("Val Accuracy: " + str(right / val_len))
 
         self.model = model
 
@@ -201,9 +204,6 @@ class FineTune(object):
         acc = (
             labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
         ).to(float).mean()
-
-        #self.log('train_loss', loss)
-        #self.log('train_accuracy', acc)
 
         return loss
 
@@ -217,19 +217,41 @@ class FineTune(object):
         -------
         torch.Tensor
         """
-        return self.model.fcs(features.to(self.device, self.dtype))
+        if isinstance(torch.Tensor):
+            return self.model.fcs(features)
+
+        dataset = get_kinetics_uni_dataloader(
+            features,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            pin_memory=self.pin_memory,
+        )
+
+        preds = []
+        for i, x in enumerate(dataset):
+            preds.append(self.model.fcs(x))
+
+        return torch.stack(preds)
 
     def predict(self, features):
-        # TODO If this eval/fwd pass loop overlaps with training loop, reuse
-        # the code by function call, otherwise just do eval loop here. more
-        # likely the training loop would use this at least in validation.
+        # Why softmax when the model has softmax? Should be just torch.exp()
+        if isinstance(torch.Tensor):
+            return F.softmax(self.model(features)[1].detach(), dim=1)
 
-        # NOTE for our paper, we want this with ability to find a threshold
-        # from all train and val data.
-        features, prediction = self.model(features.to(self.device, self.dtype))
-        # Why softmax when the model has softmax?
-        prediction = F.softmax(prediction.detach(), dim=1)
-        return prediction
+        dataset = get_kinetics_uni_dataloader(
+            features,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            pin_memory=self.pin_memory,
+        )
+
+        preds = []
+        for i, x in enumerate(dataset):
+            preds.append(F.softmax(self.model(x)[1], dim=1))
+
+        return torch.stack(preds)#.detach()
 
     def save(self, filepath):
         torch.save(self.model, filepath)
