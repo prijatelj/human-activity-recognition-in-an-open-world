@@ -82,7 +82,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   kinetics600_dir: x3d-features-k600/
                   kinetics700_2020_dir: x3d-features-k700_2020/
                   root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
-              device: cuda
+              device: cpu
               dtype: float32
               subset:
                 KineticsUnifiedSubset:
@@ -103,7 +103,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   kinetics600_dir: x3d-features-k600/
                   kinetics700_2020_dir: x3d-features-k700_2020/
                   root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
-              device: cuda
+              device: cpu
               dtype: float32
               subset:
                 KineticsUnifiedSubset:
@@ -124,7 +124,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   kinetics600_dir: x3d-features-k600/
                   kinetics700_2020_dir: x3d-features-k700_2020/
                   root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
-              device: cuda
+              device: cpu
               dtype: float32
               subset:
                 KineticsUnifiedSubset:
@@ -142,7 +142,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
       cover_threshold: 0.7
       distance_multiplier: 1.0 # 0.23
       distance_metric: cosine
-      labels: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/train_known_labels.txt
+      labels: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/train_known_labels.csv
       device: cpu
       chunk_size: 1
       atol: 1e-5
