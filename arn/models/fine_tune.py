@@ -153,8 +153,8 @@ class FineTune(object):
 
                 right += torch.sum(
                     torch.eq(
-                        torch.argmax(prediction, dim=1),
-                        torch.argmax(slabels, dim=1)
+                        torch.argmax(prediction, dim=-1),
+                        torch.argmax(slabels, dim=-1)
                     ).int()
                 ).cpu().numpy()
 
@@ -181,8 +181,8 @@ class FineTune(object):
                 prediction = model(sfeatures)[1]
                 right += torch.sum(
                     torch.eq(
-                        torch.argmax(prediction, dim=1),
-                        torch.argmax(slabels, dim=1)
+                        torch.argmax(prediction, dim=-1),
+                        torch.argmax(slabels, dim=-1)
                     ).int()
                 ).cpu().numpy()
                 loss = self.loss(prediction, slabels)
@@ -244,7 +244,7 @@ class FineTune(object):
         self.model.eval()
 
         if isinstance(features, torch.Tensor):
-            return F.softmax(self.model(features)[1].detach(), dim=1)
+            return F.softmax(self.model(features)[1].detach(), dim=-1)
 
         dataset = get_kinetics_uni_dataloader(
             features,
@@ -256,7 +256,7 @@ class FineTune(object):
 
         preds = []
         for i, x in enumerate(dataset):
-            preds.append(F.softmax(self.model(x)[1], dim=1))
+            preds.append(F.softmax(self.model(x)[1], dim=-1))
 
         return torch.concat(preds)#.detach()
         #return torch.stack(preds)#.detach()

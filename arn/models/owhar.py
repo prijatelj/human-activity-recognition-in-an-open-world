@@ -64,9 +64,9 @@ class EVMPredictor(ExtremeValueMachine):
                     features.append(feature)
                     labels.append(label)
             return super().fit(
-                torch.concat(features)#torch.stack(features),
-                torch.concat(labels)#torch.stack(labels),
-                None if not extra_ns else torch.concat(extra_ns)#torch.stack(extra_ns),
+                torch.concat(features), #torch.stack(features),
+                torch.concat(labels), #torch.stack(labels),
+                None if not extra_ns else torch.concat(extra_ns), #torch.stack(extra_ns),
                 *args,
                 **kwargs,
             )
