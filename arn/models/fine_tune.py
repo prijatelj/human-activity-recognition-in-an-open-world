@@ -141,6 +141,7 @@ class FineTune(object):
             tot_cls_loss = 0.0
             right = 0
 
+            model.train()
             for i, x in enumerate(dataset):
                 torch.autograd.set_grad_enabled(True)
 
@@ -159,9 +160,9 @@ class FineTune(object):
 
                 loss = self.loss(prediction, slabels)
 
+                optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                optimizer.zero_grad()
 
                 tot_cls_loss += loss.item()
             tacc = str(right / train_len)
@@ -171,6 +172,7 @@ class FineTune(object):
             if val_dataset is None: # Skip validation
                 continue
 
+            model.eval()
             for i, x in enumerate(val_dataset):
                 torch.autograd.set_grad_enabled(False)
                 sfeatures, slabels = x
@@ -217,7 +219,9 @@ class FineTune(object):
         -------
         torch.Tensor
         """
-        if isinstance(torch.Tensor):
+        self.model.eval()
+
+        if isinstance(features, torch.Tensor):
             return self.model.fcs(features)
 
         dataset = get_kinetics_uni_dataloader(
@@ -232,11 +236,14 @@ class FineTune(object):
         for i, x in enumerate(dataset):
             preds.append(self.model.fcs(x))
 
-        return torch.stack(preds)
+        return torch.concat(preds)
+        #return torch.stack(preds)
 
     def predict(self, features):
         # Why softmax when the model has softmax? Should be just torch.exp()
-        if isinstance(torch.Tensor):
+        self.model.eval()
+
+        if isinstance(features, torch.Tensor):
             return F.softmax(self.model(features)[1].detach(), dim=1)
 
         dataset = get_kinetics_uni_dataloader(
@@ -251,7 +258,8 @@ class FineTune(object):
         for i, x in enumerate(dataset):
             preds.append(F.softmax(self.model(x)[1], dim=1))
 
-        return torch.stack(preds)#.detach()
+        return torch.concat(preds)#.detach()
+        #return torch.stack(preds)#.detach()
 
     def save(self, filepath):
         torch.save(self.model, filepath)
