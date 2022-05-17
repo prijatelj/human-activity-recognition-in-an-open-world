@@ -67,7 +67,10 @@ class EvalDataSplitConfig(NamedTuple):
 
         if self.pred_dir:
             if isinstance(preds, torch.Tensor):
-                preds = preds.numpy()
+                if preds.device.type == 'cuda':
+                    preds = preds.cpu().numpy()
+                else:
+                    preds = preds.numpy()
 
             if self.save_preds_with_labels:
                 if data_split.one_hot:
@@ -109,7 +112,10 @@ class EvalDataSplitConfig(NamedTuple):
 
         if self.eval_dir:
             if isinstance(preds, torch.Tensor):
-                preds = preds.numpy()
+                if preds.device.type == 'cuda':
+                    preds = preds.cpu().numpy()
+                else:
+                    preds = preds.numpy()
             if labels is None:
                 labels = [row[1].numpy for row in data_split]
 
@@ -285,9 +291,9 @@ class KineticsOWL(object):
     Attributes
     ----------
     environment : KineticsOWLExperiment
-    predictor : arn.models.owhar.load_evm_predictor
-        arn.models.owhar.EVMPredictor
-        OWHAPredictor
+    predictor : OWHAPredictor
+        predictor : arn.models.owhar.EVMPredictor
+        arn.models.owhar.load_evm_predictor
         TODO docstr: support at least basic checking of multiple configurable
         types. Or maybe just parse all of them as options and support so in
         MultiType.
@@ -418,6 +424,10 @@ class KineticsOWL(object):
             #for task_id in self.tasks:
             #    pass
 
+            logging.info(
+                "Eval for new data, no feedbcak, for step %d.",
+                self.increment,
+            )
             self.eval_config.eval(
                 new_data_splits,
                 self.predictor.predict,
@@ -448,6 +458,11 @@ class KineticsOWL(object):
             )
             new_data_splits = self.environment.feedback(new_data_splits)
 
+            logging.info(
+                "Updating with feedback (%s) for step %d's data.",
+                self.feedback,
+                self.increment,
+            )
             if self.experience:
                 # Add new data to experience
                 self.experience.update(new_data_splits)
@@ -463,6 +478,11 @@ class KineticsOWL(object):
                     new_data_splits.validate,
                 )
 
+            logging.info(
+                "Post-feedback Eval (%s) for step %d.",
+                self.feedback,
+                self.increment,
+            )
             # 5. Opt. Predictor eval post update
             self.post_feedback_eval_config.eval(
                 new_data_splits,
