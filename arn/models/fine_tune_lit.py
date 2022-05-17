@@ -370,7 +370,7 @@ class FineTuneLit(object):
         return preds
 
     def predict(self, features):
-        return torch.stack([t[1] for t in self._predict(features)])
+        return torch.concat([t[1] for t in self._predict(features)])
 
     def extract(self, features):
-        return torch.stack([t[0] for t in self._predict(features)])
+        return torch.concat([t[0] for t in self._predict(features)])

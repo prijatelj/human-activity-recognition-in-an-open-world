@@ -64,9 +64,9 @@ class EVMPredictor(ExtremeValueMachine):
                     features.append(feature)
                     labels.append(label)
             return super().fit(
-                torch.stack(features),
-                torch.stack(labels),
-                None if not extra_ns else torch.stack(extra_ns),
+                torch.concat(features)#torch.stack(features),
+                torch.concat(labels)#torch.stack(labels),
+                None if not extra_ns else torch.concat(extra_ns)#torch.stack(extra_ns),
                 *args,
                 **kwargs,
             )
@@ -76,7 +76,8 @@ class EVMPredictor(ExtremeValueMachine):
     def predict(self, features, unknown_last_dim=False):
         if isinstance(features, KineticsUnifiedFeatures):
             return super().predict(
-                torch.stack(list(features)),
+                torch.concat(list(features)),
+                #torch.stack(list(features)),
                 unknown_last_dim,
             )
         return super().predict(features, unknown_last_dim)
@@ -86,7 +87,8 @@ class EVMPredictor(ExtremeValueMachine):
 
         if isinstance(features, KineticsUnifiedFeatures):
             return super().predict(
-                torch.stack(list(features)),
+                torch.concat(list(features)),
+                #torch.stack(list(features)),
                 unknown_last_dim,
             )[:, unknown_dim]
         return super().predict(features,  unknown_last_dim)[:, unknown_dim]
