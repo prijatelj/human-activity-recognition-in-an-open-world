@@ -66,8 +66,8 @@ def get_filename(
 
 
 def get_kinetics_uni_dataloader(dataset, *args, **kwargs):
-    """Get torch DataLoader of a KineticsUnifiedFeatures (subclass) dataset."""
-    if isinstance(dataset, KineticsUnifiedFeatures):
+    """Get torch DataLoader of a KineticsUnified (subclass) dataset."""
+    if isinstance(dataset, KineticsUnified):
         return torch.utils.data.DataLoader(dataset, *args, **kwargs)
     elif isinstance(dataset, torch.Tensor):
         return torch.utils.data.DataLoader(
