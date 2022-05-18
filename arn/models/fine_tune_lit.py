@@ -180,11 +180,14 @@ class FineTuneFCLit(pl.LightningModule):
         #print(labels.argmax(1).unique())
         #print(F.softmax(classifications, 1).argmax(1).unique())
 
-        print('TRAINING STEP WHAAAAHOOO!')
-        print('self.training', self.training)
-        print('self.model.training', self.model.training)
-        print('classifications.requires_grad', classifications.requires_grad)
-        print('labels.requires_grad', labels.requires_grad)
+        logging.debug('within training_step()')
+        logging.debug('self.training: %s', self.training)
+        logging.debug('self.model.training: %s', self.model.training)
+        logging.debug(
+            'classifications.requires_grad: %s',
+            classifications.requires_grad,
+        )
+        logging.debug('labels.requires_grad: %s', labels.requires_grad)
 
         loss = self.loss(classifications, labels)
         print('loss.requires_grad', loss.requires_grad)
