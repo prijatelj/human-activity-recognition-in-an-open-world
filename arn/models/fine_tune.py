@@ -331,6 +331,7 @@ class FineTuneFC(nn.Module):
         activation=nn.LeakyReLU,
         dropout=None,
         dropout_feature_repr=True,
+        act_on_input=False,
     ):
         """Fine-tuning ANN consisting of fully-connected dense layers.
 
@@ -360,10 +361,12 @@ class FineTuneFC(nn.Module):
             Defaults to None, meaning no dropout is applied.
         dropout_feature_repr : bool = True
             If True, dropout is applied to the last hidden layer.
+        act_on_input : bool = False
+            If True, dropout and the activation is applied to the inputs first.
         """
         super().__init__()
-        if depth < 2:
-            raise ValueError('Depth less than 2 is not supported!')
+        if depth < 1:
+            raise ValueError('Depth less than 1!')
         if feature_repr_width is None:
             feature_repr_width = width
 
@@ -377,21 +380,40 @@ class FineTuneFC(nn.Module):
             raise ValueError('Length of dropout does not match depth!')
 
         ord_dict = OrderedDict()
-        dense_layer(ord_dict, 0, input_size, width, dropout, activation)
+
+        if act_on_input:
+            # TODO test this, dunno if it works w/o an input layer provided.
+            if dropout and isinstance(dropout, float):
+                ord_dict[f'Dropout-input'] = nn.Dropout(dropout, True)
+            elif dropout:
+                ord_dict[f'Dropout-input'] = nn.Dropout(dropout[0], True)
+
+            if activation is not None:
+                ord_dict[f'{activation.__name__}-input'] = activation()
+
+        dense_layer(
+            ord_dict,
+            0,
+            input_size,
+            width if depth == 1 else feature_repr_width,
+            dropout if depth == 1 and dropout_feature_repr else None,
+            activation,
+        )
 
         # NOTE that depth includes input and the feature_repr_width can be diff
         for x in range(1, depth-1):
             dense_layer(ord_dict, x, width, width, dropout, activation)
 
         # Final dense / fully connected layer as output feature representation
-        dense_layer(
-            ord_dict,
-            depth - 1,
-            width,
-            feature_repr_width,
-            dropout if dropout_feature_repr else None,
-            activation,
-        )
+        if depth > 1:
+            dense_layer(
+                ord_dict,
+                depth - 1,
+                width,
+                feature_repr_width,
+                dropout if dropout_feature_repr else None,
+                activation,
+            )
 
         self.fcs = nn.Sequential(ord_dict)
         self.classifier = nn.Linear(feature_repr_width, n_classes)
