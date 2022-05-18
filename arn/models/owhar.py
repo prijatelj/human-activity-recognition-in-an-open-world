@@ -64,8 +64,8 @@ class EVMPredictor(ExtremeValueMachine):
                     features.append(feature)
                     labels.append(label)
             return super().fit(
-                torch.concat(features), #torch.stack(features),
-                torch.concat(labels), #torch.stack(labels),
+                torch.stack(features), #torch.concat(features),
+                torch.stack(labels), #torch.concat(labels),
                 None if not extra_ns else torch.concat(extra_ns), #torch.stack(extra_ns),
                 *args,
                 **kwargs,
@@ -87,8 +87,8 @@ class EVMPredictor(ExtremeValueMachine):
 
         if isinstance(features, KineticsUnifiedFeatures):
             return super().predict(
-                torch.concat(list(features)),
-                #torch.stack(list(features)),
+                #torch.concat(list(features)),
+                torch.stack(list(features)),
                 unknown_last_dim,
             )[:, unknown_dim]
         return super().predict(features,  unknown_last_dim)[:, unknown_dim]
@@ -102,8 +102,8 @@ class OWHAPredictor(object):
 
     Attributes
     ----------
-    fine_tune: arn.models.fine_tune.FineTune
-        arn.models.fine_tune_lit.FineTuneLit
+    fine_tune: arn.models.fine_tune_lit.FineTuneLit
+        fine_tune: arn.models.fine_tune.FineTune
     novelty_detector: WindowedMeanKLDiv
     feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
     """
