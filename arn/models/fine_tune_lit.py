@@ -235,11 +235,13 @@ class FineTuneFCLit(pl.LightningModule):
             )
 
             # Log Gradients
+            """
             self.logger.experiment.add_histogram(
                 f'{name}-grad',
                 params.grad,
                 self.current_epoch,
             )
+            #"""
 
     def forward(self, x):
         return self.model(x)
