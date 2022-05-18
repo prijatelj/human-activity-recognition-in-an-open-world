@@ -140,6 +140,10 @@ class FineTuneFCLit(pl.LightningModule):
         TODO in docstr add support for `see FineTuneFC.__init__`
     lr : float = 0.001
         The learning rate for the optimizer.
+    weight_decay : float = 0
+        The learning rate for the optimizer.
+    amsgrad : bool = False
+        If True, uses AMSGrad variant of ADAM.
 
     Notes
     -----
@@ -147,7 +151,16 @@ class FineTuneFCLit(pl.LightningModule):
         In docstr, add see across classes/objects in general, not just in
         functions for self.
     """
-    def __init__(self, model, loss=None, lr=0.001, *args, **kwargs):
+    def __init__(
+        self,
+        model,
+        loss=None,
+        lr=0.001,
+        weight_decay=0,
+        amsgrad=False,
+        *args,
+        **kwargs,
+    ):
         """Initialize the FineTune model
 
         Args
@@ -163,9 +176,16 @@ class FineTuneFCLit(pl.LightningModule):
             self.loss = loss
 
         self.lr = lr
+        self.weight_decay = weight_decay
+        self.amsgrad = amsgrad
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), self.lr)
+        return torch.optim.Adam(
+            self.parameters(),
+            lr=self.lr,
+            weight_decay=self.weight_decay,
+            amsgrad=self.amsgrad,
+        )
 
     def training_step(self, batch, batch_idx):
         inputs, labels = batch
