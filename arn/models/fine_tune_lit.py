@@ -190,7 +190,7 @@ class FineTuneFCLit(pl.LightningModule):
         logging.debug('labels.requires_grad: %s', labels.requires_grad)
 
         loss = self.loss(classifications, labels)
-        print('loss.requires_grad', loss.requires_grad)
+        logging.debug('loss.requires_grad', loss.requires_grad)
         acc = (
             labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
         ).to(float).mean()
