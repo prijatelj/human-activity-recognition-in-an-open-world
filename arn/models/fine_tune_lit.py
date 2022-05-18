@@ -172,11 +172,22 @@ class FineTuneFCLit(pl.LightningModule):
         fine_tune_reprs, classifications = self.model(inputs)
 
         #ipdb.set_trace()
+        if len(classifications.shape) == 1:
+            classifications = classifications.reshape(1, -1)
+        if len(labels.shape) == 1:
+            labels = labels.reshape(1, -1)
 
         #print(labels.argmax(1).unique())
         #print(F.softmax(classifications, 1).argmax(1).unique())
 
+        print('TRAINING STEP WHAAAAHOOO!')
+        print('self.training', self.training)
+        print('self.model.training', self.model.training)
+        print('classifications.requires_grad', classifications.requires_grad)
+        print('labels.requires_grad', labels.requires_grad)
+
         loss = self.loss(classifications, labels)
+        print('loss.requires_grad', loss.requires_grad)
         acc = (
             labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
         ).to(float).mean()
@@ -217,6 +228,11 @@ class FineTuneFCLit(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         inputs, labels = batch
         fine_tune_reprs, classifications = self.model(inputs)
+
+        if len(classifications.shape) == 1:
+            classifications = classifications.reshape(1, -1)
+        if len(labels.shape) == 1:
+            labels = labels.reshape(1, -1)
 
         loss = self.loss(classifications, labels)
         acc = (
@@ -370,7 +386,11 @@ class FineTuneLit(object):
         return preds
 
     def predict(self, features):
-        return torch.concat([t[1] for t in self._predict(features)])
+        if self.batch_size >1:
+            return torch.concat([t[1] for t in self._predict(features)])
+        return torch.stack([t[1] for t in self._predict(features)])
 
     def extract(self, features):
-        return torch.concat([t[0] for t in self._predict(features)])
+        if self.batch_size >1:
+            return torch.concat([t[0] for t in self._predict(features)])
+        return torch.stack([t[0] for t in self._predict(features)])
