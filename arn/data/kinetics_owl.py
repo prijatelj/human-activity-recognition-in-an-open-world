@@ -287,6 +287,9 @@ class DataSplits(NamedTuple):
 
 class KineticsOWL(object):
     """Kinetics Open World Learning Pipeline for incremental recognition.
+    This is the class that contains all other objects to run an experiment
+    for Kinetics, including the Kinetics datasets, the predictor, and
+    evaluation code. This serves as the glue between them all.
 
     Attributes
     ----------
