@@ -31,6 +31,8 @@ docstr:
     arn.models.owhar:
       - OWHAPredictor
   main: run #KineticsOWL.run
+  log_sink: stdout
+  log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:

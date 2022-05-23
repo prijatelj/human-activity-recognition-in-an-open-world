@@ -2,7 +2,6 @@
 from collections import namedtuple
 from dataclasses import dataclass, InitVar
 from functools import partial
-import logging
 import os
 from typing import NamedTuple
 
@@ -16,6 +15,9 @@ from torchvision.transforms import Compose, ToTensor
 from arn.data.dataloader_utils import status_video_frame_loader
 from arn.torch_utils import torch_dtype
 from exputils.data.labels import NominalDataEncoder
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 def load_file_list(path):
@@ -67,21 +69,30 @@ def get_filename(
 
 def get_kinetics_uni_dataloader(dataset, *args, **kwargs):
     """Get torch DataLoader of a KineticsUnified (subclass) dataset."""
+    logger.debug('`type(dataset)` = %s', type(dataset))
+
     if isinstance(dataset, KineticsUnified):
+        logger.debug('`len(dataset)` = %s', len(dataset))
         return torch.utils.data.DataLoader(dataset, *args, **kwargs)
     elif isinstance(dataset, torch.Tensor):
+        logger.debug('`len(dataset)` = %s', len(dataset))
         return torch.utils.data.DataLoader(
             torch.utils.data.TensorDataset(dataset),
             *args,
             **kwargs,
         )
     elif isinstance(dataset, (list, tuple)):
+        logger.debug('dataset is list: `len(dataset)` = %s', len(dataset))
         for is_tensor in dataset:
             if not isinstance(is_tensor, torch.Tensor):
                 raise TypeError(' '.join([
                     'If dataset a list or tuple, all elements must be',
                     f'torch.Tensor not `{type(is_tensor)}`',
                 ]))
+            logger.debug(
+                'dataset is list: `len(is_tensor)` = %s',
+                len(is_tensor),
+            )
         return torch.utils.data.DataLoader(
             torch.utils.data.TensorDataset(*dataset),
             *args,
@@ -89,6 +100,8 @@ def get_kinetics_uni_dataloader(dataset, *args, **kwargs):
         )
     elif not isinstance(dataset, torch.utils.data.DataLoader):
         raise TypeError(f'Unexpected dataset type: `{type(dataset)}`')
+
+    logger.debug('`len(dataset)` = %s', len(dataset))
     return dataset
 
 
@@ -618,7 +631,7 @@ class KineticsUnified(torch.utils.data.Dataset):
                     unknown_key='unknown' if subset.labels.unknown else None,
                 )
             else:
-                logging.warning(
+                logger.warning(
                     'subset given but no labels! No changes to DataFrame',
                 )
         #else:
@@ -748,7 +761,7 @@ class KineticsUnifiedFeatures(KineticsUnified):
             ).squeeze().to(self.dtype)
         except FileNotFoundError as e:
             if self.log_warn_file_not_found:
-                logging.warning('%s: %s', e.strerror, e.filename)
+                logger.warning('%s: %s', e.strerror, e.filename)
                 return None
             else:
                 raise e

@@ -10,8 +10,8 @@ Actuators: Feedback request system
     - Feedback Translation?
 """
 from dataclasses import dataclass, InitVar
-import logging
 import os
+import sys
 from typing import NamedTuple
 
 import numpy as np
@@ -29,6 +29,9 @@ from exputils.data.labels import NominalDataEncoder
 from exputils.data.confusion_matrix import ConfusionMatrix
 from exputils.data.ordered_confusion_matrix import OrderedConfusionMatrices
 from exputils.io import create_filepath
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class EvalDataSplitConfig(NamedTuple):
@@ -62,6 +65,19 @@ class EvalDataSplitConfig(NamedTuple):
         return self.pred_dir is not None or self.eval_dir is not None
 
     def eval(self, data_split, preds, measures, prefix=None):
+        """Evaluated the predictions to the given datasplit using the measures.
+
+        Args
+        ----
+        data_split : DataSplit
+        preds : torch.Tensor
+        measures : list
+            List of measures to use as either a string identifier or callable
+            object expecting two parameters of (reference labels, predictions)
+        prefix : str = None
+            The prefix to concatenate at the beginning of `self.file_prefix`
+            to create the resulting filepath for storing the measures.
+        """
         prefix = os.path.join(prefix, self.file_prefix)
         labels = None
 
@@ -136,12 +152,43 @@ class EvalDataSplitConfig(NamedTuple):
                         data_split.label_enc,
                         5,
                     )
+                    if logging.root.isEnabledFor(logging.DEBUG):
+                        logger.debug(
+                            'OrderedConfusionMatrices: top-5 accuracy: %.4f',
+                            measurements.accuracy(5),
+                        )
+                        logger.debug(
+                            'OrderedConfusionMatrices: top-1 accuracy: %.4f',
+                            measurements.accuracy(),
+                        )
+                        cm = measurements.get_conf_mat()
+                        logger.debug(
+                            'OrderedConfusionMatrices (CM): top-1 '
+                            'accuracy: %.4f',
+                            cm.accuracy(),
+                        )
+                        logger.debug(
+                            'OrderedConfusionMatrices (CM): top-1 MCC: %.4f',
+                            cm.mcc(),
+                        )
+                        logger.debug(
+                            'OrderedConfusionMatrices (CM): top-1 '
+                            'Mutual Information: %.4f',
+                            cm.mutual_information(),
+                        )
+                        logger.debug(
+                            'OrderedConfusionMatrices (CM): top-1 '
+                            'Arithmetic Normalized Mutual Information: %.4f',
+                            cm.mutual_information('arithmetic'),
+                        )
                     measurements.save(os.path.join(prefix, 'preds_top-cm.h5'))
                 else:
                     raise NotImplementedError('TODO: non-confusion matrix.')
                     measurements = measure(labels, preds)
                     # TODO scalars? store in dict?
                     # TODO Tensorboard hook?
+                    # TODO some callable object: scalar, tensors, etc.
+                    #   Simply take the callable object's name if available.
 
 
 @dataclass
@@ -223,7 +270,7 @@ class EvalConfig:
 
         for name, dsplit in data_splits._asdict().items():
             if dsplit is not None and self.train:
-                logging.info("Predicting `label` for `%s`'s %s.", prefix, name)
+                logger.info("Predicting `label` for `%s`'s %s.", prefix, name)
 
                 reset_return_label = dsplit.return_label
                 if dsplit.return_label:
@@ -349,8 +396,7 @@ class KineticsOWL(object):
         post_feedback_eval_config=None,
         tasks=None,
         maintain_experience=False,
-        labels=None
-        # configure logging ...
+        labels=None,
         # configure state saving ...
     ):
         """Initialize the KineticsOWL experiment.
@@ -417,7 +463,7 @@ class KineticsOWL(object):
     def step(self, state=None):
         """The incremental step in incremental learning of Kinetics OWL."""
         # 1. Get new data (input samples only)
-        logging.info("Getting step %d's data.", self.increment + 1)
+        logger.info("Getting step %d's data.", self.increment + 1)
         new_data_splits = self.environment.step()
 
         # 2. Inference/Eval on new data if self.eval_untrained_start
@@ -427,7 +473,7 @@ class KineticsOWL(object):
             #for task_id in self.tasks:
             #    pass
 
-            logging.info(
+            logger.info(
                 "Eval for new data, no feedbcak, for step %d.",
                 self.increment,
             )
@@ -454,14 +500,14 @@ class KineticsOWL(object):
 
         if self.feedback == 'oracle':
             # 3. Opt. Feedback on this step's new data
-            logging.info(
+            logger.info(
                 "Requesting feedback (%s) for step %d's data.",
                 self.feedback,
                 self.increment,
             )
             new_data_splits = self.environment.feedback(new_data_splits)
 
-            logging.info(
+            logger.info(
                 "Updating with feedback (%s) for step %d's data.",
                 self.feedback,
                 self.increment,
@@ -481,7 +527,7 @@ class KineticsOWL(object):
                     new_data_splits.validate,
                 )
 
-            logging.info(
+            logger.info(
                 "Post-feedback Eval (%s) for step %d.",
                 self.feedback,
                 self.increment,
@@ -505,8 +551,8 @@ class KineticsOWL(object):
     def run(self, max_steps=None, tqdm=None):
         """The entire experiment run loop."""
         for i in range(self.environment.total_increments):
-            logging.info("Starting this run's step: %d", i + 1)
-            logging.info("Increment: %d", self.increment + 1)
+            logger.info("Starting this run's step: %d", i + 1)
+            logger.info("Increment: %d", self.increment + 1)
             self.step()
 
 

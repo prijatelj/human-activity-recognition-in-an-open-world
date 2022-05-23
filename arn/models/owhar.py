@@ -1,5 +1,4 @@
 """Open World Human Activity Recognition pipeline class."""
-import logging
 import os
 
 import torch
@@ -9,6 +8,9 @@ from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 from arn.models.novelty_detector import WindowedMeanKLDiv
 from arn.torch_utils import torch_dtype
 from arn.data.kinetics_unified import KineticsUnifiedFeatures
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 def load_evm_predictor(*args, **kwargs):
@@ -47,7 +49,7 @@ class EVMPredictor(ExtremeValueMachine):
         if self.skip_fit:
             return
         if val_dataset is not None:
-            logging.warning(
+            logger.warning(
                 'Given a validation dataset, but '
                 'the EVMPredictor does not support validation in fitting!'
             )

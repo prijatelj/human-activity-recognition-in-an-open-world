@@ -84,7 +84,7 @@ class FineTune(object):
 
         # TODO Torch checkpoint stuffs
 
-        # TODO TensorBoard logger stuffs
+        # TODO TensorBoard logging stuffs
 
     def configure_optimizer(self):
         """Re-init optimizer every fitting."""
@@ -236,12 +236,19 @@ class FineTune(object):
         for i, x in enumerate(dataset):
             preds.append(self.model.fcs(x))
 
-        return torch.concat(preds)
-        #return torch.stack(preds)
+        if self.batch_size > 1:
+            return torch.concat(preds)
+        return torch.stack(preds)
 
     def predict(self, features):
         # Why softmax when the model has softmax? Should be just torch.exp()
         self.model.eval()
+
+        logging.debug(
+            '%s.predict() given features of type: %s',
+            self.__name__,
+            type(features),
+        )
 
         if isinstance(features, torch.Tensor):
             return F.softmax(self.model(features)[1].detach(), dim=-1)
@@ -258,8 +265,9 @@ class FineTune(object):
         for i, x in enumerate(dataset):
             preds.append(F.softmax(self.model(x)[1], dim=-1))
 
-        return torch.concat(preds)#.detach()
-        #return torch.stack(preds)#.detach()
+        if self.batch_size > 1:
+            return torch.concat(preds)
+        return torch.stack(preds)
 
     def save(self, filepath):
         torch.save(self.model, filepath)

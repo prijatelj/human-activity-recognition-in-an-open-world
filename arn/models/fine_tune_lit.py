@@ -1,5 +1,4 @@
 """FineTune written in Pytorch Lightning for simplicty."""
-import logging
 from collections import OrderedDict
 
 import pytorch_lightning as pl
@@ -12,7 +11,8 @@ F = torch.nn.functional
 from arn.models.fine_tune import FineTuneFC
 from arn.data.kinetics_unified import get_kinetics_uni_dataloader
 
-#import IPython.terminal.debugger as ipdb
+import logging
+logger = logging.getLogger(__name__)
 
 
 def init_ray_plugin(
@@ -200,17 +200,19 @@ class FineTuneFCLit(pl.LightningModule):
         #print(labels.argmax(1).unique())
         #print(F.softmax(classifications, 1).argmax(1).unique())
 
-        logging.debug('within training_step()')
-        logging.debug('self.training: %s', self.training)
-        logging.debug('self.model.training: %s', self.model.training)
-        logging.debug(
+        """
+        logger.debug('within training_step()')
+        logger.debug('self.training: %s', self.training)
+        logger.debug('self.model.training: %s', self.model.training)
+        logger.debug(
             'classifications.requires_grad: %s',
             classifications.requires_grad,
         )
-        logging.debug('labels.requires_grad: %s', labels.requires_grad)
+        logger.debug('labels.requires_grad: %s', labels.requires_grad)
+        #"""
 
         loss = self.loss(classifications, labels)
-        logging.debug('loss.requires_grad', loss.requires_grad)
+        #logger.debug('loss.requires_grad: %s', loss.requires_grad)
         acc = (
             labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
         ).to(float).mean()
@@ -394,28 +396,28 @@ class FineTuneLit(object):
             ),
             return_predictions=True,
         )
-        logging.debug('type(preds): %s', type(preds))
-        logging.debug('len(preds): %d', len(preds))
+        logger.debug('type(preds): %s', type(preds))
+        logger.debug('len(preds): %d', len(preds))
 
-        logging.debug('type(preds[0]): %s', type(preds[0]))
-        logging.debug('len(preds[0]): %d', len(preds[0]))
+        logger.debug('type(preds[0]): %s', type(preds[0]))
+        logger.debug('len(preds[0]): %d', len(preds[0]))
 
-        logging.debug('type(preds[0][0]): %s', type(preds[0][0]))
-        logging.debug('preds[0][0].shape %s', preds[0][0].shape)
+        logger.debug('type(preds[0][0]): %s', type(preds[0][0]))
+        logger.debug('preds[0][0].shape %s', preds[0][0].shape)
 
-        logging.debug('type(preds[0][1]): %s', type(preds[0][1]))
-        logging.debug('preds[0][1].shape: %s', preds[0][1].shape)
+        logger.debug('type(preds[0][1]): %s', type(preds[0][1]))
+        logger.debug('preds[0][1].shape: %s', preds[0][1].shape)
 
         #if reset_strategy:
         #    self.trainer.training_type_plugin = reset_strategy
         return preds
 
     def predict(self, features):
-        if self.batch_size >1:
+        if self.batch_size > 1:
             return torch.concat([t[1] for t in self._predict(features)])
         return torch.stack([t[1] for t in self._predict(features)])
 
     def extract(self, features):
-        if self.batch_size >1:
+        if self.batch_size > 1:
             return torch.concat([t[0] for t in self._predict(features)])
         return torch.stack([t[0] for t in self._predict(features)])
