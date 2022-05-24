@@ -84,3 +84,6 @@ class PARData(KineticsUnified):
 
         # Create an index column for ease of accessing labels from DataLoader
         self.data['sample_index'] = self.data.index
+
+# TODO class PARDataFeatures(KineticsUnified):
+# TODO class PARDataVideos(KineticsUnified):
