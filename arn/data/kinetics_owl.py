@@ -81,13 +81,13 @@ class EvalDataSplitConfig(NamedTuple):
         prefix = os.path.join(prefix, self.file_prefix)
         labels = None
 
-        if self.pred_dir:
-            if isinstance(preds, torch.Tensor):
-                if preds.device.type == 'cuda':
-                    preds = preds.cpu().numpy()
-                else:
-                    preds = preds.numpy()
+        if isinstance(preds, torch.Tensor):
+            if preds.device.type == 'cuda':
+                preds = preds.cpu().numpy()
+            else:
+                preds = preds.numpy()
 
+        if self.pred_dir:
             if self.save_preds_with_labels:
                 if data_split.one_hot:
                     labels = np.vstack(
@@ -148,11 +148,6 @@ class EvalDataSplitConfig(NamedTuple):
                 )
 
         if self.eval_dir:
-            if isinstance(preds, torch.Tensor):
-                if preds.device.type == 'cuda':
-                    preds = preds.cpu().numpy()
-                else:
-                    preds = preds.numpy()
             if labels is None:
                 labels = np.vstack([row[1].numpy for row in data_split])
 
@@ -321,9 +316,16 @@ class EvalConfig:
                 dsplit.return_label = True
 
                 logger.debug(
-                    'eval dsplit: %s ; type(preds) = %s',
+                    '%s: eval dsplit: %s ; type(preds) = %s',
+                    type(self).__name__,
                     name,
                     type(preds),
+                )
+                logger.debug(
+                    '%s: eval dsplit: %s ; preds.shape = %s',
+                    type(self).__name__,
+                    name,
+                    preds.shape,
                 )
 
                 getattr(self, name).eval(
