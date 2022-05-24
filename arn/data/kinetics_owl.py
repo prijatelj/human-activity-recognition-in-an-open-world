@@ -107,6 +107,27 @@ class EvalDataSplitConfig(NamedTuple):
                     )
                     contents = [labels, preds]
 
+                logger.debug(
+                    '%s: eval dsplit: save_preds_with_labels: type(labels) = %s',
+                    type(self).__name__,
+                    type(labels),
+                )
+                logger.debug(
+                    '%s: eval dsplit: save_preds_with_labels: len(labels) = %s',
+                    type(self).__name__,
+                    len(labels),
+                )
+                logger.debug(
+                    '%s: eval dsplit: save_preds_with_labels: type(preds) = %s',
+                    type(self).__name__,
+                    type(preds),
+                )
+                logger.debug(
+                    '%s: eval dsplit: save_preds_with_labels: len(preds) = %s',
+                    type(self).__name__,
+                    len(preds),
+                )
+
                 pd.DataFrame(
                     contents,
                     columns=['target_labels'] + list(data_split.label_enc),
@@ -133,13 +154,34 @@ class EvalDataSplitConfig(NamedTuple):
                 else:
                     preds = preds.numpy()
             if labels is None:
-                labels = [row[1].numpy for row in data_split]
+                labels = np.vstack([row[1].numpy for row in data_split])
 
             if data_split.one_hot:
                 # NOTE when eval measures compare one hot vs prob vectors, then
                 # the conversion of single class to prov vec of class needs
                 # handled.
                 labels = labels.argmax(axis=-1).reshape(-1, 1)
+
+            logger.debug(
+                '%s: eval dsplit: eval_dir: type(labels) = %s',
+                type(self).__name__,
+                type(labels),
+            )
+            logger.debug(
+                '%s: eval dsplit: eval_dir: len(labels) = %s',
+                type(self).__name__,
+                len(labels),
+            )
+            logger.debug(
+                '%s: eval dsplit: eval_dir: type(preds) = %s',
+                type(self).__name__,
+                type(preds),
+            )
+            logger.debug(
+                '%s: eval dsplit: eval_dir: len(preds) = %s',
+                type(self).__name__,
+                len(preds),
+            )
 
             for measure in measures:
                 if issubclass(measure, ConfusionMatrix):
@@ -277,6 +319,12 @@ class EvalConfig:
                     dsplit.return_label = False
                 preds = predict(dsplit)
                 dsplit.return_label = True
+
+                logger.debug(
+                    'eval dsplit: %s ; type(preds) = %s',
+                    name,
+                    type(preds),
+                )
 
                 getattr(self, name).eval(
                     dsplit,
@@ -466,6 +514,19 @@ class KineticsOWL(object):
         logger.info("Getting step %d's data.", self.increment + 1)
         new_data_splits = self.environment.step()
 
+        logger.debug(
+            'len(new_data_splits.train) = %d',
+            len(new_data_splits.train),
+        )
+        logger.debug(
+            'len(new_data_splits.validate) = %d',
+            len(new_data_splits.validate),
+        )
+        logger.debug(
+            'len(new_data_splits.test) = %d',
+            len(new_data_splits.test),
+        )
+
         # 2. Inference/Eval on new data if self.eval_untrained_start
         if (self.increment == 1 and self.eval_on_start) or self.increment > 1:
             # NOTE Predict for the Task(s), useful when multiple tasks to be
@@ -515,6 +576,19 @@ class KineticsOWL(object):
             if self.experience:
                 # Add new data to experience
                 self.experience.update(new_data_splits)
+
+                logger.debug(
+                    'len(self.experience.train) = %d',
+                    len(self.experience.train),
+                )
+                logger.debug(
+                    'len(self.experience.validate) = %d',
+                    len(self.experience.validate),
+                )
+                logger.debug(
+                    'len(self.experience.test) = %d',
+                    len(self.experience.test),
+                )
 
                 # 4. Opt. Predictor Update/train on new data w/ feedback
                 self.predictor.fit(
@@ -615,6 +689,10 @@ class KineticsOWLExperiment(object):
         # NOTE possible that experience should be in the environment/experiment
         # rather than the simulation, but this is an abstraction/semantics
         # issue that doesn't affect practical end result.
+
+        logger.debug('len(start.train) = %d', len(start.train))
+        logger.debug('len(start.validate) = %d', len(start.validate))
+        logger.debug('len(start.test) = %d', len(start.test))
 
     @property
     def increment(self):
