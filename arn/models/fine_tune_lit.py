@@ -7,6 +7,7 @@ from ray_lightning import RayPlugin
 import torch
 nn = torch.nn
 F = torch.nn.functional
+import torchmetrics
 
 from arn.models.fine_tune import FineTuneFC
 from arn.data.kinetics_unified import get_kinetics_uni_dataloader
@@ -179,6 +180,15 @@ class FineTuneFCLit(pl.LightningModule):
         self.weight_decay = weight_decay
         self.amsgrad = amsgrad
 
+        self.train_acc = torchmetrics.Accuracy()
+        self.val_acc = torchmetrics.Accuracy()
+
+        self.train_cm = torchmetrics.ConfusionMatrix(401)
+        self.val_cm = torchmetrics.ConfusionMatrix(401)
+
+        self.train_mcc = torchmetrics.MatthewsCorrCoef(401)
+        self.val_mcc = torchmetrics.MatthewsCorrCoef(401)
+
     def configure_optimizers(self):
         return torch.optim.Adam(
             self.parameters(),
@@ -213,12 +223,16 @@ class FineTuneFCLit(pl.LightningModule):
 
         loss = self.loss(classifications, labels)
         #logger.debug('loss.requires_grad: %s', loss.requires_grad)
-        acc = (
-            labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
-        ).to(float).mean()
+        labels_argmax = labels.argmax(1)
+        classif_argmax = F.softmax(classifications, 1).argmax(1)
+        acc = (labels_argmax == classif_argmax).to(float).mean()
 
         self.log('train_loss', loss)
         self.log('train_accuracy', acc)
+
+        self.log('train_acc_step', self.train_acc(classif_argmax, labels_argmax))
+        self.log('train_mcc_step', self.train_mcc(classif_argmax, labels_argmax))
+        #self.log('train_cm_step', self.train_cm(classif_argmax, labels_argmax))
 
         return loss
 
@@ -245,6 +259,8 @@ class FineTuneFCLit(pl.LightningModule):
             )
             #"""
 
+        self.log('train_acc_epoch', self.train_acc.compute())
+
     def forward(self, x):
         return self.model(x)
 
@@ -262,13 +278,19 @@ class FineTuneFCLit(pl.LightningModule):
             labels = labels.reshape(1, -1)
 
         loss = self.loss(classifications, labels)
-        acc = (
-            labels.argmax(1) == F.softmax(classifications, 1).argmax(1)
-        ).to(float).mean()
+
+        labels_argmax = labels.argmax(1)
+        classif_argmax = F.softmax(classifications, 1).argmax(1)
+
+        acc = (labels_argmax == classif_argmax).to(float).mean()
 
         #logging.info('Training loss: %d', loss)
         self.log('val_loss', loss)
         self.log('val_accuracy', acc)
+
+        self.log('val_acc_step', self.val_acc(classif_argmax, labels_argmax))
+        self.log('val_mcc_step', self.val_mcc(classif_argmax, labels_argmax))
+        #self.log('val_cm_step', self.val_cm(classif_argmax, labels_argmax))
 
         return OrderedDict({'loss': loss, 'accuracy': acc})
 

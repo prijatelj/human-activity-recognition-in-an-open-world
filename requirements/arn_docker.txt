@@ -13,3 +13,4 @@ exputils>=0.1.6
 cython
 hdbscan
 opencv-python-headless
+torchmetrics
