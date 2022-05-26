@@ -491,11 +491,18 @@ class FineTuneFC(nn.Module):
                     )
             elif 'skip' in residual_maps: # Skip connections
                 if 'input' in residual_maps:
-                    start_skip = 2
-                    list_of_dense = [(input_name, None)] + list_of_dense[start_skip:]
+                    start_skip = 0
+                    list_of_dense = [(input_name, None)] + list_of_dense
                 else:
-                    start_skip = 2
+                    start_skip = 0
                     list_of_dense = list_of_dense[start_skip:]
+                logger.debug(
+                    "Residual map '%s' with start_skip = %d, "
+                    "list_of_dense updated to: %s",
+                    residual_maps,
+                    start_skip,
+                    list_of_dense,
+                )
 
                 if 'concat' in residual_maps:
                     join_method = partial(torch.cat, dim=-1)
@@ -508,22 +515,22 @@ class FineTuneFC(nn.Module):
                     )
 
                 tmp = OrderedDict()
-                for i, (name, layer) in enumerate(list_of_dense): #[start_skip:]
-                    #if i-start_skip-1 >= 0:
-                    logger.debug(
-                        'Updating inputs for %s: i = %d: target %s',
-                        residual_maps,
-                        i,
-                        name,
-                    )
+                for i, (name, layer) in enumerate(list_of_dense[1:]): #[start_skip:]
+                    if i-1 >= 0:
+                        logger.debug(
+                            'Updating inputs for %s: i = %d: target %s',
+                            residual_maps,
+                            i,
+                            name,
+                        )
 
-                    tmp[name] = (
-                        join_method,
-                        [
-                            list_of_dense[i-1][0],
-                            list_of_dense[i][0],
-                        ]
-                    )
+                        tmp[name] = (
+                            join_method,
+                            [
+                                list_of_dense[i-1][0],
+                                list_of_dense[i][0],
+                            ]
+                        )
             residual_maps = tmp
 
         # Ensure the dense layers input shapes match the new input shapes.
@@ -546,7 +553,8 @@ class FineTuneFC(nn.Module):
                             new_shape += dense_layers[i].out_features
                 if layer.in_features != new_shape:
                     logger.debug(
-                        'Changing layer.in_features in %s to %d',
+                        "Changing %s's layer.in_features in %s to %d",
+                        name,
                         layer,
                         new_shape,
                     )
