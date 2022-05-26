@@ -634,8 +634,8 @@ class KineticsUnified(torch.utils.data.Dataset):
                 logger.warning(
                     'subset given but no labels! No changes to DataFrame',
                 )
-        #else:
-            #print('\nsubset was None!\n')
+        else:
+            logger.debug('Subset was None!')
 
         # Blacklist unique samples
         if isinstance(blacklist, str):
