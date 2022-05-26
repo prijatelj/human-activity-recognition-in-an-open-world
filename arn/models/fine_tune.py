@@ -2,7 +2,6 @@
 import copy
 from collections import OrderedDict
 from functools import partial
-import logging
 
 import torch
 nn = torch.nn
@@ -10,6 +9,9 @@ F = torch.nn.functional
 
 from arn.data.kinetics_unified import get_kinetics_uni_dataloader
 from arn.torch_utils import torch_dtype
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class FineTune(object):
@@ -245,7 +247,7 @@ class FineTune(object):
         # Why softmax when the model has softmax? Should be just torch.exp()
         self.model.eval()
 
-        logging.debug(
+        logger.debug(
             '%s.predict() given features of type: %s',
             self.__name__,
             type(features),
@@ -437,13 +439,14 @@ class FineTuneFC(nn.Module):
             If True, dropout is applied to the last hidden layer.
         act_on_input : bool = False
             If True, dropout and the activation is applied to the inputs first.
-        residual_maps : OrderedDict = None
+        residual_maps : OrderedDict | str = None
             see MultiInputModules
-        input_name : 'input'
+        input_name : str = 'input'
             The name to use for input name to ResidualConnections. Unused if
             residual_maps is None.
         """
         super().__init__()
+
         dense_layers = get_dense_layers(
             input_size,
             width,
@@ -454,15 +457,108 @@ class FineTuneFC(nn.Module):
             dropout_feature_repr,
             act_on_input,
         )
-        if residual_maps is None:
-            self.fcs = nn.Sequential(dense_layers)
-        else:
-            self.fcs = ResidualConnections(
-                dense_layers,
-                residual_maps,
-                input_name,
-            )
+        if feature_repr_width is None:
+            feature_repr_width = width
         self.classifier = nn.Linear(feature_repr_width, n_classes)
+
+        if residual_maps is None or depth == 1:
+            self.fcs = nn.Sequential(dense_layers)
+            return
+
+        # This only applies if attempting to use residual/skip connections
+        if isinstance(residual_maps, str):
+            # Creates the residual connection of the input to each fc.
+            list_of_dense = [
+                (k,v) for k, v in dense_layers.items() if 'fc' in k
+            ]
+            logger.debug(
+                "Creating residual maps for '%s': list_of_dense: %s",
+                residual_maps,
+                list_of_dense,
+            )
+            if residual_maps == 'input':
+                tmp = OrderedDict()
+                for i, (name, layer) in enumerate(list_of_dense[1:]):
+                    logger.debug(
+                        'Updating inputs for %s: %d: %s',
+                        residual_maps,
+                        i,
+                        name,
+                    )
+                    tmp[name] = (
+                        partial(torch.cat, dim=-1),
+                        [input_name, list_of_dense[i][0]]
+                    )
+            elif 'skip' in residual_maps: # Skip connections
+                if 'input' in residual_maps:
+                    start_skip = 2
+                    list_of_dense = [(input_name, None)] + list_of_dense[start_skip:]
+                else:
+                    start_skip = 2
+                    list_of_dense = list_of_dense[start_skip:]
+
+                if 'concat' in residual_maps:
+                    join_method = partial(torch.cat, dim=-1)
+                elif 'add' in residual_maps:
+                    join_method = lambda x: torch.add(*x)
+                else:
+                    raise ValueError(
+                        'expected "add" or "concat" in residual_maps, but '
+                        f'got {residual_maps}'
+                    )
+
+                tmp = OrderedDict()
+                for i, (name, layer) in enumerate(list_of_dense): #[start_skip:]
+                    #if i-start_skip-1 >= 0:
+                    logger.debug(
+                        'Updating inputs for %s: i = %d: target %s',
+                        residual_maps,
+                        i,
+                        name,
+                    )
+
+                    tmp[name] = (
+                        join_method,
+                        [
+                            list_of_dense[i-1][0],
+                            list_of_dense[i][0],
+                        ]
+                    )
+            residual_maps = tmp
+
+        # Ensure the dense layers input shapes match the new input shapes.
+        for name, layer in dense_layers.items():
+            if name in residual_maps:
+                join_method, inputs = residual_maps[name]
+                if (
+                    (
+                        isinstance(join_method, partial)
+                        and 'cat' in join_method.func.__name__
+                    )
+                    or 'cat' in join_method.__name__
+                ):
+                    # NOTE assumes concat will be -1 dim.
+                    new_shape = 0
+                    for i in inputs:
+                        if i == input_name:
+                            new_shape += input_size
+                        else:
+                            new_shape += dense_layers[i].out_features
+                if layer.in_features != new_shape:
+                    logger.debug(
+                        'Changing layer.in_features in %s to %d',
+                        layer,
+                        new_shape,
+                    )
+                    dense_layers[name] = nn.Linear(
+                        new_shape,
+                        layer.out_features,
+                    )
+        self.fcs = ResidualConnections(
+            dense_layers,
+            residual_maps,
+            input_name,
+        )
 
     def forward(self, x):
         """Returns the last fully connected layer and the probs classifier"""
@@ -481,33 +577,42 @@ class FineTuneFC(nn.Module):
 
 
 def get_residual_map(residual_maps):
-    """Helper function to return the residual maps.
+    """Helper function return the residual maps as an OrderedDict from a list
+    of tuples.
 
     Args
     ----
     residual_maps: list
-        List of tuples where ecah tuple is (str, str, list(str))
+        List of tuples where ecah tuple is (str, str, list(str)), which
+        corresponds to name of target to be fed the output, the join method as
+        a str name or as a callable itself that takes the inputs as an
+        argument, and the list of input names.
     """
     ord_dict = OrderedDict()
-    for residual_map in residual_maps:
-        if residual_map[1] in {'cat', 'concat'}:
+    for output_target, join_method, inputs in residual_maps:
+        if join_method in {'cat0', 'concat0'}:
+            #join_method = partial(torch.cat, dim=0)
             join_method = torch.cat
-        elif residual_map[1] in {'cat1', 'concat1'}:
+        elif join_method in {'cat1', 'concat1'}:
             join_method = partial(torch.cat, dim=1)
-        elif residual_map[1] in {'cat-1', 'concat-1'}:
+        elif join_method in {'cat', 'concat', 'cat-1', 'concat-1'}:
             join_method = partial(torch.cat, dim=-1)
-        elif residual_map[1] == 'stack':
+            """ Concat & Stack dims are unsupported because of input shapes
+            needing changed
+        elif join_method in {'stack', 'stack0'}:
             join_method = torch.stack
-        elif residual_map[1] in 'stack1':
+        elif join_method == 'stack1':
             join_method = partial(torch.stack, dim=1)
-        elif residual_map[1] in 'stack-1':
+        elif join_method == 'stack-1':
             join_method = partial(torch.stack, dim=-1)
-        elif residual_map[1] == 'add':
+            #"""
+        elif join_method == 'add':
             join_method = lambda x: torch.add(*x)
-        else:
-            join_method = residual_map[1]
+        elif join_method in {'sum', 'sum0'}:
+            # Must concat on axis and then sum on that axis...
+            join_method = lambda x: torch.add(*x)
 
-        ord_dict[residual_map[0]] = (join_method, residual_map[2])
+        ord_dict[output_target] = (join_method, inputs)
     return ord_dict
 
 
@@ -542,7 +647,7 @@ class ResidualConnections(nn.Module):
         ----
         see self
         """
-        super.__init__()
+        super().__init__()
         self.modules = modules
         if input_name in modules:
             raise KeyError(f"'{input_name}' cannot be a key within `modules`.")
@@ -554,6 +659,21 @@ class ResidualConnections(nn.Module):
         # mapping. Ensure output is after its inputs.
         for key, value in residual_maps.items():
             self.residual_inputs.update(value[1])
+
+        for name, module in modules.items():
+            setattr(self, name, module)
+
+        # TODO this does not work for concat or any shape changing join methods
+        # because the inputs must be different!
+
+        # Handle Linear input features changing.
+        # Perhaps this should be done in init... requires pre-calc of shapes
+        #if isinstnace(join_method, partial):
+        #    if isinstnace(join_method, torch.cat):
+
+        #elif isinstnace(join_method, torch.cat):
+
+        #elif isinstnace(join_method, torch.stack):
 
     def forward(self, x):
         """Runs through the given modules and forms the residual connections.
@@ -567,12 +687,14 @@ class ResidualConnections(nn.Module):
                 # Check if the residual maps' inputs have completed.
                 join_method, inputs = self.residual_maps[name]
                 try:
-                    input_tensors = [outputs[i] for i in inputs]
+                    input_tensors = []
+                    for i in inputs:
+                         input_tensors.append(outputs[i])
                 except KeyError as err:
                     # If they have not, error for simplicity stating incomplete
-                    # residual mapped inputs. Should be checked in init.
+                    # residual mapped inputs. TODO Should be checked in init.
                     raise KeyError(
-                        'Residual map input {i} has yet to be computed. '
+                        f'Residual map input {i} has yet to be computed. '
                         'Inputs out of order!'
                     ) from err
 
