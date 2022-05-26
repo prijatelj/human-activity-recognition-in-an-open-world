@@ -537,6 +537,7 @@ class FineTuneFC(nn.Module):
         for name, layer in dense_layers.items():
             if name in residual_maps:
                 join_method, inputs = residual_maps[name]
+                new_shape = None
                 if (
                     (
                         isinstance(join_method, partial)
@@ -551,7 +552,7 @@ class FineTuneFC(nn.Module):
                             new_shape += input_size
                         else:
                             new_shape += dense_layers[i].out_features
-                if layer.in_features != new_shape:
+                if new_shape is not None and layer.in_features != new_shape:
                     logger.debug(
                         "Changing %s's layer.in_features in %s to %d",
                         name,
