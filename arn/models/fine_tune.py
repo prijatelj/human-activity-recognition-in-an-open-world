@@ -1,6 +1,7 @@
 """Fine tuning models. These follow fine tuning in Pre-Trained Models"""
 import copy
 from collections import OrderedDict
+from functools import partial
 import logging
 
 import torch
@@ -293,17 +294,17 @@ class FineTune(object):
 def dense_layer(
     ord_dict,
     layer_num,
-    inputs,
+    input_size,
     width,
     dropout=None,
     activation=None,
 ):
     """Creates the 'dense layer' with opt. dropout and activation."""
-    ord_dict[f'fc{layer_num}'] = nn.Linear(inputs, width)
+    ord_dict[f'fc{layer_num}'] = nn.Linear(input_size, width)
 
     if dropout and isinstance(dropout, float):
         ord_dict[f'Dropout{layer_num}'] = nn.Dropout(dropout, True)
-    elif dropout:
+    elif dropout: # rm this
         ord_dict[f'Dropout{layer_num}'] = nn.Dropout(
             dropout[layer_num],
             True,
@@ -311,6 +312,69 @@ def dense_layer(
 
     if activation is not None:
         ord_dict[f'{activation.__name__}{layer_num}'] = activation()
+
+
+def get_dense_layers(
+    input_size,
+    width=512,
+    depth=5,
+    feature_repr_width=None,
+    activation=nn.LeakyReLU,
+    dropout=None,
+    dropout_feature_repr=True,
+    act_on_input=False,
+):
+    """Create the ordered dictionary of sequential dense layers."""
+    if depth < 1:
+        raise ValueError('Depth less than 1!')
+    if feature_repr_width is None:
+        feature_repr_width = width
+
+    if (
+        dropout and not isinstance(dropout, float)
+        and (
+            (dropout_feature_repr and len(dropout) != depth)
+            or (not dropout_feature_repr and len(dropout) != depth-1)
+        )
+    ):
+        raise ValueError('Length of dropout does not match depth!')
+
+    ord_dict = OrderedDict()
+
+    if act_on_input:
+        # TODO test this, dunno if it works w/o an input layer provided.
+        if dropout and isinstance(dropout, float):
+            ord_dict[f'Dropout-input'] = nn.Dropout(dropout, True)
+        elif dropout:
+            ord_dict[f'Dropout-input'] = nn.Dropout(dropout[0], True)
+
+        if activation is not None:
+            ord_dict[f'{activation.__name__}-input'] = activation()
+
+    dense_layer(
+        ord_dict,
+        0,
+        input_size,
+        width if depth == 1 else feature_repr_width,
+        dropout if depth == 1 and dropout_feature_repr else None,
+        activation,
+    )
+
+    # NOTE that depth includes input and the feature_repr_width can be diff
+    for x in range(1, depth-1):
+        dense_layer(ord_dict, x, width, width, dropout, activation)
+
+    # Final dense / fully connected layer as output feature representation
+    if depth > 1:
+        dense_layer(
+            ord_dict,
+            depth - 1,
+            width,
+            feature_repr_width,
+            dropout if dropout_feature_repr else None,
+            activation,
+        )
+    return ord_dict
 
 
 class FineTuneFC(nn.Module):
@@ -340,6 +404,8 @@ class FineTuneFC(nn.Module):
         dropout=None,
         dropout_feature_repr=True,
         act_on_input=False,
+        residual_maps=None,
+        input_name='input',
     ):
         """Fine-tuning ANN consisting of fully-connected dense layers.
 
@@ -371,59 +437,31 @@ class FineTuneFC(nn.Module):
             If True, dropout is applied to the last hidden layer.
         act_on_input : bool = False
             If True, dropout and the activation is applied to the inputs first.
+        residual_maps : OrderedDict = None
+            see MultiInputModules
+        input_name : 'input'
+            The name to use for input name to ResidualConnections. Unused if
+            residual_maps is None.
         """
         super().__init__()
-        if depth < 1:
-            raise ValueError('Depth less than 1!')
-        if feature_repr_width is None:
-            feature_repr_width = width
-
-        if (
-            dropout and not isinstance(dropout, float)
-            and (
-                (dropout_feature_repr and len(dropout) != depth)
-                or (not dropout_feature_repr and len(dropout) != depth-1)
-            )
-        ):
-            raise ValueError('Length of dropout does not match depth!')
-
-        ord_dict = OrderedDict()
-
-        if act_on_input:
-            # TODO test this, dunno if it works w/o an input layer provided.
-            if dropout and isinstance(dropout, float):
-                ord_dict[f'Dropout-input'] = nn.Dropout(dropout, True)
-            elif dropout:
-                ord_dict[f'Dropout-input'] = nn.Dropout(dropout[0], True)
-
-            if activation is not None:
-                ord_dict[f'{activation.__name__}-input'] = activation()
-
-        dense_layer(
-            ord_dict,
-            0,
+        dense_layers = get_dense_layers(
             input_size,
-            width if depth == 1 else feature_repr_width,
-            dropout if depth == 1 and dropout_feature_repr else None,
+            width,
+            depth,
+            feature_repr_width,
             activation,
+            dropout,
+            dropout_feature_repr,
+            act_on_input,
         )
-
-        # NOTE that depth includes input and the feature_repr_width can be diff
-        for x in range(1, depth-1):
-            dense_layer(ord_dict, x, width, width, dropout, activation)
-
-        # Final dense / fully connected layer as output feature representation
-        if depth > 1:
-            dense_layer(
-                ord_dict,
-                depth - 1,
-                width,
-                feature_repr_width,
-                dropout if dropout_feature_repr else None,
-                activation,
+        if residual_maps is None:
+            self.fcs = nn.Sequential(dense_layers)
+        else:
+            self.fcs = ResidualConnections(
+                dense_layers,
+                residual_maps,
+                input_name,
             )
-
-        self.fcs = nn.Sequential(ord_dict)
         self.classifier = nn.Linear(feature_repr_width, n_classes)
 
     def forward(self, x):
@@ -432,6 +470,7 @@ class FineTuneFC(nn.Module):
         return x, self.classifier(x)
 
     def load_interior_weights(self, state_dict):
+        # TODO is this necessary?
         temp = []
         for x in state_dict:
             if x[:3] != 'fcs':
@@ -439,3 +478,115 @@ class FineTuneFC(nn.Module):
         for x in temp:
             state_dict.pop(x)
         self.load_state_dict(state_dict, strict=False)
+
+
+def get_residual_map(residual_maps):
+    """Helper function to return the residual maps.
+
+    Args
+    ----
+    residual_maps: list
+        List of tuples where ecah tuple is (str, str, list(str))
+    """
+    ord_dict = OrderedDict()
+    for residual_map in residual_maps:
+        if residual_map[1] in {'cat', 'concat'}:
+            join_method = torch.cat
+        elif residual_map[1] in {'cat1', 'concat1'}:
+            join_method = partial(torch.cat, dim=1)
+        elif residual_map[1] in {'cat-1', 'concat-1'}:
+            join_method = partial(torch.cat, dim=-1)
+        elif residual_map[1] == 'stack':
+            join_method = torch.stack
+        elif residual_map[1] in 'stack1':
+            join_method = partial(torch.stack, dim=1)
+        elif residual_map[1] in 'stack-1':
+            join_method = partial(torch.stack, dim=-1)
+        elif residual_map[1] == 'add':
+            join_method = lambda x: torch.add(*x)
+        else:
+            join_method = residual_map[1]
+
+        ord_dict[residual_map[0]] = (join_method, residual_map[2])
+    return ord_dict
+
+
+class ResidualConnections(nn.Module):
+    """Given a set of modules and a residual mappings, forms the model.
+    Designed primarily with torch.nn.Sequential's OrderedDict in mind for
+    `modules`.
+
+    Attributes
+    ----------
+    modules : OrderedDict
+        An OrderedDict of modules as if in a torch.nn.Sequential.
+    residual_maps : OrderedDict
+        An ordered dict with keys as the module name in modules that will
+        recieve the output of joining the given residual connections. The
+        values are then a tuple of two elements with the first being a
+        callable, such as `torch.concat`, and the second being a list of
+        inputs to join in order.
+
+        The residual mappings to modify the existing modules' connections
+        to support the joining of output from named layers and replace the
+        existing input to the output layer with the resulting residual map.
+
+        The inputs are expected to be ordered by occurrence in OrderedDict.
+    input_name = 'input'
+        The name used to signify the input given to this module in `forward()`.
+    """
+    def __init__(self, modules, residual_maps, input_name='input'):
+        """Stores the key components for constructing the residual connections.
+
+        Args
+        ----
+        see self
+        """
+        super.__init__()
+        self.modules = modules
+        if input_name in modules:
+            raise KeyError(f"'{input_name}' cannot be a key within `modules`.")
+        self.input_name = input_name
+        self.residual_maps = residual_maps
+        self.residual_inputs = set()
+
+        # TODO For user convenience, check for out of order inputs to outputs
+        # mapping. Ensure output is after its inputs.
+        for key, value in residual_maps.items():
+            self.residual_inputs.update(value[1])
+
+    def forward(self, x):
+        """Runs through the given modules and forms the residual connections.
+        Stores the outputs of every layer used as inputs in residual maps.
+        """
+        # Store the outputs names in residual inputs for future residuals
+        outputs = OrderedDict({self.input_name: x})
+        res_map_count = 0
+        for name, module in self.modules.items():
+            if name in self.residual_maps:
+                # Check if the residual maps' inputs have completed.
+                join_method, inputs = self.residual_maps[name]
+                try:
+                    input_tensors = [outputs[i] for i in inputs]
+                except KeyError as err:
+                    # If they have not, error for simplicity stating incomplete
+                    # residual mapped inputs. Should be checked in init.
+                    raise KeyError(
+                        'Residual map input {i} has yet to be computed. '
+                        'Inputs out of order!'
+                    ) from err
+
+                # If they have completed, run them through the join method and
+                # give as input to this layer.
+                x = join_method(input_tensors)
+
+                joined_name = f'ResidualConnection{res_map_count}'
+                res_map_count += 1
+
+                if joined_name in self.residual_inputs:
+                    outputs[joined_name] = x
+            x = module(x)
+
+            if name in self.residual_inputs:
+                outputs[name] = x
+        return x
