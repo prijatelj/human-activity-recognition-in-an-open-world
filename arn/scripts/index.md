@@ -1,6 +1,6 @@
-## Experiments
+## Scripts
 
-Examples and reproducible experiments are located here for performing research.
+Any scripts used to manage, analyze, and clean the data as well as run the experiments are contained within this directory.
 The scripts here use the package(s) provided in this repo and depict their use.
 
 ### Future Warning

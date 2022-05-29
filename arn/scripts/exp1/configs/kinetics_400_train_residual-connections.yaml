@@ -1,0 +1,185 @@
+# The Open World Human Activity Recognition pipeline from given features
+# extracted from a feature representaiton model to the end. This will probably
+# be broken down into smaller chunks for convenience.
+
+docstr:
+  style: numpy
+  from import:
+    arn.data.kinetics_owl:
+      - EvalConfig
+      - EvalDataSplitConfig
+      - DataSplits
+      - KineticsOWL
+      - KineticsOWLExperiment
+    arn.data.kinetics_unified:
+      - KineticsUnified
+      - KineticsUnifiedFeatures
+      - KineticsSplitConfig
+      - KineticsUnifiedSubset
+      - LabelConfig
+      - KineticsRootDirs
+    arn.models.fine_tune:
+      - FineTuneFC
+    arn.models.fine_tune_lit:
+      - FineTuneLit
+      - FineTuneFCLit
+      - init_trainer
+      - init_ray_plugin
+      - init_tensorboard_logger
+    arn.models.novelty_detector:
+      - WindowedMeanKLDiv
+    arn.models.owhar:
+      - OWHAPredictor
+  main: run #KineticsOWL.run
+  log_sink: stdout
+  log_level: DEBUG
+
+KineticsOWL: # Pipeline for the Open World Learning Data process
+  eval_config:
+    EvalConfig:
+      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  post_feedback_eval_config:
+    EvalConfig:
+      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  environment:
+    KineticsOWLExperiment:
+      start:
+        DataSplits:
+          train:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-train-file.log
+              annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
+              sample_dirs:
+                KineticsRootDirs:
+                  kinetics400_dir: x3d-features-k400/
+                  kinetics600_dir: x3d-features-k600/
+                  kinetics700_2020_dir: x3d-features-k700_2020/
+                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                      #known: True
+                  kinetics400:
+                    KineticsSplitConfig:
+                      train: True
+          validate:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-val-file.log
+              annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
+              sample_dirs:
+                KineticsRootDirs:
+                  kinetics400_dir: x3d-features-k400/
+                  kinetics600_dir: x3d-features-k600/
+                  kinetics700_2020_dir: x3d-features-k700_2020/
+                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                      #known: True
+                  kinetics400:
+                    KineticsSplitConfig:
+                      validate: True
+          test:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-test-file.log
+              annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
+              sample_dirs:
+                KineticsRootDirs:
+                  kinetics400_dir: x3d-features-k400/
+                  kinetics600_dir: x3d-features-k600/
+                  kinetics700_2020_dir: x3d-features-k700_2020/
+                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                      #known: True
+                  kinetics400:
+                    KineticsSplitConfig:
+                      test: True
+  predictor:
+    OWHAPredictor: # the Open World Agent
+      fine_tune:
+        FineTuneLit:
+          model:
+            FineTuneFCLit:
+              model:
+                FineTuneFC:
+                  input_size: 2048 #512
+                  width: 512
+                  depth: 5
+                  dropout: 0.5
+                  n_classes: 401 # PAR's is 29, TODO wish docstr had lazy init,
+                  #   could make input and output dependent on the experiment's
+                  #   data at start.
+                  residual_maps:
+          batch_size: 1000
+          #device: 'cuda'
+          # num_workers: 16
+          # PytorchLightning.Trainer kwargs TODO parse unknown kwargs
+          # Could add another docstr tag: docstr.parse_kwargs for unknown args
+          # handled as YAML defaults or use other tags if provided or
+          # necessary.
+          # OR could just add a kwargs key w/ dict value and know to expand
+          # that when passed.
+          trainer:
+            init_trainer:
+              max_epochs: 25
+              gpus: 1
+              enable_checkpointing: True
+              default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/chkpts/
+              #strategy:
+              #  init_ray_plugin:
+              #    num_workers: 8
+              #    use_gpu: True
+              logger:
+                init_tensorboard_logger:
+                  save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/tb_log/
+      novelty_detector: # Classification + Clustering
+        WindowedMeanKLDiv:
+          kl_threshold: 5.365822113508410
+          kl_threshold_decay_rate: 0.6
+          mean_train: 1.0
+          std_dev_train: 0.1242729408792351
+          window_size: 100
+          num_rounds: 40
+          #threshold_scale: 3.0 # Hack to scale down early detection.
+          #feedback_weight: 1.0 # binary novelty feedback
