@@ -357,8 +357,8 @@ def get_dense_layers(
         ord_dict,
         0,
         input_size,
-        width if depth == 1 else feature_repr_width,
-        dropout if depth == 1 and dropout_feature_repr else None,
+        feature_repr_width if depth == 1 else width,
+        None if depth == 1 and not dropout_feature_repr else dropout,
         activation,
     )
 
@@ -468,41 +468,59 @@ class FineTuneFC(nn.Module):
         # This only applies if attempting to use residual/skip connections
         if isinstance(residual_maps, str):
             # Creates the residual connection of the input to each fc.
-            list_of_dense = [
+            dense_list = [
                 (k,v) for k, v in dense_layers.items() if 'fc' in k
             ]
+
+            # Have to handle when the src is run thru activations, o.w. linear
+            if activation is not None:
+                srcs = [
+                    (k,v) for k, v in dense_layers.items()
+                    if activation.__name__ in k
+                ]
+                assert len(dense_list) == len(srcs)
+            elif dropout:
+                srcs = [
+                    (k,v) for k, v in dense_layers.items()
+                    if 'Dropout' in k
+                ]
+                assert len(dense_list) == len(srcs)
+            else:
+                srcs = dense_list
+
             logger.debug(
-                "Creating residual maps for '%s': list_of_dense: %s",
+                "Creating residual maps for '%s': dense_list: %s",
                 residual_maps,
-                list_of_dense,
+                dense_list,
             )
+            logger.debug("source layers srcs: %s", srcs)
             if residual_maps == 'input':
                 tmp = OrderedDict()
-                for i, (name, layer) in enumerate(list_of_dense[1:]):
+                for i, (name, layer) in enumerate(dense_list[1:]):
                     logger.debug(
                         'Updating inputs for %s: %d: %s',
                         residual_maps,
                         i,
                         name,
                     )
+                    src_layer = srcs[i][1]
+                    if not hasattr(src_layer, 'out_features'):
+                        if dense_list[i-1][0] != input_name:
+                            src_layer.out_features = dense_list[i][1].out_features
                     tmp[name] = (
                         partial(torch.cat, dim=-1),
-                        [input_name, list_of_dense[i][0]]
+                        [input_name, srcs[i][0]]
                     )
             elif 'skip' in residual_maps: # Skip connections
                 if 'input' in residual_maps:
-                    start_skip = 0
-                    list_of_dense = [(input_name, None)] + list_of_dense
-                else:
-                    start_skip = 0
-                    list_of_dense = list_of_dense[start_skip:]
-                logger.debug(
-                    "Residual map '%s' with start_skip = %d, "
-                    "list_of_dense updated to: %s",
-                    residual_maps,
-                    start_skip,
-                    list_of_dense,
-                )
+                    dense_list = [(input_name, None)] + dense_list
+                    srcs = [(input_name, None)] + srcs
+                    logger.debug(
+                        "Residual map '%s', dense_list updated to: %s",
+                        residual_maps,
+                        dense_list,
+                    )
+                    logger.debug('srcs updated to: %s', srcs)
 
                 if 'concat' in residual_maps:
                     join_method = partial(torch.cat, dim=-1)
@@ -515,7 +533,7 @@ class FineTuneFC(nn.Module):
                     )
 
                 tmp = OrderedDict()
-                for i, (name, layer) in enumerate(list_of_dense[1:]): #[start_skip:]
+                for i, (name, layer) in enumerate(dense_list[1:]):
                     if i-1 >= 0:
                         logger.debug(
                             'Updating inputs for %s: i = %d: target %s',
@@ -523,14 +541,18 @@ class FineTuneFC(nn.Module):
                             i,
                             name,
                         )
+                        src_layer = srcs[i-1][1]
+                        if not hasattr(src_layer, 'out_features'):
+                            if dense_list[i-1][0] != input_name:
+                                src_layer.out_features = \
+                                    dense_list[i-1][1].out_features
+                        src_layer = srcs[i][1]
+                        if not hasattr(src_layer, 'out_features'):
+                            if dense_list[i][0] != input_name:
+                                src_layer.out_features = \
+                                    dense_list[i][1].out_features
 
-                        tmp[name] = (
-                            join_method,
-                            [
-                                list_of_dense[i-1][0],
-                                list_of_dense[i][0],
-                            ]
-                        )
+                        tmp[name] = (join_method, [srcs[i-1][0], srcs[i][0]])
             residual_maps = tmp
 
         # Ensure the dense layers input shapes match the new input shapes.
