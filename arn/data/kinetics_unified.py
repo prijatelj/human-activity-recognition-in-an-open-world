@@ -169,7 +169,7 @@ def get_path(
     ext='.mp4',
     zfill=6,
     k700_suffix_label=True,
-    #split_prefix=['kinetics-dataset-400-', None, None],
+    split_prefix=None,
     #split_suffix=[None, None, ''],
 ):
     """Create filepath for every video, preference based on orderd datasets
@@ -186,8 +186,7 @@ def get_path(
         Determines the order of which columns are prioritized for getting
         video paths. Default is to prefer earlier Kinetics datasets, based
         on release date.
-    split_prefix : list(str)
-        NOT Implemented. An attempt at generalizaiton postponed.
+    split_prefix : list(str) = None
         The prefix to add to the beginning of the Kinetics split portion of
         the data directory.
     split_suffix : list(str)
@@ -218,6 +217,16 @@ def get_path(
         'split_kinetics700_2020',
         ]
 
+    if split_prefix is None:
+        split_prefix = ['kinetics-dataset-400-', None, None]
+    elif split_prefix is False:
+        split_prefix = [None, None, None]
+    elif not isinstance(split_prefix, (list, tuple)):
+        raise TypeError(
+            'Expected split_prefix type of list of str, or None, or False, '
+            f'not {type(split_prefix)}'
+        )
+
     # Save when each sample is present in each dataset
     not_null = 1 ^ pd.isnull(df[order])
 
@@ -244,16 +253,23 @@ def get_path(
 
         # Check which dataset this is and treat its path accordingly.. hardcode
         if '400' in col:
+            if split_prefix[0]:
+                k4_prefix = os.path.sep + split_prefix[0]
+            else:
+                k4_prefix = os.path.sep
             df_order.append(
                 root_dirs.kinetics400_dir
-                + os.path.sep
-                + 'kinetics-dataset-400-'
+                + k4_prefix
                 + df[col].replace('validate', 'val')[mask],
             )
         elif '600' in col:
+            if split_prefix[1]:
+                k6_prefix = os.path.sep + split_prefix[1]
+            else:
+                k6_prefix = os.path.sep
             df_order.append(
                 root_dirs.kinetics600_dir
-                + os.path.sep
+                + k6_prefix
                 + df[col][mask]
             )
         elif '700_2020' in col:
@@ -263,6 +279,10 @@ def get_path(
             # are not already in the other Kinetics, so a future todo.
             # NOTE this may result in issues if 700_2020 is priority or the
             # others' videos are missing / corrupted, but this video does exist
+            if split_prefix[2]:
+                k7_prefix = os.path.sep + split_prefix[2]
+            else:
+                k7_prefix = os.path.sep
 
             #other_splits = df[col][(df[col] != 'test') & mask]
             #test_split = df[col][(df[col] == 'test') & mask]
@@ -271,13 +291,13 @@ def get_path(
                     root_dirs.kinetics700_2020_dir
                     + os.path.sep
                     + df[col][mask]
-                    + os.path.sep
+                    + k7_prefix
                     + df[col.replace('split', 'label')][mask]
                 )
             else:
                 df_order.append(
                     root_dirs.kinetics700_2020_dir
-                    + os.path.sep
+                    + k7_prefix
                     + df[col][mask]
                 )
 
@@ -539,6 +559,9 @@ class KineticsUnified(torch.utils.data.Dataset):
         k700_suffix_label : bool = True
             When True, add the label name in lower as a directory suffix in the
             path. Otherwise do not add any suffix directories.
+        split_prefix : bool = None
+            The prefix to add to the beginning of the Kinetics split portion of
+            the data directory.
         """
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
@@ -676,6 +699,7 @@ class KineticsUnified(torch.utils.data.Dataset):
                 order=filepath_order,
                 ext=ext,
                 k700_suffix_label=k700_suffix_label,
+                split_prefix=split_prefix,
             )
 
     def __len__(self):
