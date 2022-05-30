@@ -144,9 +144,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   width: 512
                   depth: 5
                   dropout: 0.5
-                  n_classes: 5 # PAR's is 29, TODO wish docstr had lazy init,
-                  #   could make input and output dependent on the experiment's
-                  #   data at start.
+                  n_classes: 5
           batch_size: 1000
           #device: 'cuda'
           # num_workers: 16
