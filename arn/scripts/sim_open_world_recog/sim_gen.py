@@ -261,6 +261,7 @@ def gen_sim_dataset(root_dir):
     )
 
     # Save the sample points to their own filepath
+    # TODO need to create the trian, validate, and test dirs and save there.
     dir_name = create_filepath(os.path.join(root_dir, 'sim_k400/'))
     save_dset = []
     for i, filename in enumerate(get_filename(df, ext='_feat.pt')):
@@ -305,6 +306,7 @@ def gen_sim_dataset(root_dir):
     df = df.append(k6df)
 
     # Save the sample points to their own filepath
+    # TODO need to create the trian, validate, and test dirs and save there.
     dir_name = create_filepath(os.path.join(root_dir, 'sim_k600/'))
     save_dset = []
     for i, filename in enumerate(get_filename(k6df, ext='_feat.pt')):
@@ -350,6 +352,7 @@ def gen_sim_dataset(root_dir):
     df.to_csv(os.path.join(root_dir, 'sim_kunified.csv'), index=False)
 
     # Save the sample points to their own filepath
+    # TODO need to create the trian, validate, and test dirs and save there.
     dir_name = create_filepath(os.path.join(root_dir, 'sim_k700/'))
     save_dset = []
     for i, filename in enumerate(get_filename(k7df, ext='_feat.pt')):
