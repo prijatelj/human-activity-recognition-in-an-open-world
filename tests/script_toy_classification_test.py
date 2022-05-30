@@ -1,7 +1,4 @@
 """Quick interpreter/docstr test run of FineTuneLit."""
-import logging
-logger = logging.getLogger(__name__)
-
 import pandas as pd
 import plotly.express as px
 import torch
@@ -11,6 +8,9 @@ from exputils.data.labels import NominalDataEncoder
 
 from arn.data.kinetics_unified import get_kinetics_uni_dataloader
 from arn.scripts.sim_open_world_recog.sim_gen import SimClassifyGaussians
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 def visualize_space(features, labels, preds):
