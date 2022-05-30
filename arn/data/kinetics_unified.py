@@ -513,6 +513,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     whitelist : InitVar[str] = None
     one_hot : bool = True
     k700_suffix_label : InitVar[bool] = True
+    split_prefix : InitVar[bool] = None
 
     def __post_init__(
         self,
@@ -527,6 +528,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         blacklist,
         whitelist,
         k700_suffix_label,
+        split_prefix,
     ):
         """
         Args
