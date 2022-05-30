@@ -455,7 +455,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     ----------
     data : pandas.DataFrame
         A DataFrame whose rows represents each sample's annotation data.
-    kinetics_class_map : str | pandas.DataFrame
+    kinetics_class_map : str | pandas.DataFrame = None
         A mapping of the unique classes in each Kinetics dataset to one
         another. May include other mappings as well. This serves the role of
         older unique `class_labels`.
@@ -478,7 +478,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         hot encodings.
     """
     annotation_path : InitVar[str]
-    kinetics_class_map :  InitVar[str]
+    kinetics_class_map :  InitVar[str] = None
     sample_dirs : KineticsRootDirs = None
     subset :  InitVar[KineticsUnifiedSubset] = None
     unlabeled_token : str = None
@@ -557,7 +557,7 @@ class KineticsUnified(torch.utils.data.Dataset):
                 ]))
         elif isinstance(kinetics_class_map, pd.DataFrame):
             self.kinetics_class_map = kinetics_class_map
-        else:
+        elif kinetics_class_map is not None:
             raise TypeError(' '.join([
                 '`kinetics_class_map` expected to be str or pd.DataFrame, but',
                 f'recieved type: {type(kinetics_class_map)}',
