@@ -127,11 +127,17 @@ def gen_inc_sim_dataset(
                     ))
 
                 # New class' samples
-                samples = sim_set.mvns[i-1].sample_n(eq_samples_per_inc * i)
+                if j == 1:
+                    samples = sim_set.mvns[i - 1].sample_n(eq_samples_per_inc * i)
+                    inc_labels.append(torch.Tensor(
+                        [n_prior_classes + i - 1] * (eq_samples_per_inc * i)
+                    ))
+                else:
+                    samples = sim_set.mvns[i - 1].sample_n(eq_samples_per_inc)
+                    inc_labels.append(torch.Tensor(
+                        [n_prior_classes + i - 1] * (eq_samples_per_inc)
+                    ))
                 inc_samples.append(samples)
-                inc_labels.append(torch.Tensor(
-                    [n_prior_classes + i - 1] * (eq_samples_per_inc * i)
-                ))
 
                 num_samples = eq_samples_per_inc * (n_prior_classes + i)
                 inc_time_end = list(range(num_samples))
