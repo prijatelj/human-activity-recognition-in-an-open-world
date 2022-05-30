@@ -1,5 +1,6 @@
 """Quick interpreter/docstr test run of FineTuneLit."""
 import logging
+logger = logging.getLogger(__name__)
 
 import pandas as pd
 import plotly.express as px
@@ -9,67 +10,7 @@ from exputils.data import ConfusionMatrix
 from exputils.data.labels import NominalDataEncoder
 
 from arn.data.kinetics_unified import get_kinetics_uni_dataloader
-
-
-class ToyClassify2D4MVNs(object):
-    """Create the generative sampling procedure for obtaining coordinates of
-    points as feature data along with the label of which Gaussian distribution
-    they belong to. The Gaussian distributions are labeled their index which
-    starts at zero at the top most Gaussian centered at [0, 1] and labels the
-    rest that follow clockwise around the unit circle.
-
-    Attributes
-    ----------
-    locs : list = None
-        TODO docstr support: list(float) | list(list(float)) = None
-        Defaults to 4 gaussian locations = [[1, 0], [0, 1], [-1, 0], [0, -1]]
-    scales : float = 0.2
-        TODO docstr support: float | list(float) = 0.2
-        The scales of the gaussians in the mixture.
-    labels : list = None
-    seed : int = 0
-    """
-    def __init__(self, locs=None, scales=0.2, labels=None, seed=0):
-        """
-        Args
-        ----
-        see self
-        """
-        if seed is not None:
-            # Set seed: Seems I cannot carry an individual RNG easily...
-            torch.manual_seed(seed)
-
-        # TODO create PyTorch Gaussian Distributions at locs and scales
-        if locs is None:
-            locs = [[1, 0], [0, 1], [-1, 0], [0, -1]]
-
-        if not isinstance(scales, list):
-            scales = [scales] * len(locs)
-
-        self.mvns = [
-            torch.distributions.multivariate_normal.MultivariateNormal(
-                torch.Tensor(loc),
-                torch.eye(2) * scales[i],
-            )
-            for i, loc in enumerate(locs)
-        ]
-
-        if labels:
-            self.label_enc = NominalDataEncoder(labels)
-        else:
-            self.label_enc = None
-
-    def eq_sample_n(self, num, randperm=True):
-        if randperm:
-            idx = torch.randperm(num * len(self.mvns))
-            return (
-                torch.cat([mvn.sample_n(num) for mvn in self.mvns])[idx],
-                torch.Tensor([[i] * num for i in range(len(self.mvns))]).flatten()[idx],
-            )
-        return (
-            torch.cat([mvn.sample_n(num) for mvn in self.mvns]),
-            torch.Tensor([[i] * num for i in range(len(self.mvns))]).flatten(),
-        )
+from arn.scripts.sim_open_world_recog.sim_gen import SimClassifyGaussians
 
 
 def visualize_space(features, labels, preds):
@@ -110,14 +51,14 @@ def evaluate(inc_idx, split, features, labels, predictor, running_cm=None):
         preds.argmax(-1).squeeze().tolist(),
     )
 
-    logging.info(
+    logger.info(
         'Increment %d: %s eval: NMI = %.4f',
         inc_idx,
         split,
         cm.mutual_information('arithmetic'),
     )
-    logging.info('Increment %d: %s eval: MCC = %.4f', inc_idx, split, cm.mcc())
-    logging.info(
+    logger.info('Increment %d: %s eval: MCC = %.4f', inc_idx, split, cm.mcc())
+    logger.info(
         'Increment %d: %s eval: Accuracy = %.4f',
         inc_idx,
         split,
@@ -129,18 +70,18 @@ def evaluate(inc_idx, split, features, labels, predictor, running_cm=None):
 
     running_cm = running_cm + cm
 
-    logging.info(
+    logger.info(
         'Increment %d: Running: %s eval: NMI = %.4f',
         inc_idx,
         split,
         running_cm.mutual_information('arithmetic'),
     )
-    logging.info('Increment %d: Running: %s eval: MCC = %.4f',
+    logger.info('Increment %d: Running: %s eval: MCC = %.4f',
         inc_idx,
         split,
         running_cm.mcc(),
     )
-    logging.info(
+    logger.info(
         'Increment %d: Running: %s eval: Accuracy = %.4f',
         inc_idx,
         split,
@@ -153,7 +94,7 @@ def evaluate(inc_idx, split, features, labels, predictor, running_cm=None):
 def increment(
     inc_idx,
     predictor,
-    toy_sim,
+    sim,
     inc_train_num_each,
     inc_test_num_each,
     train_features=None,
@@ -161,11 +102,11 @@ def increment(
     running_train_cm=None,
     running_test_cm=None,
 ):
-    logging.info('Starting increment #: %d', inc_idx)
+    logger.info('Starting increment #: %d', inc_idx)
 
-    logging.info('Increment %d: Generate train samples', inc_idx)
+    logger.info('Increment %d: Generate train samples', inc_idx)
     # Generate the train samples
-    inc_train_features, inc_train_labels = toy_sim.eq_sample_n(
+    inc_train_features, inc_train_labels = sim.eq_sample_n(
         inc_train_num_each
     )
     inc_train_labels = torch.nn.functional.one_hot(inc_train_labels.to(int)).to(float)
@@ -178,7 +119,7 @@ def increment(
         train_features = inc_train_features
         train_labels = inc_train_labels
 
-    logging.info('Increment %d: Fit train samples', inc_idx)
+    logger.info('Increment %d: Fit train samples', inc_idx)
     # Incremental fit by keeping prior points
     predictor.fit([train_features, train_labels])
 
@@ -191,9 +132,9 @@ def increment(
         running_train_cm,
     )
 
-    logging.info('Increment %d: Generate test samples', inc_idx)
+    logger.info('Increment %d: Generate test samples', inc_idx)
     # Generate the incremental test samples
-    inc_test_features, inc_test_labels = toy_sim.eq_sample_n(inc_test_num_each)
+    inc_test_features, inc_test_labels = sim.eq_sample_n(inc_test_num_each)
     inc_test_labels = torch.nn.functional.one_hot(inc_test_labels.to(int)).to(float)
 
     running_test_cm = evaluate(
@@ -218,7 +159,7 @@ def increment(
 
 def run(
     predictor,
-    toy_sim=None,
+    sim=None,
     visualize=False,
     inc_train_num_each=100,
     inc_test_num_each=100,
@@ -230,7 +171,7 @@ def run(
     Args
     ----
     predictor : arn.models.fine_tune_lit.FineTuneLit
-    toy_sim : ToyClassify2D4MVNs = None
+    sim : SimClassifyGaussians = None
         TODO docstr support:  allow required arg when its config args all have
         defaults.
     visualize : bool = False
@@ -252,7 +193,7 @@ def run(
     logging.basicConfig(
         #filename='../results/toy_test.log',
         #filemode='w',
-        level=getattr(logging, log_level, None),
+        level=getattr(logger, log_level, None),
         format='%(asctime)s; %(levelname)s: %(message)s',
         datefmt=None,
     )
@@ -263,7 +204,7 @@ def run(
         increment(
             i,
             predictor,
-            toy_sim,
+            sim,
             inc_train_num_each,
             inc_test_num_each,
             train_features,

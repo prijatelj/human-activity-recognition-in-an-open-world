@@ -10,20 +10,23 @@ The 2D points serve as the feature represention of samples of each class.
 
 The starting increment and experiment 1 are simulated using 4 2d Gaussians placed on the unit cirlce in the cardinal directions.
 These 4 Gaussians each represent their own class.
-Each Gaussian has a standard deviation of 1/10.
+Each Gaussian has a standard deviation of 1/20.
 Each have 1k samples each for each data split of train, val, and test.
 The predictors perform the classification after being trained on the data, as per usual closed-set classification.
 
 ### Simulated Experiment 2
 
 The simulated data for experiment 2 matches that of the paper's experiments on the Kinetics data.
-There are 2 sets of Gaussians to stand in for the Kinetics600 and Kinetics700-2020 datasets, where the pair of sets consist of 10 classes (Gaussians) each and where one new class is added in each increment (10 increments per dataset).
+There are 2 sets of Gaussians to stand in for the Kinetics600 and Kinetics700-2020 datasets, where the pair of sets consist of 10 classes (Gaussians) each.
 All Gaussians in experiment 2 have a standard deviation of 1/10.
+For each dataset of Gaussians there are `4 * 10 = 40` increments.
+For the first increment and every 4 increments after, a singular new class is introduced.
+The sample size of each increment is 25 new samples from all classes, both known and new.
+This allows for examining how different number of samples for classes effects performance of the predictors.
 
-The first 10 increments consists of adding a singular new class per increment.
-The number of sampled points per known class at each increment is 100 per class.
-The new class introduced in its respective increment (i) for the dataset is samples `i*100`, where i is an integer in the inclusive range [1,10].
-This means at the end of each dataset, every new class will have 1k samples.
+The number of sampled points per known class at each increment is 25 per class.
+The new class introduced in its respective increment (i) for the dataset is samples `i*25`, where i is an integer in the inclusive range [1,10].
+This means at the end of each dataset (all 40 increments), each new class will have 1k samples.
 This pattern is repeated for each of the 2 datasets.
 
 The first dataset of Gaussians are all located on the unit circle in between the existing 4 class' distributions.

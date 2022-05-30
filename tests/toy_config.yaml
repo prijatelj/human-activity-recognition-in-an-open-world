@@ -10,8 +10,9 @@ docstr:
       - init_tensorboard_logger
     arn.models.fine_tune:
       - FineTuneFC
+    arn.scripts.sim_open_world_recog.sim_gen:
+      - SimClassifyGaussians
     tests.script_toy_classification_test:
-      - ToyClassify2D4MVNs
       - run
   main: run
 
@@ -23,8 +24,8 @@ run:
   inc_train_num_each: 100
   inc_test_num_each: 100
   total_increments: 1
-  toy_sim:
-    ToyClassify2D4MVNs:
+  sim:
+    SimClassifyGaussians:
       seed: 0
   predictor:
     FineTuneLit:
