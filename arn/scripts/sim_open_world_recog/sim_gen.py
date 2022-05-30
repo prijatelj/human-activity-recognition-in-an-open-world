@@ -6,10 +6,11 @@ import math
 
 import numpy as np
 import pandas as pd
+import ray
 import torch
 
 from exputils.data.labels import NominalDataEncoder
-from exputils.io import create_dirs, create_filepath
+from exputils.io import create_filepath
 
 from arn.data.kinetics_unified import get_filename
 
@@ -91,11 +92,13 @@ def gen_inc_sim_dataset(
     incs_per_new_class,
     eq_samples_per_inc,
     dataset_id,
+    seed=0,
 ):
     sim_set = SimClassifyGaussians(
         locs,
         scales=scales,
         labels=[f'k{dataset_id}-{i}' for i in range(1, len(locs)+1)],
+        seed=seed,
     )
     start_sim.label_enc.append(list(sim_set.label_enc))
 
@@ -111,7 +114,7 @@ def gen_inc_sim_dataset(
     # Loop through new classes
     for i in range(1, len(locs) + 1):
         # Loop through incrments per new classes
-        for j in range(1, incs_per_new_class):
+        for j in range(incs_per_new_class):
             # Loop through the splits
             for split_idx, split in enumerate(['train', 'validate', 'test']):
                 samples, labels = start_sim.eq_sample_n(eq_samples_per_inc)
@@ -119,31 +122,34 @@ def gen_inc_sim_dataset(
                 inc_labels.append(labels)
 
                 # This Dsets prior seen class' samples
-                for k in range(1, i):
-                    samples = sim_set.mvns[k-1].sample_n(eq_samples_per_inc)
+                for k in range(0, i - 1):
+                    samples = sim_set.mvns[k].sample_n(eq_samples_per_inc)
                     inc_samples.append(samples)
                     inc_labels.append(torch.Tensor(
-                        [n_prior_classes + k - 1] * eq_samples_per_inc
+                        [n_prior_classes + k] * eq_samples_per_inc
                     ))
 
                 # New class' samples
-                if j == 1:
-                    samples = sim_set.mvns[i - 1].sample_n(eq_samples_per_inc * i)
-                    inc_labels.append(torch.Tensor(
-                        [n_prior_classes + i - 1] * (eq_samples_per_inc * i)
-                    ))
-                else:
-                    samples = sim_set.mvns[i - 1].sample_n(eq_samples_per_inc)
-                    inc_labels.append(torch.Tensor(
-                        [n_prior_classes + i - 1] * (eq_samples_per_inc)
-                    ))
+                #if j == 1:
+                samples = sim_set.mvns[i - 1].sample_n(eq_samples_per_inc * i)
+                inc_labels.append(torch.Tensor(
+                    [n_prior_classes + i - 1] * (eq_samples_per_inc * i)
+                ))
+                #else:
+                #    samples = sim_set.mvns[i - 1].sample_n(eq_samples_per_inc)
+                #    inc_labels.append(torch.Tensor(
+                #        [n_prior_classes + i - 1] * (eq_samples_per_inc)
+                #    ))
                 inc_samples.append(samples)
 
-                num_samples = eq_samples_per_inc * (n_prior_classes + i)
-                inc_time_end = list(range(num_samples))
+                num_samples = eq_samples_per_inc * (n_prior_classes + i + i-1)
+                inc_time_end += list(range(
+                    len(inc_time_end),
+                    len(inc_time_end) + num_samples
+                ))
                 inc_split += [split] * num_samples
                 inc_time_start += [split_idx] * num_samples
-                inc_youtube_id += [f'k{dataset_id}'] * num_samples
+                inc_youtube_id += [f'k{dataset_id}-{split}'] * num_samples
     inc_samples = torch.concat(inc_samples)
     inc_labels = torch.concat(inc_labels)
 
@@ -155,7 +161,7 @@ def gen_inc_sim_dataset(
         inc_time_start,
         dataset_id,
     )
-    return sim_set, df, samples
+    return sim_set, df, inc_samples
 
 
 def get_kinetics_unified_df(
@@ -166,7 +172,7 @@ def get_kinetics_unified_df(
     inc_time_start,
     dataset_id,
 ):
-    assert dataset_id in {'400', '600', '700_200'}
+    assert dataset_id in {'400', '600', '700_2020'}
     df = pd.DataFrame({
         f'label_kinetics{dataset_id}': inc_labels, #[
         #    f'k{dataset_id}-{i}' for i in inc_labels
@@ -196,6 +202,11 @@ def get_kinetics_unified_df(
         'split_kinetics600',
         'split_kinetics700_2020',
     ]]
+
+
+@ray.remote
+def save_sample(sample_tensor, dir_name, filename):
+    torch.save(sample_tensor, os.path.join(dir_name, filename))
 
 
 def gen_sim_dataset(root_dir):
@@ -229,7 +240,7 @@ def gen_sim_dataset(root_dir):
         samples, labels = start_sim.eq_sample_n(samples_per_class)
         start_inc_samples.append(samples)
         start_inc_labels.append(labels)
-        start_inc_youtube_id += ['k400'] * samples_per_class * 4
+        start_inc_youtube_id += [f'k400-{split}'] * samples_per_class * 4
         start_inc_time_end += list(np.arange(samples_per_class * 4))
         start_inc_split += [split] * 4 * samples_per_class
         start_inc_time_start += [split_idx] * 4 * samples_per_class
@@ -247,10 +258,13 @@ def gen_sim_dataset(root_dir):
     )
 
     # Save the sample points to their own filepath
-    dir_name = create_dirs(os.path.join(root_dir, 'sim_k400/'))
+    dir_name = create_filepath(os.path.join(root_dir, 'sim_k400/'))
+    save_dset = []
     for i, filename in enumerate(get_filename(df, ext='_feat.pt')):
-        torch.save(start_inc_samples[i], os.path.join(dir_name, filename))
-
+        save_dset.append(
+            save_sample.remote(start_inc_samples[i], dir_name, filename)
+        )
+    ray.get(save_dset)
 
     logger.info('Second dataset: Incremental Open World Recognition.')
     # Generate the 2nd dataset's samples
@@ -281,16 +295,20 @@ def gen_sim_dataset(root_dir):
         incs_per_new_class,
         eq_samples_per_inc,
         dataset_id='600',
+        seed=1,
     )
 
     # Update df with new labels
     df = df.append(k6df)
 
     # Save the sample points to their own filepath
-    dir_name = create_dirs(os.path.join(root_dir, 'sim_k600/'))
+    dir_name = create_filepath(os.path.join(root_dir, 'sim_k600/'))
+    save_dset = []
     for i, filename in enumerate(get_filename(k6df, ext='_feat.pt')):
-        torch.save(k6_sim_samples[i], os.path.join(dir_name, filename))
-
+        save_dset.append(
+            save_sample.remote(k6_sim_samples[i], dir_name, filename)
+        )
+    ray.get(save_dset)
 
     logger.info('Third dataset: Incremental Open World Recognition.')
     # Generate the 3rd dataset's samples
@@ -321,6 +339,7 @@ def gen_sim_dataset(root_dir):
         incs_per_new_class,
         eq_samples_per_inc,
         dataset_id='700_2020',
+        seed=2,
     )
 
     # Update df with new labels
@@ -328,6 +347,16 @@ def gen_sim_dataset(root_dir):
     df.to_csv(os.path.join(root_dir, 'sim_kunified.csv'), index=False)
 
     # Save the sample points to their own filepath
-    dir_name = create_dirs(os.path.join(root_dir, 'sim_k700/'))
-    for i, filename in enumerate(get_filename(k6df, ext='_feat.pt')):
-        torch.save(k7_sim_samples[i], os.path.join(dir_name, filename))
+    dir_name = create_filepath(os.path.join(root_dir, 'sim_k700/'))
+    save_dset = []
+    for i, filename in enumerate(get_filename(k7df, ext='_feat.pt')):
+        save_dset.append(
+            save_sample.remote(k7_sim_samples[i], dir_name, filename)
+        )
+    ray.get(save_dset)
+
+
+if __name__ == '__main__':
+    import sys
+    ray.init(num_cpus=15, num_gpus=1)
+    gen_sim_dataset(sys.argv[1])

@@ -735,6 +735,8 @@ class KineticsUnifiedFeatures(KineticsUnified):
         """
         super().__post_init__(*args, **kwargs)
 
+    # TODO Make efficient DataSet/DataLoader pre-loading, wherever is most
+    # efficient and proper (in this DataSet class or outside).
     def __getitem__(self, index):
         """For the given index, load the corresponding sample feature encoding
         and labels.
