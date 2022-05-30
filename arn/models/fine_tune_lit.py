@@ -159,6 +159,7 @@ class FineTuneFCLit(pl.LightningModule):
         lr=0.001,
         weight_decay=0,
         amsgrad=False,
+        confusion_matrix=False,
         *args,
         **kwargs,
     ):
@@ -167,6 +168,8 @@ class FineTuneFCLit(pl.LightningModule):
         Args
         ----
         see self
+        confusion_matrix : bool = False
+            If True, records the ConfusionMatrix for train and val loops.
         """
         super().__init__(*args, **kwargs)
         self.model = model
@@ -183,8 +186,12 @@ class FineTuneFCLit(pl.LightningModule):
         self.train_acc = torchmetrics.Accuracy()
         self.val_acc = torchmetrics.Accuracy()
 
-        self.train_cm = torchmetrics.ConfusionMatrix(401)
-        self.val_cm = torchmetrics.ConfusionMatrix(401)
+        if confusion_matrix:
+            self.train_cm = torchmetrics.ConfusionMatrix(401)
+            self.val_cm = torchmetrics.ConfusionMatrix(401)
+        else:
+            self.train_cm = None
+            self.val_cm = None
 
         self.train_mcc = torchmetrics.MatthewsCorrCoef(401)
         self.val_mcc = torchmetrics.MatthewsCorrCoef(401)
