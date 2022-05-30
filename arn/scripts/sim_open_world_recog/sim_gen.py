@@ -241,7 +241,10 @@ def gen_sim_dataset(root_dir):
         start_inc_samples.append(samples)
         start_inc_labels.append(labels)
         start_inc_youtube_id += [f'k400-{split}'] * samples_per_class * 4
-        start_inc_time_end += list(np.arange(samples_per_class * 4))
+        start_inc_time_end += list(np.arange(
+            len(start_inc_time_end),
+            len(start_inc_time_end) + samples_per_class * 4
+        ))
         start_inc_split += [split] * 4 * samples_per_class
         start_inc_time_start += [split_idx] * 4 * samples_per_class
     start_inc_samples = torch.concat(start_inc_samples)
