@@ -71,7 +71,7 @@ def get_kinetics_uni_dataloader(dataset, *args, **kwargs):
     """Get torch DataLoader of a KineticsUnified (subclass) dataset."""
     logger.debug('`type(dataset)` = %s', type(dataset))
 
-    if isinstance(dataset, KineticsUnified):
+    if isinstance(dataset, torch.utils.data.Dataset):
         logger.debug('`len(dataset)` = %s', len(dataset))
         return torch.utils.data.DataLoader(dataset, *args, **kwargs)
     elif isinstance(dataset, torch.Tensor):
@@ -82,7 +82,11 @@ def get_kinetics_uni_dataloader(dataset, *args, **kwargs):
             **kwargs,
         )
     elif isinstance(dataset, (list, tuple)):
-        logger.debug('dataset is list: `len(dataset)` = %s', len(dataset))
+        logger.debug(
+            'dataset is %s: `len(dataset)` = %s',
+            type(dataset),
+            len(dataset),
+        )
         for is_tensor in dataset:
             if not isinstance(is_tensor, torch.Tensor):
                 raise TypeError(' '.join([
