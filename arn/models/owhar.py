@@ -3,6 +3,7 @@ import os
 
 import torch
 
+from exputils.data.labels import NominalDataEncoder
 from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 
 from arn.models.novelty_detector import WindowedMeanKLDiv
