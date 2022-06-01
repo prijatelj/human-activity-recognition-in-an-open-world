@@ -169,6 +169,10 @@ class OWHAPredictor(object):
         """
         return self.fine_tune.predict(dataset)
 
+    def known_probs(self, dataset):
+        """Backwards compat for older agents in eval."""
+        return self.predict(dataset)
+
     def novelty_detect(self, dataset, task_id=None):
         """Predictor performs novelty detection given the dataset, possibly
         conditioned on specific task set. Novelty detection is the same as
