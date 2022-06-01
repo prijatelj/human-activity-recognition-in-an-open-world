@@ -331,6 +331,8 @@ class FineTuneLit(object):
     trainer : init_trainer
         The pl.Trainer trainer used for the fine tune model.
     batch_size : int = 1000
+    predict_batch_size : int = None
+        An optional batch size for predict() only.
     shuffle : bool = True
         If True, shuffle the data when fitting. If False, no shuffling.
     num_workers : int = 0
@@ -343,6 +345,7 @@ class FineTuneLit(object):
         model,
         trainer,
         batch_size=1000,
+        predict_batch_size=None,
         shuffle=True,
         num_workers=0,
         pin_memory=False,
@@ -361,6 +364,10 @@ class FineTuneLit(object):
             )
         self.model = model
         self.batch_size = batch_size
+        if predict_batch_size:
+            self.predict_batch_size = predict_batch_size
+        else:
+            self.predict_batch_size = batch_size
         self.shuffle = shuffle
         self.num_workers = num_workers
 
@@ -432,7 +439,7 @@ class FineTuneLit(object):
             model=self.model,
             dataloaders=get_kinetics_uni_dataloader(
                 features,
-                batch_size=self.batch_size,#1,
+                batch_size=self.predict_batch_size,
                 shuffle=False,
                 num_workers=0,
                 pin_memory=self.pin_memory,
@@ -456,11 +463,11 @@ class FineTuneLit(object):
         return preds
 
     def predict(self, features):
-        if self.batch_size > 1:
+        if self.predict_batch_size > 1:
             return torch.cat([t[1] for t in self._predict(features)])
         return torch.stack([t[1] for t in self._predict(features)])
 
     def extract(self, features):
-        if self.batch_size > 1:
+        if self.predict_batch_size > 1:
             return torch.cat([t[0] for t in self._predict(features)])
         return torch.stack([t[0] for t in self._predict(features)])
