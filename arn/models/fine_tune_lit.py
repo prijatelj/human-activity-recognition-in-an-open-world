@@ -145,6 +145,10 @@ class FineTuneFCLit(pl.LightningModule):
         The learning rate for the optimizer.
     amsgrad : bool = False
         If True, uses AMSGrad variant of ADAM.
+    expect_one_hot : bool = True
+        Parameter to expect one hot when True, or the class index integer for
+        labels when False. This to be False when using CrossEntropyLoss for
+        older versions of torch, such as v1.7.
 
     Notes
     -----
@@ -160,6 +164,7 @@ class FineTuneFCLit(pl.LightningModule):
         weight_decay=0,
         amsgrad=False,
         confusion_matrix=False,
+        expect_one_hot=True,
         *args,
         **kwargs,
     ):
@@ -173,6 +178,7 @@ class FineTuneFCLit(pl.LightningModule):
         """
         super().__init__(*args, **kwargs)
         self.model = model
+        self.expect_one_hot = expect_one_hot
 
         if loss is None:
             self.loss = nn.CrossEntropyLoss()
@@ -214,6 +220,11 @@ class FineTuneFCLit(pl.LightningModule):
         if len(labels.shape) == 1:
             labels = labels.reshape(1, -1)
 
+        if self.expect_one_hot:
+            labels_argmax = labels.argmax(1)
+        else:
+            labels_argmax = labels
+
         #print(labels.argmax(1).unique())
         #print(F.softmax(classifications, 1).argmax(1).unique())
 
@@ -228,9 +239,8 @@ class FineTuneFCLit(pl.LightningModule):
         logger.debug('labels.requires_grad: %s', labels.requires_grad)
         #"""
 
-        loss = self.loss(classifications, labels)
+        loss = self.loss(classifications, labels_argmax)
         #logger.debug('loss.requires_grad: %s', loss.requires_grad)
-        labels_argmax = labels.argmax(1)
         classif_argmax = F.softmax(classifications, 1).argmax(1)
         acc = (labels_argmax == classif_argmax).to(float).mean()
 
@@ -284,9 +294,13 @@ class FineTuneFCLit(pl.LightningModule):
         if len(labels.shape) == 1:
             labels = labels.reshape(1, -1)
 
-        loss = self.loss(classifications, labels)
+        if self.expect_one_hot:
+            labels_argmax = labels.argmax(1)
+        else:
+            labels_argmax = labels
 
-        labels_argmax = labels.argmax(1)
+        loss = self.loss(classifications, labels_argmax)
+
         classif_argmax = F.softmax(classifications, 1).argmax(1)
 
         acc = (labels_argmax == classif_argmax).to(float).mean()
