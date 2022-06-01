@@ -108,6 +108,7 @@ class OWHAPredictor(object):
         fine_tune: arn.models.fine_tune.FineTune
     novelty_detector: WindowedMeanKLDiv
     feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
+    label_enc : NominalDataEncoder = None
     """
     def __init__(
         self,
@@ -115,13 +116,17 @@ class OWHAPredictor(object):
         novelty_detector,
         feedback_interpreter=None,
         dtype=None,
-        #TODO label_enc
+        label_enc=None,
     ):
         """Initializes the OWHAR.
 
         Args
         ----
-        see self
+        fine_tune: see self
+        novelty_detector: see self
+        feedback_interpreter: see self
+        label_enc : str | NominalDataEncoder = None
+            Filepath to be loaded or the actual NominalDataEncoder.
         """
         self.fine_tune = fine_tune
         self.novelty_detector = novelty_detector
@@ -129,6 +134,10 @@ class OWHAPredictor(object):
         self._increment = 0
         self.dtype = torch_dtype(dtype)
         # TODO Use the dtype in all interior predictor parts unless None.
+        if isinstance(label_enc, str):
+            self.label_enc = NominalDataEncoder.load(label_enc)
+        else:
+            self.label_enc = label_enc
 
     @property
     def increment(self):
