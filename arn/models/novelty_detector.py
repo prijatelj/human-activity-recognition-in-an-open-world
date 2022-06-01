@@ -5,6 +5,9 @@ import logging
 import numpy as np
 import torch
 
+logger = logging.getLogger(__name__)
+
+
 #from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 
 # TODO?
@@ -107,7 +110,6 @@ class WindowedKLDivBayesFactor(object):
         known_probs,
         is_max_pred=False,
         distrib=None,
-        logger=None,
     ):
         """Post probability score classification, perform detection using KL
         Divergence with a weighted threshold.
@@ -120,8 +122,6 @@ class WindowedKLDivBayesFactor(object):
         is_max_known_probs : bool = False
             If True, known_probs is the maximum probability per sample's predicted
             probability vector may be provided if precalculated.
-        logger : logging
-            A logging object to preserve the functionality up-stream.
 
         Returns
         -------
@@ -221,7 +221,7 @@ class WindowedMeanKLDiv(object):
         # code, we keep it.
         self.past_window = []
 
-    def detect(self, known_probs, is_max_pred=False, logger=None):
+    def detect(self, known_probs, is_max_pred=False):
         """Post probability score classification, perform detection using KL
         Divergence with a weighted threshold.
 
@@ -233,8 +233,6 @@ class WindowedMeanKLDiv(object):
         is_max_known_probs : bool = False
             If True, known_probs is the maximum probability per sample's predicted
             probability vector may be provided if precalculated.
-        logger : logging
-            A logging object to preserve the functionality up-stream.
 
         Returns
         -------
@@ -299,8 +297,7 @@ class WindowedMeanKLDiv(object):
                 ) - 0.5
             )
 
-            if logger is not None:
-                logger.info(f"max kl_epoch = {torch.max(kl_epoch)}")
+            logger.info(f"max kl_epoch = {torch.max(kl_epoch)}")
 
             W = (kl_epoch / (2 * self.kl_threshold))#1.1
 
@@ -317,10 +314,9 @@ class WindowedMeanKLDiv(object):
                 temp_world_changed.detach().numpy(),
                 4,
             ))
-            if logger is not None:
-                logger.info(
-                    f"self.temp_world_changed = {approx_world_changed}",
-                )
+            logger.info(
+                f"self.temp_world_changed = {approx_world_changed}",
+            )
 
             self.accuracy = temp_world_changed[-1]
 
