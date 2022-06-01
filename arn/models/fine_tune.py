@@ -240,7 +240,7 @@ class FineTune(object):
             preds.append(self.model.fcs(x))
 
         if self.batch_size > 1:
-            return torch.concat(preds)
+            return torch.cat(preds)
         return torch.stack(preds)
 
     def predict(self, features):
@@ -269,7 +269,7 @@ class FineTune(object):
             preds.append(F.softmax(self.model(x)[1], dim=-1))
 
         if self.batch_size > 1:
-            return torch.concat(preds)
+            return torch.cat(preds)
         return torch.stack(preds)
 
     def save(self, filepath):
@@ -660,7 +660,7 @@ class ResidualConnections(nn.Module):
         An ordered dict with keys as the module name in modules that will
         recieve the output of joining the given residual connections. The
         values are then a tuple of two elements with the first being a
-        callable, such as `torch.concat`, and the second being a list of
+        callable, such as `torch.cat`, and the second being a list of
         inputs to join in order.
 
         The residual mappings to modify the existing modules' connections
