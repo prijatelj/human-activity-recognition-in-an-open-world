@@ -18,6 +18,8 @@ COPY Sail-On-API ./Sail-On-API/
 COPY Sail_On_Evaluate ./Sail_On_Evaluate/
 COPY ND-Activity-Recognition-Feeback ./ND-Activity-Recognition-Feeback/
 COPY vast ./vast/
+COPY exputils ./exputils/
+COPY docstr ./docstr/
 
 # Install this repo's main package and its dependencies
 WORKDIR /tmp/docker/kitware-sail-on/TimeSformer/
@@ -27,6 +29,8 @@ RUN poetry run pip install ../Sail-On-API/ ../Sail_On_Evaluate/
 # Editable installs for development.
 RUN poetry run pip install -e ../ND-Activity-Recognition-Feeback/
 RUN poetry run pip install -e ../vast/
+RUN poetry run pip install -e ../exputils/
+RUN poetry run pip install -e ../docstr/
 
 # Data is mounted to with bindings, thus downloaded manually.
 
