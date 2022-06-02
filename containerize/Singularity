@@ -2,11 +2,16 @@ Bootstrap: docker
 From: nvcr.io/nvidia/pytorch:21.09-py3
 
 %post 
-    # Intall dependencies
+    # Deps for opencv-python, and necessary ARG/ENV for build
+    export DEBIAN_FRONTEND="noninteractive"
+    export TZ="America/New_York"
+    apt-get update && apt-get install -y python3-opencv
+
+    # Install dependencies
     mkdir deps
     cd deps
 
-    # Install Prijatelj's public fork of `vast` for the EVM and FINCH
+    # Install Prijatelj's public fork of `vast` for the Extreme Value Machine
     git clone --recurse-submodules https://github.com/prijatelj/vast
     cd vast
     python setup.py install
@@ -20,6 +25,9 @@ From: nvcr.io/nvidia/pytorch:21.09-py3
 
     # Install this repo's main package and its dependencies
     python setup.py install
+
+    # Install docstr to the cli of the package
+    pip install docstr
 
 %labels
     Author dprijate@nd.edu
