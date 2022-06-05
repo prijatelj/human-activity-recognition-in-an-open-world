@@ -9,6 +9,7 @@ Actuators: Feedback request system
     - Oracle feedback budgeted amount overall
     - Feedback Translation?
 """
+from copy import deepcopy
 from dataclasses import dataclass, InitVar
 import os
 import sys
@@ -16,6 +17,7 @@ from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import StratifiedKFold
 import torch
 
 from arn.data.kinetics_increment import get_increments
@@ -33,6 +35,178 @@ from exputils.io import create_filepath
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def get_known_and_unknown_dfs(
+    n_increments,
+    dataframe,
+    known_label_enc,
+    seed=None,
+    np_gen=None,
+    label_col='labels',
+):
+    """
+    Returns
+    -------
+    tuple
+        Tuple of a list of dataframes of known class samples, and the dataframe
+        of unknown class samples to be handled externally.
+    """
+    if seed is None:
+        np_gen = None
+    elif np_gen is None:
+        np_gen = np.random.default_rng(seed)
+    known_df = dataframe
+
+    # Separate samples with known labels from those with unknown.
+    known_mask = known_df[label_col].isin(known_label_enc)
+    unknown_df = known_df[~known_mask]
+    known_df = known_df[known_mask]
+
+    logger.debug(
+        'sum(known_mask) = %d; len(known_df) = %d',
+        sum(known_mask),
+        len(known_df),
+    )
+    logger.debug(
+        'sum(~known_mask) = %d; len(unknown_df) = %d',
+        sum(~known_mask),
+        len(unknown_df),
+    )
+    logger.debug('len(known_label_enc) = %d', len(known_label_enc))
+
+    # Stratified folds for known class samples, ensuring presence and balance
+    # across incs
+    skf = StratifiedKFold(
+        n_increments,
+        random_state=seed,
+        shuffle=np_gen is not None,
+    )
+    known_incs = [
+        known_df.iloc[test] for train, test in
+        skf.split(known_df['sample_index'], known_df[label_col])
+    ]
+
+    return known_incs, unknown_df
+
+
+def get_increments(
+    n_increments,
+    src_datasplit,
+    known_label_enc,
+    seed=None,
+    label_col='labels',
+):
+    """
+    Args
+    ----
+    n_increments : int
+        The number of increments to create
+    src_datasplit : arn.data.kinetics_owl.DataSplits
+        KineticsUnified
+        The source KineticsUnified Dataset for splitting into the incremental
+        datasets.
+    known_label_enc : exputils.data.labels.NominalDataEncoder
+    seed : int = None
+    label_col : str = 'labels'
+
+    Returns
+    -------
+    list
+        List of KineticsUnified Datasets that form the ordered increments.
+    """
+    if seed is None:
+        np_gen = None
+    else:
+        np_gen = np.random.default_rng(seed)
+
+    # NOTE assumes train is always present in given DataSplits.
+    tmp_dataset = deepcopy(src_datasplit.train)
+    #del src_datasplit
+    tmp_dataset.data = None
+    tmp_dataset.label_enc = None
+
+    knowns_splits = []
+    unknowns_splits = []
+    for tmp_dset in src_datasplit:
+        if tmp_dset is None:
+            knowns_splits.append(None)
+            unknowns_splits.append(None)
+        else:
+            knowns, unknowns = get_known_and_unknown_dfs(
+                n_increments,
+                tmp_dset.data,
+                known_label_enc,
+                seed,
+                np_gen,
+                label_col,
+            )
+            knowns_splits.append(knowns)
+            unknowns_splits.append(unknowns)
+
+    label_enc = known_label_enc
+    del known_label_enc
+
+    # TODO randomization criteron that forces certain classes to be separate,
+    # e.g. classes farther from each other in some class hierarchy should be
+    # separated across the increments such that there is sufficiently novel
+    # classes in each increment.
+
+    unknown_df = unknowns_splits[0]
+
+    # Randomize unique, unknown classes across n increments. Last w/ remainder
+    unique, unique_inv = np.unique(unknown_df[label_col], return_inverse=True)
+    n_unique = len(unique)
+    logger.debug('unknowns: n_unique = %d', n_unique)
+
+    if np_gen is not None:
+        unique_perm = np.arange(n_unique)
+        np_gen.shuffle(unique_perm)
+        nde = NominalDataEncoder(unique_perm)
+        unique = unique[unique_perm]
+        unique_inv = nde.encode(unique_inv)
+
+    classes_per_inc = np.ceil(n_unique / n_increments)
+    unique_slices = np.cumsum(
+        [0] + [classes_per_inc] * n_increments,
+        dtype=int,
+    )
+
+    # Loop through and create the incremental KineticsUnified datasets
+    increments = []
+    for i in range(n_increments):
+        inc_uniques = unique[unique_slices[i]:unique_slices[i+1]]
+        label_enc.append(unique[unique_slices[i]:unique_slices[i+1]])
+
+        inc_datasets = []
+        for k, unknown_df in enumerate(unknowns_splits):
+            inc_dataset = deepcopy(tmp_dataset)
+            inc_dataset.label_enc = deepcopy(label_enc)
+
+            unks = unknown_df[unknown_df[label_col].isin(inc_uniques)]
+            logger.debug(
+                'increment %d: split %d: unknown samples = %d',
+                i,
+                k,
+                len(unks),
+            )
+
+            logger.debug(
+                'increment %d: split %d: known samples = %d',
+                i,
+                k,
+                len(knowns_splits[k][i]),
+            )
+            inc_dataset.data = knowns_splits[k][i].append(unks)
+            inc_datasets.append(inc_dataset)
+
+        increments.append(DataSplits(
+            train=inc_datasets[0],
+            validate=inc_datasets[1],
+            test=inc_datasets[2],
+        ))
+
+    return increments
 
 
 def get_steps(step_1, step_2):
