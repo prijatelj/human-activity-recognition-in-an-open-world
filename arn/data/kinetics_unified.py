@@ -1,5 +1,6 @@
 """Dataset for the sample aligned Kinetics 400, 600, and 700_2020 datasets."""
 from collections import namedtuple
+from copy import deepcopy
 from dataclasses import dataclass, InitVar
 from functools import partial
 import os
@@ -707,6 +708,20 @@ class KineticsUnified(torch.utils.data.Dataset):
                 k700_suffix_label=k700_suffix_label,
                 split_prefix=split_prefix,
             )
+
+    def __copy__(self):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.__dict__.update(self.__dict__)
+        return result
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for key, val in self.__dict__.items():
+            setattr(result, key, deepcopy(val, memo))
+        return result
 
     def __len__(self):
         return len(self.data)
