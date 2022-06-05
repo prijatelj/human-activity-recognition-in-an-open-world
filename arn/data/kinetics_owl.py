@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from arn.data.kinetics_increment import get_increments
 from arn.data.kinetics_unified import (
     KineticsUnified,
     KineticsUnifiedFeatures,
@@ -32,6 +33,25 @@ from exputils.io import create_filepath
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def get_steps(step_1, step_2):
+    """Hotfix for docstr to load in 2 KineticsUnified datasets. TODO update
+    docstr to parse and generate CAPs for types within lits when specified.
+
+    Args
+    ----
+    step_1 : DataSplits
+        The first DataSplit of KineticsUnified Datasets
+    step_2 : DataSplits
+        The second DataSplit of KineticsUnified Datasets
+
+    Returns
+    -------
+    list
+        List of step 1 and step 2
+    """
+    return [step_1, step_2]
 
 
 class EvalDataSplitConfig(NamedTuple):
@@ -648,19 +668,19 @@ class KineticsOWLExperiment(object):
         The starting increment's data as a KineticsUnifiedFeatures object.
 
         huh... docstr does not CAP gen on MultiType ... | KineticsUnified
-    steps : list = None
+    steps : get_steps = None
         List of DataSplits containing KineticsUnifiedFeature objects
         representing the order to increment over them.
 
-        ? Is this suspposed to be the other two datasets that get
-        incrementally stepped over? a list of them in order? so 2 different
-        KUFs for k600 and k700?
+        Each step has the evaluator's (oracle's) knowledge of the labels. The
+        predictor's known label encoder is managed elsewhere, preferably within
+        the predictor object as label_enc.
     _inc_splits_per_dset : int = 10
         The number of incremental splits per dataset.
     _increment : int = 0
         The current increment of the experiment. Starts at zero, increments
         after a step is complete. After initial increment is increment = 1.
-    label_encoder : exputils.data.labels.NominalDataEncoder
+    label_enc : exputils.data.labels.NominalDataEncoder
         Keep the labels consistent at the current step.
     """
     def __init__(
@@ -683,18 +703,24 @@ class KineticsOWLExperiment(object):
         self._increment = 0
         self._inc_splits_per_dset = inc_splits_per_dset
         self.start = start
-        self.steps = steps
-
-        # TODO LabelEncoder with the ability to be given a specific list of
-        # labels as knowns such that the order is correctomundo.
 
         # NOTE possible that experience should be in the environment/experiment
         # rather than the simulation, but this is an abstraction/semantics
         # issue that doesn't affect practical end result.
-
         logger.debug('len(start.train) = %d', len(start.train))
         logger.debug('len(start.validate) = %d', len(start.validate))
         logger.debug('len(start.test) = %d', len(start.test))
+
+        if steps is None:
+            self.steps = steps
+        else:
+            self.steps = []
+            for step in steps:
+                self.steps += get_increments(
+                    step,
+                    inc_splits_per_dset,
+                    self.start.label_enc,
+                )
 
     @property
     def increment(self):
