@@ -97,6 +97,7 @@ def get_increments(
     known_label_enc,
     seed=None,
     label_col='labels',
+    intro_freq_first=False,
 ):
     """Given a source DataSplit object, returns a list of incremental DataSplit
     objects. This stratified shuffle sthe known classes in known_label_enc,
@@ -115,6 +116,11 @@ def get_increments(
     known_label_enc : exputils.data.labels.NominalDataEncoder
     seed : int = None
     label_col : str = 'labels'
+    intro_freq_first : bool = False
+        If True, introduces the unknown class with the most frequent samples
+        first and procedes to do so for the remaining unknown classes in
+        descending order. This will weakly avoid too few samples of a class in
+        an increment.
 
     Returns
     -------
@@ -158,6 +164,8 @@ def get_increments(
     # separated across the increments such that there is sufficiently novel
     # classes in each increment.
 
+    # TODO optional descending order of unknown classes introduced over incs.
+
     unknown_df = unknowns_splits[0]
 
     # Randomize unique, unknown classes across n increments. Last w/ remainder
@@ -189,7 +197,7 @@ def get_increments(
         remainder = n_increments - i
         if remainder > 1:
             persist_unk_skf = StratifiedKFold(
-                n_increments - i,
+                remainder,
                 random_state=seed,
                 shuffle=np_gen is not None,
             )
@@ -220,6 +228,13 @@ def get_increments(
                     unks.iloc[test] for train, test in
                     persist_unk_skf.split(unks['sample_index'], unks[label_col])
                 ]
+                logger.debug(
+                    'len(unknown_incs) at i=%d, k=%d: %d; remainder = %d',
+                    i,
+                    k,
+                    len(unknown_incs),
+                    remainder,
+                )
                 persistent_unk_df = unknown_incs.pop(0)
             else:
                 # Handle remainder == 1 case, no stratified splitting
