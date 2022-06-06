@@ -166,6 +166,7 @@ def get_increments(
 
     # TODO optional descending order of unknown classes introduced over incs.
 
+    # NOTE assumes train contains all unknown classes.
     unknown_df = unknowns_splits[0]
 
     # Randomize unique, unknown classes across n increments. Last w/ remainder
@@ -173,7 +174,9 @@ def get_increments(
     n_unique = len(unique)
     logger.debug('unknowns: n_unique = %d', n_unique)
 
-    if np_gen is not None:
+    if intro_freq_first:
+        raise NotImplementedError('Introduce most frequent first.')
+    elif np_gen is not None:
         unique_perm = np.arange(n_unique)
         np_gen.shuffle(unique_perm)
         nde = NominalDataEncoder(unique_perm)
