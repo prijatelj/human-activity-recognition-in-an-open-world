@@ -20,7 +20,6 @@ import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 import torch
 
-from arn.data.kinetics_increment import get_increments
 from arn.data.kinetics_unified import (
     KineticsUnified,
     KineticsUnifiedFeatures,
@@ -181,31 +180,75 @@ def get_increments(
 
     # Loop through and create the incremental KineticsUnified datasets
     increments = []
+    persistent_unknowns = []
     for i in range(n_increments):
+        # Ordered update of the label encoder as labels are encountered
         inc_uniques = unique[unique_slices[i]:unique_slices[i+1]]
         label_enc.append(unique[unique_slices[i]:unique_slices[i+1]])
 
+        remainder = n_increments - i
+        if remainder > 1:
+            persist_unk_skf = StratifiedKFold(
+                n_increments - i,
+                random_state=seed,
+                shuffle=np_gen is not None,
+            )
+            persistent_unks = [None] * 3
+        else:
+            persist_unk_skf = None
+            persistent_unks = None
+
+        # Create each k-th data split: train, val, test
         inc_datasets = []
         for k, unknown_df in enumerate(unknowns_splits):
             inc_dataset = deepcopy(tmp_dataset)
             inc_dataset.label_enc = deepcopy(label_enc)
 
+            # Get all of the unknowns introduced at this increment
             unks = unknown_df[unknown_df[label_col].isin(inc_uniques)]
             logger.debug(
-                'increment %d: split %d: unknown samples = %d',
+                'increment %d: split %d: total new unknown samples to be '
+                'spread across remaining increments = %d',
                 i,
                 k,
                 len(unks),
             )
 
+            # Stratified shuffle split across this and remaining incs
+            if persistent_unks is not None:
+                unknown_incs = [
+                    unks.iloc[test] for train, test in
+                    persist_unk_skf.split(unks['sample_index'], unks[label_col])
+                ]
+                persistent_unk_df = unknown_incs.pop(0)
+            else:
+                # Handle remainder == 1 case, no stratified splitting
+                persistent_unk_df = unks
+
+            for j in range(i):
+                if persistent_unknowns[j][k]: # not None or not an empty stack
+                    persistent_unk_df.append(persistent_unknowns[j][k].pop(0))
+
+            # Save this increment's stack of persistent unknowns across incs
+            if persistent_unks is not None:
+                persistent_unks[k] = unknown_incs
+
+            logger.debug(
+                'increment %d: split %d: unknown samples = %d',
+                i,
+                k,
+                len(persistent_unk_df),
+            )
             logger.debug(
                 'increment %d: split %d: known samples = %d',
                 i,
                 k,
                 len(knowns_splits[k][i]),
             )
-            inc_dataset.data = knowns_splits[k][i].append(unks)
+            inc_dataset.data = knowns_splits[k][i].append(persistent_unk_df)
             inc_datasets.append(inc_dataset)
+
+        persistent_unknowns.append(persistent_unks)
 
         increments.append(DataSplits(
             train=inc_datasets[0],
