@@ -45,7 +45,9 @@ def get_known_and_unknown_dfs(
     np_gen=None,
     label_col='labels',
 ):
-    """
+    """Get the list of incremental known classes, stratified shuffled and the
+    DataFrame of unknown labels.
+
     Returns
     -------
     tuple
@@ -97,7 +99,12 @@ def get_increments(
     seed=None,
     label_col='labels',
 ):
-    """
+    """Given a source DataSplit object, returns a list of incremental DataSplit
+    objects. This stratified shuffle sthe known classes in known_label_enc,
+    create a near uniform balance of unique unknown/novel classes that are
+    introduced across the increments. The unique unknown classes' samples are
+    then spread across the remaining increments.
+
     Args
     ----
     n_increments : int
