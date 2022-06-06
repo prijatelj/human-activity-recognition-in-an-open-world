@@ -42,12 +42,6 @@ k400_val = KineticsUnifiedFeatures(
         kinetics400=KineticsSplitConfig(validate=True),
         labels=LabelConfig('label_kinetics400', known=True)
     ),
-    #blacklist='../data/kinetics400/x3d-k400-blacklist-train-file.log',
-    #k700_suffix_label=False,
-    #ext='_logits.pt',
-    #log_warn_file_not_found=True,
-    #return_index=False,
-    #whitelist='../data/kinetics400/first-20_whitelist_test-run.log',
 )
 
 k400_test = KineticsUnifiedFeatures(
@@ -61,12 +55,6 @@ k400_test = KineticsUnifiedFeatures(
         kinetics400=KineticsSplitConfig(test=True),
         labels=LabelConfig('label_kinetics400', known=True)
     ),
-    #blacklist='../data/kinetics400/x3d-k400-blacklist-train-file.log',
-    #k700_suffix_label=False,
-    #ext='_logits.pt',
-    #log_warn_file_not_found=True,
-    #return_index=False,
-    #whitelist='../data/kinetics400/first-20_whitelist_test-run.log',
 )
 
 dsplits = DataSplits(k400_train, k400_val, k400_test)
@@ -123,3 +111,7 @@ logging.debug(
     test_samples,
     len(k400_test) == test_samples,
 )
+
+assert len(k400_train) == train_samples
+assert len(k400_val) == val_samples
+assert len(k400_test) == test_samples
