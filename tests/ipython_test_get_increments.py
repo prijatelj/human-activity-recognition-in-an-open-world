@@ -7,6 +7,8 @@ logging.basicConfig(
     format='%(asctime)s; %(levelname)s: %(message)s',
     datefmt=None,
 )
+logger = logging.getLogger(__name__)
+
 
 from arn.data.kinetics_unified import *
 from arn.data.kinetics_owl import *
@@ -57,6 +59,9 @@ k400_test = KineticsUnifiedFeatures(
     ),
 )
 
+assert k400_train.label_enc == k400_val.label_enc
+assert k400_train.label_enc == k400_test.label_enc
+
 dsplits = DataSplits(k400_train, k400_val, k400_test)
 known_label_enc = NominalDataEncoder(np.array(k400_train.label_enc)[1:11], unknown_key='unknown')
 
@@ -68,24 +73,24 @@ incs = get_increments(
     0,
 )
 
-logging.debug('Check the type and len of `incs`')
-logging.debug('type(incs) = %s', type(incs))
-logging.debug('len(incs) = %d', len(incs))
+logger.debug('Check the type and len of `incs`')
+logger.debug('type(incs) = %s', type(incs))
+logger.debug('len(incs) = %d', len(incs))
 
 train_samples = 0
 val_samples = 0
 test_samples = 0
 
-logging.debug('Check the type and len of each increment')
+logger.debug('Check the type and len of each increment')
 for i, inc in enumerate(incs):
-    logging.debug('type(incs[%d]) = %s', i, type(inc))
-    logging.debug('len(incs[%d]) = %d', i, len(inc))
-    logging.debug('Check the type and len of each split in increment %d', i)
+    logger.debug('type(incs[%d]) = %s', i, type(inc))
+    logger.debug('len(incs[%d]) = %d', i, len(inc))
+    logger.debug('Check the type and len of each split in increment %d', i)
 
     for j, split in enumerate(inc):
-        logging.debug('type(incs[%d][%d]) = %s', i, j, type(split))
+        logger.debug('type(incs[%d][%d]) = %s', i, j, type(split))
         len_split = len(split)
-        logging.debug('len(incs[%d][%d]) = %d', i, j, len_split)
+        logger.debug('len(incs[%d][%d]) = %d', i, j, len_split)
         if j == 0:
             train_samples += len_split
         elif j == 1:
@@ -93,19 +98,19 @@ for i, inc in enumerate(incs):
         elif j == 2:
             test_samples += len_split
 
-logging.debug(
+logger.debug(
     'len(k400_train) = %d; train_samples = %d; == %s',
     len(k400_train),
     train_samples,
     len(k400_train) == train_samples,
 )
-logging.debug(
+logger.debug(
     'len(k400_val) = %d; val_samples = %d; == %s',
     len(k400_val),
     val_samples,
     len(k400_val) == val_samples,
 )
-logging.debug(
+logger.debug(
     'len(k400_test) = %d; test_samples = %d; == %s',
     len(k400_test),
     test_samples,
@@ -115,3 +120,19 @@ logging.debug(
 assert len(k400_train) == train_samples
 assert len(k400_val) == val_samples
 assert len(k400_test) == test_samples
+
+
+logger.info(
+    'The number of samples across the incremtal splits equals the same '
+    'as the source DataSplits. '
+    'Now checking the label encoders are the same across all splits in each '
+    "increment and the final increment's number of classes is same as source."
+)
+for i, inc in enumerate(incs):
+    inc_label_enc = inc.train.label_enc
+    logger.debug('inc %d num labels = %d', i, len(inc_label_enc))
+    for j, split in enumerate(inc[1:]):
+        assert split.label_enc == inc_label_enc
+logger.info('Label Encoders are same for each increment.')
+assert len(inc_label_enc) == len(k400_train.label_enc)
+logger.info("Final increment's Label Encoders is the same length as source.")
