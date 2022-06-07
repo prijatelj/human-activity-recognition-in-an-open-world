@@ -133,6 +133,6 @@ for i, inc in enumerate(incs):
     logger.debug('inc %d num labels = %d', i, len(inc_label_enc))
     for j, split in enumerate(inc[1:]):
         assert split.label_enc == inc_label_enc
-logger.info('Label Encoders are same for each increment.')
+logger.info('Label Encoder per increment are the same for each split.')
 assert len(inc_label_enc) == len(k400_train.label_enc)
 logger.info("Final increment's Label Encoders is the same length as source.")
