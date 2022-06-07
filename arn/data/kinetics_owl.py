@@ -245,7 +245,9 @@ def get_increments(
 
             for j in range(i):
                 if persistent_unknowns[j][k]: # not None or not an empty stack
-                    persistent_unk_df.append(persistent_unknowns[j][k].pop(0))
+                    persistent_unk_df = persistent_unk_df.append(
+                        persistent_unknowns[j][k].pop(0)
+                    )
 
             # Save this increment's stack of persistent unknowns across incs
             if persistent_unks is not None:
