@@ -55,6 +55,11 @@ def get_filename(
     -------
     pd.Series
         Series of string filenames for each row in the given DataFrame `df`.
+
+    Note
+    ----
+    This can also be done with pandas DataFrame str concatenation `+`, see
+    get_path() and get_path_batched(). These may be faster, uncertain.
     """
     if ext is None:
         # No extention
@@ -201,6 +206,11 @@ def get_path(
     k700_suffix_label : bool = True
         When True, add the label name in lower as a directory suffix in the
         path. Otherwise do not add any suffix directories.
+    batch_col : str = None
+        If given, then the filepath is no longer dependent upon the Kinetics
+        dataset, and instead becomes the concatenation of `root_dir + batch_col
+        + file_name`. This was used for saving feature representations of the
+        videos for all of Kinetics.
 
     Returns
     -------
@@ -317,6 +327,44 @@ def get_path(
     )
 
     return pd.concat(df_order) + video_filename
+
+
+def get_path_batched(
+    df,
+    root_dir,
+    batch_col,
+    youtube_id='youtube_id',
+    start='time_start',
+    end='time_end',
+    ext='.mp4',
+    zfill=6,
+):
+    return (
+        root_dir
+        + os.path.sep
+        + df[batch_col].astype(str)
+        + os.path.sep
+        + df[youtube_id]
+        + '_'
+        + df[start].astype(str).str.zfill(zfill)
+        + '_'
+        + df[end].astype(str).str.zfill(zfill)
+        + ext
+    )
+
+
+@dataclass
+class BatchDirs:
+    """Stores the root directory path and column of dataframe to create batched
+    Kinetics filepaths.
+
+    Attributes
+    ----------
+    root_dir : str = ''
+    batch_col : str = ''
+    """
+    root_dir : str = ''
+    batch_col :  str = None
 
 
 class KineticsSplitConfig(NamedTuple):
@@ -485,6 +533,8 @@ class KineticsUnified(torch.utils.data.Dataset):
         another. May include other mappings as well. This serves the role of
         older unique `class_labels`.
     sample_dirs : KineticsRootDirs = None
+        TODO docstr support multicap config:
+            KineticsRootDirs | BatchDirs = None
     subset : KineticsUnifiedSubset = None
     unlabeled_token : str = None
     device : str = 'cpu'
@@ -504,7 +554,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str] = None
-    sample_dirs : KineticsRootDirs = None
+    sample_dirs : InitVar[KineticsRootDirs] = None
     subset :  InitVar[KineticsUnifiedSubset] = None
     unlabeled_token : str = None
     filepath_order : InitVar[list] = None
@@ -524,6 +574,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         self,
         annotation_path,
         kinetics_class_map,
+        sample_dirs,
         subset,
         filepath_order,
         reorder,
@@ -688,26 +739,37 @@ class KineticsUnified(torch.utils.data.Dataset):
 
         # Ensure the sample path exists for ease of grabbing.
         if 'sample_path' not in self.data:
-            if self.sample_dirs is None:
+            if sample_dirs is None:
                 raise ValueError(' '.join([
                     '`sample_path` column must be in annotation data or',
                     'sample_dirs is given to generate the video paths.',
                 ]))
-            if filepath_order is None:
-                filepath_order = [
-                    'split_kinetics400',
-                    'split_kinetics600',
-                    'split_kinetics700_2020',
-                ]
-            self.data['sample_path'] = get_path(
-                self.data,
-                self.sample_dirs \
-                if reorder is None else self.sample_dirs[reorder],
-                order=filepath_order,
-                ext=ext,
-                k700_suffix_label=k700_suffix_label,
-                split_prefix=split_prefix,
-            )
+            elif isinstance(sample_dirs, BatchDirs):
+                self.data['sample_path'] = get_path_batched(
+                    self.data,
+                    sample_dirs.root_dir,
+                    sample_dirs.batch_col,
+                    ext=ext,
+                )
+            elif isinstance(sample_dirs, KineticsRootDirs):
+                if filepath_order is None:
+                    filepath_order = [
+                        'split_kinetics400',
+                        'split_kinetics600',
+                        'split_kinetics700_2020',
+                    ]
+                self.data['sample_path'] = get_path(
+                    self.data,
+                    sample_dirs if reorder is None else sample_dirs[reorder],
+                    order=filepath_order,
+                    ext=ext,
+                    k700_suffix_label=k700_suffix_label,
+                    split_prefix=split_prefix,
+                )
+            else:
+                raise TypeError(
+                    f'Unexpected type sample_dirs: {type(sample_dirs)}'
+                )
 
     def __copy__(self):
         cls = self.__class__
