@@ -1,0 +1,41 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:21.09-py3
+
+%post 
+    # Deps for opencv-python, and necessary ARG/ENV for build
+    export DEBIAN_FRONTEND="noninteractive"
+    export TZ="America/New_York"
+    apt-get update && apt-get install -y python3-opencv
+
+    # Install dependencies
+    # Install Prijatelj's public fork of `vast` for the Extreme Value Machine
+    git clone --recurse-submodules -b massive_memory_use https://github.com/prijatelj/vast
+    pip install -e ./vast/
+
+    git clone -b git@github.com:darpa-sail-on/Sail-On-API.git
+    pip install -e ./Sail-On-API
+
+    # Install the Sail On and TimeSformer repos
+    git clone -b git@github.com:darpa-sail-on/Sail_On_Evaluate.git
+    pip install -e ./Sail_On_Evaluate
+
+    git clone -b activity_feedback git@github.com:darpa-sail-on/TimeSformer.git
+    pip install -e ./TimeSformer
+
+    # Install CLIP
+    # pytorch, torchvision, and cudatoolkit deps are handled from NVIDIA container
+    pip install ftfy regex tqdm
+    pip install git+https://github.com/openai/CLIP.git
+
+    # Our (Notre Dame) Main Paper/Agent repo
+    git clone -b dsp git@github.com:darpa-sail-on/ND-Activity-Recognition-Feeback.git
+    pip install -e ./arn/  
+
+    # exputils recent dev version
+    pip install exputils==0.1.7rc0
+
+    # Install docstr to the cli of the package
+    pip install docstr==0.0.3rc0
+%labels
+    Author dprijate@nd.edu
+    Version v0.0.1
