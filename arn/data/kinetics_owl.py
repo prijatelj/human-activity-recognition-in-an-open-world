@@ -921,7 +921,7 @@ class KineticsOWLExperiment(object):
 
         huh... docstr does not CAP gen on MultiType ... | KineticsUnified
     steps : get_steps = None
-        List of DataSplits containing KineticsUnifiedFeature objects
+        List of DataSplits containing the source KineticsUnifiedFeature objects
         representing the order to increment over them.
 
         Each step has the evaluator's (oracle's) knowledge of the labels. The
@@ -940,6 +940,7 @@ class KineticsOWLExperiment(object):
         start,
         steps=None,
         inc_splits_per_dset=10,
+        intro_freq_first=False,
         seed=None,
     ):
         """Initialize the Kinetics Open World Learning Experiment.
@@ -949,6 +950,8 @@ class KineticsOWLExperiment(object):
         start : see self
         steps : see self
         inc_splits_per_dset : see self _inc_splits_per_dset
+        intro_freq_first : bool = False
+            see get_increments
         seed : int = None
             The seed for the random number generator
         """
@@ -967,11 +970,13 @@ class KineticsOWLExperiment(object):
             self.steps = steps
         else:
             self.steps = []
-            for step in steps:
+            for i, step in enumerate(steps):
                 self.steps += get_increments(
-                    step,
                     inc_splits_per_dset,
+                    step,
                     self.start.label_enc,
+                    seed=i,
+                    intro_freq_first=intro_freq_first,
                 )
 
     @property
@@ -985,9 +990,9 @@ class KineticsOWLExperiment(object):
 
     @property
     def total_increments(self):
-        """Start increment + steps * increments per dataset in steps"""
+        """Start increment + src steps * increments per dataset"""
         if self.steps:
-            return 1 + len(self.steps) * self.increments_per_dataset
+            return 1 + len(self.steps)
         return 1
 
     # TODO def reset(self, state):
@@ -1017,5 +1022,5 @@ class KineticsOWLExperiment(object):
             return self.start
         if self.increment >= self.total_increments:
             raise ValueError('Experiment Complete: step datasets exhausted.')
-
-        raise NotImplementedError('Stepping increments through step datasets.')
+        self._increment += 1
+        return self.steps[self.increment - 1]
