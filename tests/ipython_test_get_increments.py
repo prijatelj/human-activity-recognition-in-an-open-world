@@ -136,3 +136,5 @@ for i, inc in enumerate(incs):
 logger.info('Label Encoder per increment are the same for each split.')
 assert len(inc_label_enc) == len(k400_train.label_enc)
 logger.info("Final increment's Label Encoders is the same length as source.")
+
+# TODO test the intro_freq_first to see if class order is correct.
