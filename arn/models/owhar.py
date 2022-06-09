@@ -107,14 +107,14 @@ class OWHAPredictor(object):
     ----------
     fine_tune: arn.models.fine_tune_lit.FineTuneLit
         fine_tune: arn.models.fine_tune.FineTune
-    novelty_detector: WindowedMeanKLDiv
+    novelty_detector: WindowedMeanKLDiv = None
     feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
     label_enc : NominalDataEncoder = None
     """
     def __init__(
         self,
         fine_tune,
-        novelty_detector,
+        novelty_detector=None,
         feedback_interpreter=None,
         dtype=None,
         label_enc=None,
