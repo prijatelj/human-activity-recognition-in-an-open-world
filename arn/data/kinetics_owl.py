@@ -98,6 +98,7 @@ def get_increments(
     seed=None,
     label_col='labels',
     intro_freq_first=False,
+    deepcopy_label_enc=False,
 ):
     """Given a source DataSplit object, returns a list of incremental DataSplit
     objects. This stratified shuffle sthe known classes in known_label_enc,
@@ -121,6 +122,7 @@ def get_increments(
         first and procedes to do so for the remaining unknown classes in
         descending order. This will weakly avoid too few samples of a class in
         an increment.
+    deepcopy_label_enc : bool = False
 
     Returns
     -------
@@ -131,6 +133,9 @@ def get_increments(
         np_gen = None
     else:
         np_gen = np.random.default_rng(seed)
+
+    if deepcopy_label_enc:
+        known_label_enc = deepcopy(known_label_enc)
 
     # NOTE assumes train is always present in given DataSplits.
     tmp_dataset = deepcopy(src_datasplit.train)
@@ -585,6 +590,14 @@ class EvalConfig:
                 if dsplit.return_label:
                     dsplit.return_label = False
                 preds = predict(dsplit)
+                n_classes = len(dsplit.label_enc)
+                if preds.shape[1] < n_classes:
+                    # Relies on data split label enc including all prior known
+                    # classes the predictor has seen.
+                    preds = np.hstack((
+                        preds,
+                        np.zeros([preds.shape[0], n_classes - preds.shape[1]]),
+                    ))
                 dsplit.return_label = True
 
                 logger.debug(
@@ -756,9 +769,10 @@ class KineticsOWL(object):
         # TODO will have to change this if handling multi-tasks in same
         # experiment!
         # TODO handle datasets' label encs when it is set explicitly here?
+        """
         if labels is None:
-            self.label_enc = self.environment.start.train.label_enc
-        elif isinstance(labels, str):
+            self.label_enc = deepcopy(self.environment.)
+        if isinstance(labels is None:
             self.label_enc = NominalDataEncoder(load_file_list(labels))
         elif isinstance(labels, list):
             self.label_enc = NominalDataEncoder(labels)
@@ -766,6 +780,7 @@ class KineticsOWL(object):
             raise TypeError(
                 f'subset.labels.known unexpected type! {type(labels)}'
             )
+        """
 
         #if tasks is None:
         #     # NOTE support this in predictor and the datasets in labels
@@ -809,7 +824,7 @@ class KineticsOWL(object):
             #    pass
 
             logger.info(
-                "Eval for new data, no feedbcak, for step %d.",
+                "Eval for new data, no feedback, for step %d.",
                 self.increment,
             )
             self.eval_config.eval(
@@ -932,8 +947,6 @@ class KineticsOWLExperiment(object):
     _increment : int = 0
         The current increment of the experiment. Starts at zero, increments
         after a step is complete. After initial increment is increment = 1.
-    label_enc : exputils.data.labels.NominalDataEncoder
-        Keep the labels consistent at the current step.
     """
     def __init__(
         self,
@@ -962,19 +975,33 @@ class KineticsOWLExperiment(object):
         # NOTE possible that experience should be in the environment/experiment
         # rather than the simulation, but this is an abstraction/semantics
         # issue that doesn't affect practical end result.
-        logger.debug('len(start.train) = %d', len(start.train))
-        logger.debug('len(start.validate) = %d', len(start.validate))
-        logger.debug('len(start.test) = %d', len(start.test))
+        logger.debug(
+            'train n_classes = %d, len(start.train) = %d',
+            len(start.train.label_enc),
+            len(start.train),
+        )
+        logger.debug(
+            'validate n_classes = %d, len(start.train) = %d',
+            len(start.validate.label_enc),
+            len(start.validate),
+        )
+        logger.debug(
+            'test n_classes = %d, len(start.test) = %d',
+            len(start.test.label_enc),
+            len(start.test),
+        )
+
 
         if steps is None:
             self.steps = steps
         else:
             self.steps = []
+            known_label_enc = deepcopy(self.start.train.label_enc)
             for i, step in enumerate(steps):
                 self.steps += get_increments(
                     inc_splits_per_dset,
                     step,
-                    self.start.label_enc,
+                    known_label_enc,
                     seed=i,
                     intro_freq_first=intro_freq_first,
                 )
@@ -1024,3 +1051,45 @@ class KineticsOWLExperiment(object):
             raise ValueError('Experiment Complete: step datasets exhausted.')
         self._increment += 1
         return self.steps[self.increment - 1]
+
+
+# TODO the following is all a workaround for the current docstr prototype to
+# support the ease of swapping predictors by changing the config only, not the
+# doc strings of KineticsOWL. This is what happens when reseach code meets
+# prototype code.
+def kinetics_owl_evm(*args, **kwargs):
+    """Initialize the KineticsOWL experiment.
+
+    Args
+    ----
+    environment : see KineticsOWL.__init__
+    predictor : EVMPredictor
+    feedback : see KineticsOWL.__init__
+    rng_state : see KineticsOWL.__init__
+    eval_on_start : see KineticsOWL.__init__
+    eval_config : see KineticsOWL.__init__
+    post_feedback_eval_config : see KineticsOWL.__init__
+    tasks : see KineticsOWL.__init__
+    maintain_experience : see KineticsOWL.__init__
+    labels : see KineticsOWL.__init__
+    """
+    return Kinetics_OWL(*args, **kwargs)
+
+
+def kinetics_owl_owhapredictor_evm(*args, **kwargs):
+    """Initialize the KineticsOWL experiment.
+
+    Args
+    ----
+    environment : see KineticsOWL.__init__
+    predictor : OWHAPredictorEVM
+    feedback : see KineticsOWL.__init__
+    rng_state : see KineticsOWL.__init__
+    eval_on_start : see KineticsOWL.__init__
+    eval_config : see KineticsOWL.__init__
+    post_feedback_eval_config : see KineticsOWL.__init__
+    tasks : see KineticsOWL.__init__
+    maintain_experience : see KineticsOWL.__init__
+    labels : see KineticsOWL.__init__
+    """
+    return Kinetics_OWL(*args, **kwargs)

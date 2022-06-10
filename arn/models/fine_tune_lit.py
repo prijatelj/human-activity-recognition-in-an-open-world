@@ -202,6 +202,9 @@ class FineTuneFCLit(pl.LightningModule):
         self.train_mcc = torchmetrics.MatthewsCorrCoef(401)
         self.val_mcc = torchmetrics.MatthewsCorrCoef(401)
 
+    def set_n_classes(self, *args, **kwargs):
+        self.model.set_n_classes(*args, **kwargs)
+
     def configure_optimizers(self):
         return torch.optim.Adam(
             self.parameters(),
@@ -422,6 +425,9 @@ class FineTuneLit(object):
             train_dataloaders=dataset,
             val_dataloaders=val_dataset,
         )
+
+    def set_n_classes(self, *args, **kwargs):
+        self.model.set_n_classes(*args, **kwargs)
 
     def _predict(self, features):
         # Work around because pl.Trainer.predict() does not support multiple

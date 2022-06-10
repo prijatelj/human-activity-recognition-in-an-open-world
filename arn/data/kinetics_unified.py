@@ -498,7 +498,7 @@ def subset_kinetics_unified(df, subset):
     if subset.labels is not None:
         label_set = set()
         if subset.labels.known is True: # Use all unique labels
-            label_set |= set(df[subset.labels.name].unique())
+            label_set |= set(df[subset.labels.name][mask].unique())
         elif subset.labels.known not in {None, False}:
             label_set |= set(subset.labels.known)
 
@@ -532,7 +532,8 @@ class KineticsUnified(torch.utils.data.Dataset):
         A mapping of the unique classes in each Kinetics dataset to one
         another. May include other mappings as well. This serves the role of
         older unique `class_labels`.
-    sample_dirs : BatchDirs = None
+    sample_dirs : KineticsRootDirs = None
+        BatchDirs = None
         KineticsRootDirs = None
         TODO docstr support multicap config:
             KineticsRootDirs | BatchDirs = None

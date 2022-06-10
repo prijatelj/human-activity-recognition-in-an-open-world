@@ -1,4 +1,5 @@
 """Open World Human Activity Recognition pipeline class."""
+from copy import deepcopy
 import os
 
 import torch
@@ -8,7 +9,7 @@ from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 
 from arn.models.novelty_detector import WindowedMeanKLDiv
 from arn.torch_utils import torch_dtype
-from arn.data.kinetics_unified import KineticsUnifiedFeatures
+from arn.data.kinetics_unified import KineticsUnifiedFeatures, KineticsUnified
 
 import logging
 logger = logging.getLogger(__name__)
@@ -114,7 +115,7 @@ class OWHAPredictor(object):
     def __init__(
         self,
         fine_tune,
-        novelty_detector=None,
+        novelty_detector,
         feedback_interpreter=None,
         dtype=None,
         label_enc=None,
@@ -146,10 +147,22 @@ class OWHAPredictor(object):
         return self._increment
 
     def fit(self, dataset, val_dataset=None, task_id=None):
-        """Incrementally fit the OWHAPredictor's parts."""
+        """Incrementally fit the OWHAPredictor's parts. Update classes in
+        classifier to match the training dataset. This assumes the training
+        dataset contains all prior classes. This deep copy is convenient for
+        ensuring the class indices are always aligned.
+        """
+        if isinstance(dataset, KineticsUnified):
+            if self.label_enc is None:
+                self.fine_tune.set_n_classes(len(dataset.label_enc))
+                self.label_enc = deepcopy(dataset.label_enc)
+            elif set(dataset.label_enc) - set(self.label_enc):
+                n_classes = len(dataset.label_enc)
+                if n_classes != len(self.label_enc):
+                    self.fine_tune.set_n_classes(n_classes)
+                self.label_enc = deepcopy(dataset.label_enc)
         self._increment += 1
         self.fine_tune.fit(dataset, val_dataset=val_dataset)
-        # NOTE update any other state for fitting, such as thresholds.
 
     def predict(self, dataset, task_id=None):
         """Predictor performs the prediction (classification) tasks given

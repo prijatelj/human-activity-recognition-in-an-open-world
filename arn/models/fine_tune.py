@@ -596,6 +596,10 @@ class FineTuneFC(nn.Module):
         x = self.fcs(x)
         return x, self.classifier(x)
 
+    def set_n_classes(self, n_classes):
+        """Update the Linear classifier layer with the new number of classes"""
+        self.classifier = nn.Linear(self.classifier.in_features, n_classes)
+
     def load_interior_weights(self, state_dict):
         # TODO is this necessary?
         temp = []
