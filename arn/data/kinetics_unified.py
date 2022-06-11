@@ -1,7 +1,7 @@
 """Dataset for the sample aligned Kinetics 400, 600, and 700_2020 datasets."""
 from collections import namedtuple
 from copy import deepcopy
-from dataclasses import dataclass, InitVar
+from dataclasses import dataclass, InitVar, field
 from functools import partial
 import os
 from typing import NamedTuple
@@ -532,8 +532,8 @@ class KineticsUnified(torch.utils.data.Dataset):
         A mapping of the unique classes in each Kinetics dataset to one
         another. May include other mappings as well. This serves the role of
         older unique `class_labels`.
-    sample_dirs : KineticsRootDirs = None
-        BatchDirs = None
+    sample_dirs : BatchDirs = None
+        KineticsRootDirs = None
         KineticsRootDirs = None
         TODO docstr support multicap config:
             KineticsRootDirs | BatchDirs = None
@@ -553,6 +553,12 @@ class KineticsUnified(torch.utils.data.Dataset):
     one_hot : bool = True
         If the labels, if available, from the dataset should be given in one
         hot encodings.
+    return_label : bool = False
+        If True, which is the default, returns the label along with the
+        input sample. The label typically is the smaple index to access
+        the DataFrame row which contains all labels.
+    post_load : str = None
+        A string identifier of what to do.
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str] = None
@@ -571,6 +577,8 @@ class KineticsUnified(torch.utils.data.Dataset):
     one_hot : bool = True
     k700_suffix_label : InitVar[bool] = True
     split_prefix : InitVar[bool] = None
+    return_label : InitVar[bool] = False
+    post_load : InitVar[str] = None
 
     def __post_init__(
         self,
@@ -587,6 +595,8 @@ class KineticsUnified(torch.utils.data.Dataset):
         whitelist,
         k700_suffix_label,
         split_prefix,
+        return_label,
+        post_load,
     ):
         """
         Args
@@ -622,9 +632,15 @@ class KineticsUnified(torch.utils.data.Dataset):
         split_prefix : bool = None
             The prefix to add to the beginning of the Kinetics split portion of
             the data directory.
+        return_label : see self
+        post_load : see self
         """
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
+
+        # docstr ugly hot fix, research code meets docstr prototype
+        self.return_label = return_label
+        self.post_load = post_load
 
         # Load the kinetics class map.
         if isinstance(kinetics_class_map, str):
@@ -826,14 +842,16 @@ class KineticsUnifiedFeatures(KineticsUnified):
     Attributes
     ----------
     see KineticsUnified
-    return_label : bool = False
-        If True, which is the default, returns the label along with the
-        input sample. The label typically is the smaple index to access
-        the DataFrame row which contains all labels.
     """
-    return_label : bool = False
+    # docstr hotfix cuz research code, alright?
+    #return_label : bool = False
+    #post_load : str = None
 
-    def __post_init__(self, *args, **kwargs):
+    def __post_init__(
+        self,
+        *args,
+        **kwargs,
+    ):
         """Python dataclass post init
 
         Args
@@ -876,6 +894,8 @@ class KineticsUnifiedFeatures(KineticsUnified):
                 return None
             else:
                 raise e
+        if self.post_load == 'flatten':
+            feature_extract = feature_extract.flatten()
 
         if self.return_label:
             if self.return_index:

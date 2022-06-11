@@ -72,15 +72,16 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         DataSplits:
           train:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              post_load: flatten
               #blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-train-file.log
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/blacklists/blacklist-x3d-k4-train-uid.log
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/blacklists/x3d/blacklist-x3d-k4-train-uid.log
               #annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv
               kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/x3d_features/x3d/
-                  batch_col: batch_idx
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  batch_col: batch_x3d
               device: cuda
               dtype: float32
               subset:
@@ -94,15 +95,16 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       train: True
           validate:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              post_load: flatten
               #blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-val-file.log
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/blacklists/blacklist-x3d-k4-val-uid.log
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/blacklists/x3d/blacklist-x3d-k4-val-uid.log
               #annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv
               kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/x3d_features/x3d/
-                  batch_col: batch_idx
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  batch_col: batch_x3d
               device: cuda
               dtype: float32
               subset:
@@ -116,15 +118,16 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       validate: True
           test:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              post_load: flatten
               #blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-test-file.log
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/blacklists/blacklist-x3d-k4-test-uid.log
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/blacklists/x3d/blacklist-x3d-k4-test-uid.log
               #annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv
               kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/x3d_features/x3d/
-                  batch_col: batch_idx
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  batch_col: batch_x3d
               device: cuda
               dtype: float32
               subset:
