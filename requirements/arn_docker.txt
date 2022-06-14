@@ -7,7 +7,7 @@ tqdm>=4.62.2
 #torchsummary>=1.5.1
 pytorch-lightning>=1.5.10
 ray-lightning
-import ray>=1.12.0
+ray>=1.12.0
 
 exputils==0.1.7rc0
 
