@@ -211,7 +211,7 @@ def save_sample(sample_tensor, dir_name, filename):
     torch.save(sample_tensor, os.path.join(dir_name, filename))
 
 
-def gen_sim_dataset(root_dir):
+def gen_sim_dataset(root_dir, samples_per_class=1000):
     """Create the simulated data samples and save to disk as .pt files. Save
     the labels in the format of Kinetics Unified csv. The datasets [1,3]
     correspnd to Kinetics 400, 600, and 700_2020, respectively. There are
@@ -230,7 +230,6 @@ def gen_sim_dataset(root_dir):
         scales=scale,
         labels=[f'k400-{i}' for i in range(1, 5)],
     )
-    samples_per_class = 1000
 
     start_inc_samples = []
     start_inc_labels = []
@@ -271,6 +270,14 @@ def gen_sim_dataset(root_dir):
             save_sample.remote(start_inc_samples[i], dir_name, filename)
         )
     ray.get(save_dset)
+    del (
+        start_inc_samples,
+        start_inc_labels,
+        start_inc_youtube_id,
+        start_inc_split,
+        start_inc_time_end,
+        start_inc_time_start,
+    )
 
     logger.info('Second dataset: Incremental Open World Recognition.')
     # Generate the 2nd dataset's samples
@@ -316,6 +323,7 @@ def gen_sim_dataset(root_dir):
             save_sample.remote(k6_sim_samples[i], dir_name, filename)
         )
     ray.get(save_dset)
+    del k6_sim_samples
 
     logger.info('Third dataset: Incremental Open World Recognition.')
     # Generate the 3rd dataset's samples
@@ -366,5 +374,8 @@ def gen_sim_dataset(root_dir):
 
 if __name__ == '__main__':
     import sys
-    ray.init(num_cpus=15, num_gpus=1)
-    gen_sim_dataset(sys.argv[1])
+    ray.init(num_cpus=1, num_gpus=1)
+    if len(sys.argv) < 2:
+        gen_sim_dataset(sys.argv[1])
+    else:
+        gen_sim_dataset(sys.argv[1], int(sys.argv[2]))
