@@ -54,7 +54,7 @@ class SimClassifyGaussians(object):
 
         # Create PyTorch Gaussian Distributions at locs and scales
         if locs is None:
-            locs = [[0, 1], [1, 0],  [0, -1], [-1, 0]]
+            locs = [[0, 1], [1, 0], [0, -1], [-1, 0]]
 
         if not isinstance(scales, list):
             scales = [scales] * len(locs)
@@ -77,7 +77,9 @@ class SimClassifyGaussians(object):
             idx = torch.randperm(num * len(self.mvns))
             return (
                 torch.cat([mvn.sample_n(num) for mvn in self.mvns])[idx],
-                torch.Tensor([[i] * num for i in range(len(self.mvns))]).flatten()[idx],
+                torch.Tensor(
+                    [[i] * num for i in range(len(self.mvns))]
+                ).flatten()[idx],
             )
         return (
             torch.cat([mvn.sample_n(num) for mvn in self.mvns]),
