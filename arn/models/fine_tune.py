@@ -2,6 +2,7 @@
 import copy
 from collections import OrderedDict
 from functools import partial
+import json
 
 import torch
 nn = torch.nn
@@ -446,6 +447,20 @@ class FineTuneFC(nn.Module):
             residual_maps is None.
         """
         super().__init__()
+        # Simplicity in getting hparams, the hparams we care about are the init
+        self._hparams = dict(
+            input_size=input_size,
+            width=width,
+            depth=depth,
+            feature_repr_width=feature_repr_width,
+            n_classes=n_classes,
+            activation=activation,
+            dropout=dropout,
+            dropout_feature_repr=dropout_feature_repr,
+            act_on_input=act_on_input,
+            residual_maps=residual_maps,
+            input_name=input_name,
+        )
 
         dense_layers = get_dense_layers(
             input_size,
@@ -590,6 +605,14 @@ class FineTuneFC(nn.Module):
             residual_maps,
             input_name,
         )
+
+    def hparams(self, indent=None):
+        hp = copy.copy(self._hparams)
+        if indent:
+            hp['activation'] = str(hp['activation'])
+            hp['residual_maps'] = str(hp['residual_maps'])
+            return json.dumps(hp, indent=indent)
+        return hp
 
     def forward(self, x):
         """Returns the last fully connected layer and the probs classifier"""

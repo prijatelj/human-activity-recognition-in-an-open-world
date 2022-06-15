@@ -1,5 +1,6 @@
 """FineTune written in Pytorch Lightning for simplicty."""
 from collections import OrderedDict
+import json
 
 import pytorch_lightning as pl
 import ray
@@ -202,6 +203,19 @@ class FineTuneFCLit(pl.LightningModule):
         self.train_mcc = torchmetrics.MatthewsCorrCoef(401)
         self.val_mcc = torchmetrics.MatthewsCorrCoef(401)
 
+    def hparams(self, indent=None):
+        hp = dict(
+            loss=self.loss,
+            lr=self.lr,
+            weight_decay=self.weight_decay,
+            amsgrad=self.amsgrad,
+            model_hparams=self.model.hparams(indent),
+        )
+        if indent:
+            hp['loss'] = str(hp['loss'])
+            return json.dumps(hp, indent=indent)
+        return hp
+
     def set_n_classes(self, *args, **kwargs):
         self.model.set_n_classes(*args, **kwargs)
 
@@ -390,6 +404,30 @@ class FineTuneLit(object):
         ):
             self.model.to('cuda')
         #"""
+
+        # Record HParams
+        with torch.utils.tensorboard.writer.SummaryWriter(
+            log_dir=self.trainer.log_dir,
+        ) as writer:
+            writer.add_text(
+                'hparams',
+                self.hparams(indent=4),
+                self.trainer.global_step,
+            )
+
+    def hparams(self, indent=None):
+        hp = dict(
+            batch_size=self.batch_size,
+            max_epochs=self.trainer.max_epochs,
+            predict_batch_size=self.predict_batch_size,
+            shuffle=self.shuffle,
+            num_workers=self.num_workers,
+            pin_memory=self.pin_memory,
+            model_hparams=self.model.hparams(indent),
+        )
+        if indent:
+            return json.dumps(hp, indent=indent)
+        return hp
 
     def fit(self, dataset, val_dataset=None):
         """Fit the fine tuning model with the given train and val datasets.
