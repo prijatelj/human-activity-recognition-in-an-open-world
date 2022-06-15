@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
-DIR = '.'
 
+DIR = '.'
 
 # Untar the K400, K600 and K700_200 files in the above directory.
 # This results in subfolders kinetics400, kinetics600 and kinetics700_200.
