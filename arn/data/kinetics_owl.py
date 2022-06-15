@@ -1005,6 +1005,12 @@ class KineticsOWLExperiment(object):
                     seed=i,
                     intro_freq_first=intro_freq_first,
                 )
+                # TODO Opt. Clean val sets to rm samples from val if in prior
+                # train.
+
+                # TODO Opt. Clean test sets to rm samples from test if in prior
+                # train/val.
+
 
     @property
     def increment(self):
