@@ -894,6 +894,16 @@ class KineticsUnifiedFeatures(KineticsUnified):
                 return None
             else:
                 raise e
+        except EOFError as e:
+            if self.log_warn_file_not_found:
+                logger.warning(
+                    'EOFError encountered: %s : %s',
+                    str(vars(e)),
+                    sample['sample_path'],
+                )
+                return None
+            else:
+                raise e
         if self.post_load == 'flatten':
             feature_extract = feature_extract.flatten()
 
