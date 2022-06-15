@@ -305,9 +305,24 @@ def get_label_series_pref_later_kinetics(df, label_csv):
 
     return
 
+
 # TODO Unify the labeling scheme if there are labels that are just
 # typos/characters off. Otherwise, make it a 1, 2, or 3 hot encoding,
 # optionally weighting the dataset's labels by priority.
+def get_k7_priority_labeling(df):
+    """Get the pd.Series with df's index to add as a column for labels
+    prioritizing K700, then K600 -> K700, then K400 -> K700. Marking those w/o
+    any mapping to a K700 class to be handled manually. Where
+    f'TODO_{src_class}' is the placeholder label.
+    """
+    # TODO if label_k700_2020, then use it.
+
+    # TODO else if class was mapped to k7, use most frequent map
+        # TODO opt. save the uid to a counter of keys being which k700 class to values of occurrences of that mapping.
+        # TODO if no mapping for any class' samples to a k7 class, then handle manually.
+
+    return
+
 
 # TODO visualize label's samples across datasets w/ histogram of each dataset
 # compared to each other.
