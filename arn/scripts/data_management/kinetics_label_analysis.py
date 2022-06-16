@@ -309,13 +309,32 @@ def get_label_series_pref_later_kinetics(df, label_csv):
 # TODO Unify the labeling scheme if there are labels that are just
 # typos/characters off. Otherwise, make it a 1, 2, or 3 hot encoding,
 # optionally weighting the dataset's labels by priority.
-def get_k7_priority_labeling(df):
-    """Get the pd.Series with df's index to add as a column for labels
-    prioritizing K700, then K600 -> K700, then K400 -> K700. Marking those w/o
-    any mapping to a K700 class to be handled manually. Where
-    f'TODO_{src_class}' is the placeholder label.
+def get_k7_priority_labeling(
+    df,
+    priority_cols=None,
+    new_col='label_k7_priority',
+    deepcopy=False,
+):
+    """Add the column to df for labels prioritizing K700, then K600 -> K700,
+    then K400 -> K700. Marking those w/o any mapping to a K700 class to be
+    handled manually. Where f'TODO_{src_class}' is the placeholder label.
     """
-    # TODO if label_k700_2020, then use it.
+    if deepcopy:
+        df = df.copy(deep=True)
+    if not priority_cols:
+        priority_cols = [
+            'label_kinetics700_2020',
+            'label_kinetics600',
+            'label_kinetics400',
+        ]
+    elif len(priority_cols) != 3:
+        raise ValueError('only works for all 3 cols of the kinetics datasets')
+
+    # Set to the primary column
+    df[new_col] = df[priority_cols[0]]
+
+    # Mask out the missing (NaN) values
+    missing_mask = pd.isna(df[new_col])
 
     # TODO else if class was mapped to k7, use most frequent map
         # TODO opt. save the uid to a counter of keys being which k700 class to values of occurrences of that mapping.
