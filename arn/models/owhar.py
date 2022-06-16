@@ -115,7 +115,7 @@ class OWHAPredictor(object):
     def __init__(
         self,
         fine_tune,
-        novelty_detector,
+        novelty_detector=None,
         feedback_interpreter=None,
         dtype=None,
         label_enc=None,
