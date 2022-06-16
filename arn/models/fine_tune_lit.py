@@ -83,6 +83,7 @@ def init_trainer(
     enable_checkpointing=True,
     gpus=None,
     max_epochs=1000,
+    min_epochs=1,
     strategy=None,
     logger=None,
     log_every_n_steps=50,
@@ -99,7 +100,9 @@ def init_trainer(
     enable_checkpointing : bool = True
     gpus : int = None
     max_epochs : int = 1000
-        Number of epochs to use during fitting.
+        Number of maximum epochs to use during fitting.
+    min_epochs : int = 1
+        Number of minimum epochs to use during fitting.
     strategy : str = None
     logger : init_tensorboard_logger = None
     log_every_n_steps : int = 50
@@ -122,6 +125,7 @@ def init_trainer(
         enable_checkpointing=enable_checkpointing,
         gpus=gpus,
         max_epochs=max_epochs,
+        min_epochs=min_epochs,
         strategy=strategy,
         logger=logger,
         log_every_n_steps=log_every_n_steps,
@@ -429,7 +433,7 @@ class FineTuneLit(object):
             return json.dumps(hp, indent=indent)
         return hp
 
-    def fit(self, dataset, val_dataset=None):
+    def fit(self, dataset, val_dataset=None, reset_epoch=True):
         """Fit the fine tuning model with the given train and val datasets.
 
         Args
@@ -440,6 +444,8 @@ class FineTuneLit(object):
         val_dataset : KineticsUnifiedFeatures
             Same as `dataset`, except used for validation during the fitting
             process.
+        reset_epoch : bool = True
+            If True, resets the epochs before fitting.
         """
         dataset = get_kinetics_uni_dataloader(
             dataset,
@@ -457,6 +463,9 @@ class FineTuneLit(object):
                 num_workers=self.num_workers,
                 pin_memory=self.pin_memory,
             )
+
+        if reset_epoch:
+            self.trainer.fit_loop.epoch_progress.reset_on_epoch()
 
         self.trainer.fit(
             model=self.model,
