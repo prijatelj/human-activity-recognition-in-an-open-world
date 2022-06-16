@@ -5,6 +5,9 @@ from arn.models import fine_tune, fine_tune_lit
 from arn.data.kinetics_unified import *
 from arn.data.kinetics_owl import *
 
+from exputils.data import OrderedConfusionMatrices
+
+
 k400_train = KineticsUnifiedFeatures(
     '/mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv',
     #'/home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv',
@@ -24,8 +27,7 @@ k400_train = KineticsUnifiedFeatures(
     #return_index=False,
     #whitelist='../data/kinetics400/first-20_whitelist_test-run.log',
 )
-
-from exputils.data import OrderedConfusionMatrices
+label_enc = deepcopy(k400_train.label_enc)
 
 logits = []
 labels = []
@@ -42,13 +44,15 @@ t_labels = torch.stack(labels)
 np_labels = t_labels.detach().cpu().numpy()
 np_logits = t_logits.detach().cpu().numpy()
 
-dec_logits = k400_train.label_enc.decode(np.hstack((np.zeros(np_logits.shape[0]).reshape(-1,1), np_logits)), one_hot_axis=-1)
-dec_labels = k400_train.label_enc.decode(np_labels, one_hot_axis=-1)
+dec_logits = label_enc.decode(np.hstack((np.zeros(np_logits.shape[0]).reshape(-1,1), np_logits)), one_hot_axis=-1)
+dec_labels = label_enc.decode(np_labels, one_hot_axis=-1)
 
 # Accuracy check
 print((dec_labels == dec_logits).mean())
 
 assert 'unknown' not in dec_labels
+
+label_enc.pop('unknown')
 
 ocm = OrderedConfusionMatrices(label_enc.encode(dec_labels.reshape(-1,1)), np_logits, list(label_enc), 5)
 
