@@ -203,13 +203,13 @@ class FineTuneFCLit(pl.LightningModule):
         self.train_mcc = torchmetrics.MatthewsCorrCoef(401)
         self.val_mcc = torchmetrics.MatthewsCorrCoef(401)
 
-    def hparams(self, indent=None):
+    def get_hparams(self, indent=None):
         hp = dict(
             loss=self.loss,
             lr=self.lr,
             weight_decay=self.weight_decay,
             amsgrad=self.amsgrad,
-            model_hparams=self.model.hparams(indent),
+            model_hparams=self.model.get_hparams(indent),
         )
         if indent:
             hp['loss'] = str(hp['loss'])
@@ -262,7 +262,7 @@ class FineTuneFCLit(pl.LightningModule):
         acc = (labels_argmax == classif_argmax).to(float).mean()
 
         self.log('train_loss', loss)
-        self.log('train_accuracy', acc)
+        #self.log('train_accuracy', acc)
 
         self.log('train_acc_step', self.train_acc(classif_argmax, labels_argmax))
         self.log('train_mcc_step', self.train_mcc(classif_argmax, labels_argmax))
@@ -326,7 +326,7 @@ class FineTuneFCLit(pl.LightningModule):
 
         #logging.info('Training loss: %d', loss)
         self.log('val_loss', loss)
-        self.log('val_accuracy', acc)
+        #self.log('val_accuracy', acc)
 
         self.log('val_acc_step', self.val_acc(classif_argmax, labels_argmax))
         self.log('val_mcc_step', self.val_mcc(classif_argmax, labels_argmax))
@@ -411,11 +411,11 @@ class FineTuneLit(object):
         ) as writer:
             writer.add_text(
                 'hparams',
-                self.hparams(indent=4),
+                self.get_hparams(indent=4),
                 self.trainer.global_step,
             )
 
-    def hparams(self, indent=None):
+    def get_hparams(self, indent=None):
         hp = dict(
             batch_size=self.batch_size,
             max_epochs=self.trainer.max_epochs,
@@ -423,7 +423,7 @@ class FineTuneLit(object):
             shuffle=self.shuffle,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
-            model_hparams=self.model.hparams(indent),
+            model_hparams=self.model.get_hparams(indent),
         )
         if indent:
             return json.dumps(hp, indent=indent)

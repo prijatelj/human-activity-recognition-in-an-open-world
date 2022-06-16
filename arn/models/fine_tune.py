@@ -448,7 +448,7 @@ class FineTuneFC(nn.Module):
         """
         super().__init__()
         # Simplicity in getting hparams, the hparams we care about are the init
-        self._hparams = dict(
+        self._init_hparams = dict(
             input_size=input_size,
             width=width,
             depth=depth,
@@ -606,8 +606,8 @@ class FineTuneFC(nn.Module):
             input_name,
         )
 
-    def hparams(self, indent=None):
-        hp = copy.copy(self._hparams)
+    def get_hparams(self, indent=None):
+        hp = copy.copy(self._init_hparams)
         if indent:
             hp['activation'] = str(hp['activation'])
             hp['residual_maps'] = str(hp['residual_maps'])
