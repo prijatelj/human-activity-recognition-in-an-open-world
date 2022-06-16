@@ -405,9 +405,17 @@ class EvalDataSplitConfig(NamedTuple):
                     len(preds),
                 )
 
-                pd.DataFrame(
-                    contents,
-                    columns=['target_labels'] + list(data_split.label_enc),
+                # NOTE Assumes samples are never shuffled in eval.
+                data_split.data[
+                    ['youtube_id', 'time_start', 'time_end']
+                ].join(
+                    pd.DataFrame(
+                        contents,
+                        columns=['target_labels'] + list(data_split.label_enc),
+                        index=data_split.data.index,
+                    ),
+                    #on=['youtube_id', 'time_start', 'time_end'],
+                    how='left',
                 ).to_csv(
                     create_filepath(os.path.join(prefix, 'preds.csv')),
                     index=False,
@@ -416,9 +424,16 @@ class EvalDataSplitConfig(NamedTuple):
                 # TODO single class prediction case ['pred']
                 # TODO verify the datasplit and predictor encoders have the
                 # same order for known classes. Perhaps check after every fit.
-                pd.DataFrame(
-                    preds,
-                    columns=list(data_split.label_enc),
+                data_split.data[
+                    ['youtube_id', 'time_start', 'time_end']
+                ].join(
+                    pd.DataFrame(
+                        preds,
+                        columns=list(data_split.label_enc),
+                        index=data_split.data.index,
+                    ),
+                    #on=['youtube_id', 'time_start', 'time_end'],
+                    how='left',
                 ).to_csv(
                     create_filepath(os.path.join(prefix, 'preds.csv')),
                     index=False,
