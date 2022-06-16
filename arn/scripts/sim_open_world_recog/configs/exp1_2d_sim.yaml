@@ -26,8 +26,6 @@ docstr:
       - init_trainer
       - init_ray_plugin
       - init_tensorboard_logger
-    arn.models.novelty_detector:
-      - WindowedMeanKLDiv
     arn.models.owhar:
       - OWHAPredictor
   main: run #KineticsOWL.run
@@ -138,6 +136,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         FineTuneLit:
           model:
             FineTuneFCLit:
+              lr: 1e-3
               model:
                 FineTuneFC:
                   input_size: 2 #512
@@ -167,13 +166,3 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               logger:
                 init_tensorboard_logger:
                   save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp1_2d_sim/fine-tune/tb_log/
-      novelty_detector: # Classification + Clustering
-        WindowedMeanKLDiv:
-          kl_threshold: 5.365822113508410
-          kl_threshold_decay_rate: 0.6
-          mean_train: 1.0
-          std_dev_train: 0.1242729408792351
-          window_size: 100
-          num_rounds: 40
-          #threshold_scale: 3.0 # Hack to scale down early detection.
-          #feedback_weight: 1.0 # binary novelty feedback
