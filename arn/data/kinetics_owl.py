@@ -1058,11 +1058,12 @@ class KineticsOWLExperiment(object):
         if self.increment == 0:
             self._increment += 1
             return self.start
-        if self.increment >= self.total_increments - 1:
+        if self.increment >= self.total_increments:
             logger.info('Experiment Complete: step datasets exhausted.')
             return None
+        data = self.steps[self.increment - 1]
         self._increment += 1
-        return self.steps[self.increment - 1]
+        return data
 
 
 # TODO the following is all a workaround for the current docstr prototype to
