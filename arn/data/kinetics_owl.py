@@ -638,7 +638,8 @@ class EvalConfig:
 
 
 class DataSplits(NamedTuple):
-    """Contains the KineticsUnifiedFeatures for train, validate, and test
+    """Contains the KineticsUnifiedFeatures for train, validate, and test.
+    Assumes that the next data_split's label encoder should replace the prior.
 
     Attributes
     ----------
@@ -650,7 +651,7 @@ class DataSplits(NamedTuple):
     validate: KineticsUnifiedFeatures = None
     test: KineticsUnifiedFeatures = None
 
-    def update(self, data_splits):
+    def update(self, data_splits, copy=False):
         """Given data_split update internal data_split."""
         # Most basic is concat new data splits to end of current one.
         # TODO but what about their metadata? how is that accesible from this?
@@ -658,7 +659,8 @@ class DataSplits(NamedTuple):
         for i, split in enumerate(self):
             if data_splits[i]:
                 if split is not None:
-                    split.data.append(data_splits[i].data)
+                    split.data = split.data.append(data_splits[i].data)
+                    split.label_enc = data_splits[i].label_enc
                     splits.append(split)
                 else:
                     splits.append(data_splits[i])
