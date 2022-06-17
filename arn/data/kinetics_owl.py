@@ -650,36 +650,24 @@ class DataSplits(NamedTuple):
     validate: KineticsUnifiedFeatures = None
     test: KineticsUnifiedFeatures = None
 
-    def update(self, data_split):
+    def update(self, data_splits):
         """Given data_split update internal data_split."""
         # Most basic is concat new data splits to end of current one.
         # TODO but what about their metadata? how is that accesible from this?
-        if data_split.train:
-            if self.train is not None:
-                self.train = torch.utils.data.ConcatDataset(
-                    [self.train, data_split.train],
-                )
+        splits = []
+        for i, split in enumerate(self):
+            if data_splits[i]:
+                if split is not None:
+                    split.data.append(data_splits[i].data)
+                    splits.append(split)
+                else:
+                    splits.append(data_splits[i])
             else:
-                self.train = data_split.train
-
-        if data_split.validate:
-            if self.validate is not None:
-                self.validate = torch.utils.data.ConcatDataset(
-                    [self.validate, data_split.validate],
-                )
-            else:
-                self.validate = data_split.validate
-
-        if data_split.test:
-            if self.test is not None:
-                self.test = torch.utils.data.ConcatDataset(
-                    [self.test, data_split.test],
-                )
-            else:
-                self.test = data_split.test
+                splits.append(split)
 
         # TODO support check for repeat or non-unique sample ids, which then
         # would mean to update those prior experiences.
+        return DataSplits(*splits)
 
 
 class KineticsOWL(object):
@@ -879,7 +867,7 @@ class KineticsOWL(object):
             )
             if self.experience:
                 # Add new data to experience
-                self.experience.update(new_data_splits)
+                self.experience = self.experience.update(new_data_splits)
 
                 logger.debug(
                     'len(self.experience.train) = %d',
@@ -1068,8 +1056,9 @@ class KineticsOWLExperiment(object):
         if self.increment == 0:
             self._increment += 1
             return self.start
-        if self.increment >= self.total_increments:
-            raise ValueError('Experiment Complete: step datasets exhausted.')
+        if self.increment >= self.total_increments - 1:
+            logger.info('Experiment Complete: step datasets exhausted.')
+            return None
         self._increment += 1
         return self.steps[self.increment - 1]
 
