@@ -26,8 +26,6 @@ docstr:
       - init_trainer
       - init_ray_plugin
       - init_tensorboard_logger
-    #arn.models.novelty_detector:
-    #  - WindowedMeanKLDiv
     arn.models.owhar:
       - OWHAPredictor
   main: run #KineticsOWL.run
@@ -264,12 +262,14 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       kinetics700_2020:
                         KineticsSplitConfig:
                           test: True
+  maintain_experience: True
   predictor:
     OWHAPredictor: # the Open World Agent
       fine_tune:
         FineTuneLit:
           model:
             FineTuneFCLit:
+              lr: 1e-3
               model:
                 FineTuneFC:
                   input_size: 2 #512
