@@ -1,5 +1,7 @@
 """Visualization with plotly for Experiment 1."""
+import pandas as pd
 import plotly.graph_objects as go
+import yaml
 
 from exputils.data import OrderedConfusionMatrices
 
@@ -79,5 +81,15 @@ def bar_group(
 #    measure_title='Accuracy [0, 1]'
 #)
 
-def get_ocms(paths):
-    return [OrderedConfusionMatrices.load(path) for path in paths]
+def get_ocms_bar_plot(yaml_path):
+    # TODO load in yaml file
+
+    # TODO Get ocms from yaml file (as paths at leaves of dict tree, saved in place
+    # of dict tree)
+    #return [OrderedConfusionMatrices.load(path) for path in paths]
+    # TODO Depth first : load ocms given each filepath at the leaf
+    #while
+
+    # TODO Get measures per ocm and format into dataframe for bar plot
+
+    # TODO Create the bar plot
