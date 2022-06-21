@@ -207,6 +207,9 @@ class OWHAPredictor(object):
         """
         return self.fine_tune.predict(dataset)
 
+    def predict(self, dataset, task_id=None):
+        return self.fine_tune.extract_predict(dataset)
+
     def known_probs(self, dataset):
         """Backwards compat for older agents in eval."""
         return self.predict(dataset)

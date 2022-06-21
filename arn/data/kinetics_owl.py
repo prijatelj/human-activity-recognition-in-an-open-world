@@ -543,12 +543,16 @@ class EvalConfig:
         A list of callables or a str stating confusion tensor or confusion
         matrix. If `ordered_confusion_matrix`, then the k = 5 ordered confusion
         matrices are stored.
+    save_features : bool = False
+        If true, saves the features alongside the predictions in same dir.
+        Does not save the features otherwise, the default.
     """
     train: EvalDataSplitConfig = None
     validate: EvalDataSplitConfig = None
     test: EvalDataSplitConfig = None
     root_dir: str = ''
     measures: InitVar[list] = 'ordered_confusion_matrix'
+    save_features: bool = False
 
     def __post_init__(self, measures):
         """Handles init of measures when a single str.
@@ -605,7 +609,17 @@ class EvalConfig:
                 if dsplit.return_label:
                     dsplit.return_label = False
                 preds = predict(dsplit)
-                # TODO optionally obtain and save feature extractions of ANN
+                prefix_dir = os.path.join(prefix, name)
+
+                # Optionally obtain and save feature extractions of ANN
+                if self.save_features:
+                    # Expects extracts first, separates from preds
+                    torch.save(
+                        preds[1],
+                        create_filepath(os.path.join(prefix_dir, 'features.pt'))
+                    )
+                    preds = preds[1]
+
                 n_classes = len(dsplit.label_enc)
                 if preds.shape[1] < n_classes:
                     # Relies on data split label enc including all prior known
@@ -633,7 +647,7 @@ class EvalConfig:
                     dsplit,
                     preds,
                     self.measures,
-                    os.path.join(prefix, f'{name}'),
+                    prefix_dir,
                 )
                 dsplit.return_label = reset_return_label
 
@@ -836,7 +850,9 @@ class KineticsOWL(object):
             )
             self.eval_config.eval(
                 new_data_splits,
-                self.predictor.predict,
+                self.predictor.predict
+                    if not self.eval_config.save_features
+                    else self.predictor.extract_predict,
                 f'{eval_prefix}_new-data_predict',
             )
             """ TODO Novelty Detect
@@ -905,7 +921,9 @@ class KineticsOWL(object):
             # 5. Opt. Predictor eval post update
             self.post_feedback_eval_config.eval(
                 new_data_splits,
-                self.predictor.predict,
+                self.predictor.predict
+                    if not self.eval_config.save_features
+                    else self.predictor.extract_predict,
                 f'{eval_prefix}_post-feedback_predict',
             )
             """ TODO Novelty Detect

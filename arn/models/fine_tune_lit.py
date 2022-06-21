@@ -526,3 +526,13 @@ class FineTuneLit(object):
         if self.predict_batch_size > 1:
             return torch.cat([t[0] for t in self._predict(features)])
         return torch.stack([t[0] for t in self._predict(features)])
+
+    def extract_predict(self, features):
+        feature_extracts = []
+        preds = []
+        for extract, pred in self._predict(features):
+            feature_extracts.append(extract)
+            preds.append(pred)
+        if self.predict_batch_size > 1:
+            return torch.cat(feature_extracts), torch.cat(preds)
+        return torch.stack(feature_extracts), torch.cat(preds)

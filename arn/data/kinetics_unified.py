@@ -532,8 +532,10 @@ class KineticsUnified(torch.utils.data.Dataset):
         A mapping of the unique classes in each Kinetics dataset to one
         another. May include other mappings as well. This serves the role of
         older unique `class_labels`.
-    sample_dirs : BatchDirs = None
-        KineticsRootDirs = None
+    sample_dirs : KineticsRootDirs = None
+
+        BatchDirs = None
+
         KineticsRootDirs = None
         TODO docstr support multicap config:
             KineticsRootDirs | BatchDirs = None
