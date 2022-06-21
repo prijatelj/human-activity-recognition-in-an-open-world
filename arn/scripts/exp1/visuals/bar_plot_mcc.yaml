@@ -1,0 +1,28 @@
+# Config for visualizing measures
+
+measures:
+  Mathew's Correlation Coefficient: mcc
+  #Accuracy: accuracy
+  #Normalized Mutual Information: mutual_information(
+root_dir: path/
+order: [test, val, train]
+#measure_range: [0, 1]
+ocms:
+  X3D:
+    Original:
+      train: results/k400_start/x3d/frepr_logits/train_ocm.h5
+      val: results/k400_start/x3d/frepr_logits/val_ocm.h5
+      test: results/k400_start/x3d/frepr_logits/test_ocm.h5
+    Fine-tune:
+      train: results/k400_start/x3d/fine-tune/1k-batch/selected_x3d_depth-1_dropout-0.75/step-1_post-feedback_predict/train/preds_top-cm_2022-06-16_07-33-03.084807.h5
+      val: results/k400_start/x3d/fine-tune/1k-batch/selected_x3d_depth-1_dropout-0.75/step-1_post-feedback_predict/validate/preds_top-cm_2022-06-16_07-33-34.088256.h5
+      test: results/k400_start/x3d/fine-tune/1k-batch/selected_x3d_depth-1_dropout-0.75/step-1_post-feedback_predict/test/preds_top-cm_2022-06-16_07-33-27.812859.h5
+  TimeSformer:
+    Original:
+      train: results/k400_start/timesformer/frepr_logits/train_ocm.h5
+      val: results/k400_start/timesformer/frepr_logits/val_ocm.h5
+      test: results/k400_start/timesformer/frepr_logits/test_ocm.h5
+    Fine-tune:
+      train: results/k400_start/timesformer/fine-tune/1k-batch/selected_tsf_depth-1_dropout-0.75/step-1_post-feedback_predict/train/preds_top-cm_2022-06-16_07-10-37.263794.h5
+      val: results/k400_start/timesformer/fine-tune/1k-batch/selected_tsf_depth-1_dropout-0.75/step-1_post-feedback_predict/validate/preds_top-cm_2022-06-16_07-11-09.990427.h5
+      test: results/k400_start/timesformer/fine-tune/1k-batch/selected_tsf_depth-1_dropout-0.75/step-1_post-feedback_predict/test/preds_top-cm_2022-06-16_07-12-13.858881.h5
