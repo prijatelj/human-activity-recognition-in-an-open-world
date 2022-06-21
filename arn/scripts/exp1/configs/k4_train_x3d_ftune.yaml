@@ -36,7 +36,7 @@ docstr:
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig:
-      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/'
+      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -51,7 +51,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/'
+      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -144,8 +144,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               max_epochs: 25
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/chkpts/
+              default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/label_recent_first/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/tb_log/
+                  save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/label_recent_first/tb_log/
       #novelty_detector: None # Classification + Clustering
