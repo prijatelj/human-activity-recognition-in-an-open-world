@@ -77,7 +77,6 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/blacklists/x3d/blacklist-x3d-k4-train-uid.log
               #annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv
-              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
@@ -100,7 +99,6 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/blacklists/x3d/blacklist-x3d-k4-val-uid.log
               #annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv
-              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
@@ -123,7 +121,6 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/blacklists/x3d/blacklist-x3d-k4-test-uid.log
               #annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
               annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv
-              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/

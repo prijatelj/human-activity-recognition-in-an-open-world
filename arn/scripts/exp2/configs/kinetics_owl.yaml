@@ -67,13 +67,13 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   environment:
     KineticsOWLExperiment:
+      intro_freq_first: True
       start:
         DataSplits:
           train:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-train-file.log
               annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
                 KineticsRootDirs:
                   kinetics400_dir: x3d-features-k400/
@@ -86,8 +86,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 KineticsUnifiedSubset:
                   labels:
                     LabelConfig:
-                      name: 'label_k7priority'
-                      #known: True
+                      name: 'label_recent_first'
                   kinetics400:
                     KineticsSplitConfig:
                       train: True
@@ -95,7 +94,6 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-val-file.log
               annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
                 KineticsRootDirs:
                   kinetics400_dir: x3d-features-k400/
@@ -108,8 +106,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 KineticsUnifiedSubset:
                   labels:
                     LabelConfig:
-                      name: 'label_k7priority'
-                      #known: True
+                      name: 'label_recent_first'
                   kinetics400:
                     KineticsSplitConfig:
                       validate: True
@@ -117,7 +114,6 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-test-file.log
               annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-              kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
               sample_dirs:
                 KineticsRootDirs:
                   kinetics400_dir: x3d-features-k400/
@@ -130,148 +126,136 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 KineticsUnifiedSubset:
                   labels:
                     LabelConfig:
-                      name: 'label_k7priority'
-                      #known: True
+                      name: 'label_recent_first'
                   kinetics400:
                     KineticsSplitConfig:
                       test: True
       steps: # List of DataSplits consisting of KineticsUnified Datasets
-        step_1: # K600
-          DataSplits:
-            train:
-              KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-train-file.log
-                annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-                kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
-                sample_dirs:
-                  KineticsRootDirs:
-                    kinetics400_dir: x3d-features-k400/
-                    kinetics600_dir: x3d-features-k600/
-                    kinetics700_2020_dir: x3d-features-k700_2020/
-                    root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
-                device: cuda
-                dtype: float32
-                subset:
-                  KineticsUnifiedSubset:
-                    labels:
-                      LabelConfig:
-                        name: 'label_k7priority'
-                        #known: True
-                    kinetics600:
-                      KineticsSplitConfig:
-                        train: True
-            validate:
-              KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-val-file.log
-                annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-                kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
-                sample_dirs:
-                  KineticsRootDirs:
-                    kinetics400_dir: x3d-features-k400/
-                    kinetics600_dir: x3d-features-k600/
-                    kinetics700_2020_dir: x3d-features-k700_2020/
-                    root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
-                device: cuda
-                dtype: float32
-                subset:
-                  KineticsUnifiedSubset:
-                    labels:
-                      LabelConfig:
-                        name: 'label_k7priority'
-                        #known: True
-                    kinetics600:
-                      KineticsSplitConfig:
-                        validate: True
-            test:
-              KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-test-file.log
-                annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-                kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
-                sample_dirs:
-                  KineticsRootDirs:
-                    kinetics400_dir: x3d-features-k400/
-                    kinetics600_dir: x3d-features-k600/
-                    kinetics700_2020_dir: x3d-features-k700_2020/
-                    root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
-                device: cuda
-                dtype: float32
-                subset:
-                  KineticsUnifiedSubset:
-                    labels:
-                      LabelConfig:
-                        name: 'label_k7priority'
-                        #known: True
-                    kinetics600:
-                      KineticsSplitConfig:
-                        test: True
-        step_2:
-          DataSplits:
-            train:
-              KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-train-file.log
-                annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-                kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
-                sample_dirs:
-                  KineticsRootDirs:
-                    kinetics400_dir: x3d-features-k400/
-                    kinetics600_dir: x3d-features-k600/
-                    kinetics700_2020_dir: x3d-features-k700_2020/
-                    root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
-                device: cuda
-                dtype: float32
-                subset:
-                  KineticsUnifiedSubset:
-                    labels:
-                      LabelConfig:
-                        name: 'label_k7priority'
-                        #known: True
-                    kinetics700:
-                      KineticsSplitConfig:
-                        train: True
-            validate:
-              KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-val-file.log
-                annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-                kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
-                sample_dirs:
-                  KineticsRootDirs:
-                    kinetics400_dir: x3d-features-k400/
-                    kinetics600_dir: x3d-features-k600/
-                    kinetics700_2020_dir: x3d-features-k700_2020/
-                    root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
-                device: cuda
-                dtype: float32
-                subset:
-                  KineticsUnifiedSubset:
-                    labels:
-                      LabelConfig:
-                        name: 'label_k7priority'
-                        #known: True
-                    kinetics700:
-                      KineticsSplitConfig:
-                        validate: True
-            test:
-              KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-test-file.log
-                annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
-                kinetics_class_map: /home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv
-                sample_dirs:
-                  KineticsRootDirs:
-                    kinetics400_dir: x3d-features-k400/
-                    kinetics600_dir: x3d-features-k600/
-                    kinetics700_2020_dir: x3d-features-k700_2020/
-                    root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
-                device: cuda
-                dtype: float32
-                subset:
-                  KineticsUnifiedSubset:
-                    labels:
-                      LabelConfig:
-                        name: 'label_k7priority'
-                        #known: True
-                    kinetics700:
-                      KineticsSplitConfig:
-                        test: True
+        get_steps:
+          step_1: # K600
+            DataSplits:
+              train:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-train-file.log
+                  annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+                  sample_dirs:
+                    KineticsRootDirs:
+                      kinetics400_dir: x3d-features-k400/
+                      kinetics600_dir: x3d-features-k600/
+                      kinetics700_2020_dir: x3d-features-k700_2020/
+                      root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+                  device: cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_recent_first'
+                      kinetics600:
+                        KineticsSplitConfig:
+                          train: True
+              validate:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-val-file.log
+                  annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+                  sample_dirs:
+                    KineticsRootDirs:
+                      kinetics400_dir: x3d-features-k400/
+                      kinetics600_dir: x3d-features-k600/
+                      kinetics700_2020_dir: x3d-features-k700_2020/
+                      root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+                  device: cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_recent_first'
+                      kinetics600:
+                        KineticsSplitConfig:
+                          validate: True
+              test:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-test-file.log
+                  annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+                  sample_dirs:
+                    KineticsRootDirs:
+                      kinetics400_dir: x3d-features-k400/
+                      kinetics600_dir: x3d-features-k600/
+                      kinetics700_2020_dir: x3d-features-k700_2020/
+                      root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+                  device: cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_recent_first'
+                      kinetics600:
+                        KineticsSplitConfig:
+                          test: True
+          step_2:
+            DataSplits:
+              train:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-train-file.log
+                  annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+                  sample_dirs:
+                    KineticsRootDirs:
+                      kinetics400_dir: x3d-features-k400/
+                      kinetics600_dir: x3d-features-k600/
+                      kinetics700_2020_dir: x3d-features-k700_2020/
+                      root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+                  device: cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_recent_first'
+                      kinetics700:
+                        KineticsSplitConfig:
+                          train: True
+              validate:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-val-file.log
+                  annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+                  sample_dirs:
+                    KineticsRootDirs:
+                      kinetics400_dir: x3d-features-k400/
+                      kinetics600_dir: x3d-features-k600/
+                      kinetics700_2020_dir: x3d-features-k700_2020/
+                      root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+                  device: cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_recent_first'
+                      kinetics700:
+                        KineticsSplitConfig:
+                          validate: True
+              test:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/x3d-k400-blacklist-test-file.log
+                  annotation_path: /home/prijatelj/workspace/research/osr/repos/har/data/analysis/kinetics/kinetics_400_600_700_2020.csv
+                  sample_dirs:
+                    KineticsRootDirs:
+                      kinetics400_dir: x3d-features-k400/
+                      kinetics600_dir: x3d-features-k600/
+                      kinetics700_2020_dir: x3d-features-k700_2020/
+                      root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+                  device: cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_recent_first'
+                      kinetics700:
+                        KineticsSplitConfig:
+                          test: True
   predictor:
     OWHAPredictor: # the Open World Agent
       fine_tune:
