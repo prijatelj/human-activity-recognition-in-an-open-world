@@ -168,7 +168,7 @@ class OWHAPredictor(object):
         """Returns a string Unique Identity for this predictor."""
         if self._uid:
             return self._uid
-        return self.model.trainer.log_dir.rpartition(os.path.sep)[-1]
+        return self.fine_tune.trainer.log_dir.rpartition(os.path.sep)[-1]
 
     def fit(self, dataset, val_dataset=None, task_id=None):
         """Incrementally fit the OWHAPredictor's parts. Update classes in
@@ -207,7 +207,7 @@ class OWHAPredictor(object):
         """
         return self.fine_tune.predict(dataset)
 
-    def predict(self, dataset, task_id=None):
+    def extract_predict(self, dataset, task_id=None):
         return self.fine_tune.extract_predict(dataset)
 
     def known_probs(self, dataset):
