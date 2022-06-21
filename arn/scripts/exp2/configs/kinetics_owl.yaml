@@ -26,12 +26,10 @@ docstr:
       - init_trainer
       - init_ray_plugin
       - init_tensorboard_logger
-    arn.models.novelty_detector:
-      - WindowedMeanKLDiv
     arn.models.owhar:
       - OWHAPredictor
   main: run #KineticsOWL.run
-  log_sink: stdout
+  log_sink: '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/logs/x3d_ftune.log'
   log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
@@ -266,40 +264,17 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 FineTuneFC:
                   input_size: 2048 #512
                   width: 512
-                  depth: 5
-                  dropout: 0.5
-                  n_classes: 401 # PAR's is 29, TODO wish docstr had lazy init,
-                  #   could make input and output dependent on the experiment's
-                  #   data at start.
+                  depth: 1
+                  dropout: 0.75
+                  n_classes: 401
           batch_size: 1000
-          #device: 'cuda'
-          # num_workers: 16
-          # PytorchLightning.Trainer kwargs TODO parse unknown kwargs
-          # Could add another docstr tag: docstr.parse_kwargs for unknown args
-          # handled as YAML defaults or use other tags if provided or
-          # necessary.
-          # OR could just add a kwargs key w/ dict value and know to expand
-          # that when passed.
           trainer:
             init_trainer:
               max_epochs: 25
               gpus: 1
               enable_checkpointing: True
               default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/chkpts/
-              #strategy:
-              #  init_ray_plugin:
-              #    num_workers: 8
-              #    use_gpu: True
               logger:
                 init_tensorboard_logger:
                   save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/tb_log/
-      novelty_detector: # Classification + Clustering
-        WindowedMeanKLDiv:
-          kl_threshold: 5.365822113508410
-          kl_threshold_decay_rate: 0.6
-          mean_train: 1.0
-          std_dev_train: 0.1242729408792351
-          window_size: 100
-          num_rounds: 40
-          #threshold_scale: 3.0 # Hack to scale down early detection.
-          #feedback_weight: 1.0 # binary novelty feedback
+      #novelty_detector: None # Classification + Clustering
