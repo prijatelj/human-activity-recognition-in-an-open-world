@@ -979,7 +979,7 @@ class KineticsOWLExperiment(object):
         steps=None,
         inc_splits_per_dset=10,
         intro_freq_first=False,
-        seed=None,
+        seed=0,
     ):
         """Initialize the Kinetics Open World Learning Experiment.
 
@@ -990,7 +990,7 @@ class KineticsOWLExperiment(object):
         inc_splits_per_dset : see self _inc_splits_per_dset
         intro_freq_first : bool = False
             see get_increments
-        seed : int = None
+        seed : int = 0
             The seed for the random number generator
         """
         self._increment = 0
@@ -1027,7 +1027,7 @@ class KineticsOWLExperiment(object):
                     inc_splits_per_dset,
                     step,
                     known_label_enc,
-                    seed=i,
+                    seed=seed + i,
                     intro_freq_first=intro_freq_first,
                 )
                 # TODO Opt. Clean val sets to rm samples from val if in prior
