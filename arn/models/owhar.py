@@ -46,7 +46,7 @@ class EVMPredictor(ExtremeValueMachine):
         super().__init__(*args, **kwargs)
         #self.store_preds # TODO speed up novelty detect from predict
         self.skip_fit = skip_fit
-        self.uid = uid if isinstance(uid, str) \
+        self.uid = uid if isinstance(uid, str) and uid != 'datetime' \
             else f"evm-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
 
     def fit(self, dataset, val_dataset=None, *args, **kwargs):
