@@ -585,7 +585,7 @@ class EvalConfig:
             A function of the predictor to perform predictions given a dataset
             within the data_splits object.
         prefix : str = None
-            An optoinal prefix to add to the paths AFTER the root_dir. This
+            An optional prefix to add to the paths AFTER the root_dir. This
             would be useful for adding the step number and phase of that step,
             such as if inference on new unlabeled data, or inference on data
             after feedback update.
@@ -605,6 +605,7 @@ class EvalConfig:
                 if dsplit.return_label:
                     dsplit.return_label = False
                 preds = predict(dsplit)
+                # TODO optionally obtain and save feature extractions of ANN
                 n_classes = len(dsplit.label_enc)
                 if preds.shape[1] < n_classes:
                     # Relies on data split label enc including all prior known
@@ -806,6 +807,7 @@ class KineticsOWL(object):
         """The incremental step in incremental learning of Kinetics OWL."""
         # 1. Get new data (input samples only)
         logger.info("Getting step %d's data.", self.increment + 1)
+        eval_prefix = f'{self.predictor.uid}{os.path.sep}step-{self.increment}'
         new_data_splits = self.environment.step()
 
         logger.debug(
@@ -835,7 +837,7 @@ class KineticsOWL(object):
             self.eval_config.eval(
                 new_data_splits,
                 self.predictor.predict,
-                f'step-{self.increment}_new-data_predict',
+                f'{eval_prefix}_new-data_predict',
             )
             """ TODO Novelty Detect
             self.eval_config.eval(
@@ -904,7 +906,7 @@ class KineticsOWL(object):
             self.post_feedback_eval_config.eval(
                 new_data_splits,
                 self.predictor.predict,
-                f'step-{self.increment}_post-feedback_predict',
+                f'{eval_prefix}_post-feedback_predict',
             )
             """ TODO Novelty Detect
             self.post_feedback_eval_config.eval(
