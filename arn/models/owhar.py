@@ -35,7 +35,7 @@ class EVMPredictor(ExtremeValueMachine):
         If True, skips all calls to fit(), never training the EVM.
     see ExtremeValueMachine
     """
-    def __init__(self, skip_fit=False, *args, **kwargs):
+    def __init__(self, skip_fit=False, uid=None, *args, **kwargs):
         """Docstr hotfix cuz otherwise this is unnecessary...
 
         Args
@@ -46,6 +46,8 @@ class EVMPredictor(ExtremeValueMachine):
         super().__init__(*args, **kwargs)
         #self.store_preds # TODO speed up novelty detect from predict
         self.skip_fit = skip_fit
+        self.uid = uid if isinstance(uid, str) \
+            else f"evm-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
 
     def fit(self, dataset, val_dataset=None, *args, **kwargs):
         if self.skip_fit:
@@ -104,6 +106,9 @@ class OWHAPredictor(object):
     and novelty detector. Extra parts include a novelty recognizer if separate
     from the pre-existing parts and optional feedback interpreter.
 
+    This really should define the interface as an abstract/generic and be
+    inheritted by any predictor class, as it is essentially being used now.
+
     Attributes
     ----------
     fine_tune: arn.models.fine_tune_lit.FineTuneLit
@@ -111,6 +116,10 @@ class OWHAPredictor(object):
     novelty_detector: WindowedMeanKLDiv = None
     feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
     label_enc : NominalDataEncoder = None
+    _uid : str = None
+        An optional str unique identifier for this predictor. When not
+        given, the uid property of this class' object is the trainer
+        tensorboard log_dir version number.
     """
     def __init__(
         self,
@@ -119,6 +128,7 @@ class OWHAPredictor(object):
         feedback_interpreter=None,
         dtype=None,
         label_enc=None,
+        uid=None,
     ):
         """Initializes the OWHAR.
 
@@ -129,11 +139,18 @@ class OWHAPredictor(object):
         feedback_interpreter: see self
         label_enc : str | NominalDataEncoder = None
             Filepath to be loaded or the actual NominalDataEncoder.
+        uid : str = None
+            An optional str unique identifier for this predictor. When not
+            given, the uid property of this class' object is the trainer
+            tensorboard log_dir version number. If 'datetime', saves datetime
+            of init.
         """
         self.fine_tune = fine_tune
         self.novelty_detector = novelty_detector
         self.feedback_interpreter = feedback_interpreter
         self._increment = 0
+        self._uid = uid if uid != 'datetime'  \
+            else f"owhap-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
         self.dtype = torch_dtype(dtype)
         # TODO Use the dtype in all interior predictor parts unless None.
         if isinstance(label_enc, str):
@@ -145,6 +162,13 @@ class OWHAPredictor(object):
     def increment(self):
         """Increments correspond to how many times the predictor was fit."""
         return self._increment
+
+    @property
+    def uid(self):
+        """Returns a string Unique Identity for this predictor."""
+        if self._uid:
+            return self._uid
+        return self.model.trainer.log_dir.rpartition(os.path.sep)[-1]
 
     def fit(self, dataset, val_dataset=None, task_id=None):
         """Incrementally fit the OWHAPredictor's parts. Update classes in
