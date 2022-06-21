@@ -274,10 +274,10 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 FineTuneFC:
                   input_size: 2 #512
                   width: 512
-                  depth: 5
-                  dropout: 0.75
+                  depth: 2
+                  dropout: 0.5
                   n_classes: 5
-                  residual_maps: skip_concat_input
+                  #residual_maps: skip_concat_input
           batch_size: 1000
           trainer:
             init_trainer:

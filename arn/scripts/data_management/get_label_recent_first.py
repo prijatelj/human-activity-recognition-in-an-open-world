@@ -222,4 +222,46 @@ missing_idx_k4_recent = df_no_k7_label[missing_labels].index
 
 df_no_k7_label.loc[missing_idx_k4_recent, 'label_recent_first'] = df_no_k7_label.loc[missing_idx_k4_recent, 'label_kinetics400']
 
-df.to_csv('/mnt/hdd/workspace/research/osr/har/kinetics_unified_batched_recent_first.csv', index=False)
+
+#df.to_csv('/mnt/hdd/workspace/research/osr/har/kinetics_unified_batched_recent_first.csv', index=False)
+
+
+remaps = {
+    'balloon blowing': 'inflating balloons',
+    'dying hair': 'dyeing hair',
+    'garbage collecting': 'person collecting garbage',
+    'making bed': 'making the bed',
+    'strumming guitar': 'playing guitar',
+    'tying tie': 'tying necktie',
+}
+
+
+# This covers all missing k7 labels where there is a k4 OR k6 label.
+df_no_k7_label = df[
+    pd.isna(df.label_kinetics700_2020)
+    & (
+        ~pd.isna(df.label_kinetics400)
+        | ~pd.isna(df.label_kinetics600)
+    )
+]
+missing_labels = pd.isna(df_no_k7_label.label_recent_first)
+
+# K6 first
+df_k6_to_k7 = df_no_k7_label[~pd.isna(df_no_k7_label['label_kinetics600'])]
+missing_idx_k6_recent = df_no_k7_label[missing_labels].index
+missing_idx_k6_recent = missing_idx_k6_recent[missing_idx_k6_recent.isin(df_k6_to_k7.index)]
+
+
+# K4 next
+df_no_k7_label.loc[missing_idx_k6_recent, 'label_recent_first'] = df_no_k7_label.loc[missing_idx_k6_recent, 'label_kinetics600']
+missing_labels = pd.isna(df_no_k7_label.label_recent_first)
+missing_idx_k4_recent = df_no_k7_label[missing_labels].index
+
+df_no_k7_label.loc[missing_idx_k4_recent, 'label_recent_first'] = df_no_k7_label.loc[missing_idx_k4_recent, 'label_kinetics400']
+
+# Remap those in k4 that need remapped.
+for k, v in remaps.items():
+    mask = df_no_k7_label.label_kinetics400[missing_labels] == k
+    mask = df_no_k7_label[missing_labels][mask].index
+    print(mask)
+    df_no_k7_label.loc[mask, 'label_recent_first'] = v
