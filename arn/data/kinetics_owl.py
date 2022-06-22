@@ -654,7 +654,6 @@ class EvalConfig:
 
 class DataSplits(NamedTuple):
     """Contains the KineticsUnifiedFeatures for train, validate, and test.
-    Assumes that the next data_split's label encoder should replace the prior.
 
     Attributes
     ----------
@@ -666,21 +665,52 @@ class DataSplits(NamedTuple):
     validate: KineticsUnifiedFeatures = None
     test: KineticsUnifiedFeatures = None
 
-    def update(self, data_splits, copy=False):
-        """Given data_split update internal data_split."""
-        # Most basic is concat new data splits to end of current one.
-        # TODO but what about their metadata? how is that accesible from this?
+    def update(self, data_splits, copy=True):
+        """Given data_split update internal data_split.
+        The updated split's label encoder is appended with the sorted new
+        labels.
+
+        Args
+        ----
+        data_splits : DataSplits
+            The other data split to be used to update this object's data
+            splits. Perhaps should call this append, cuz update implies
+            inplace.
+        copy : bool = True
+            If True, copies the source and other data splits when combining
+            them.
+
+        Returns
+        -------
+        DataSplits
+            The new Datasplits from appending new data and labels to the source
+            data splits.
+        """
+        # Most basic is concat new data splits to end of current one. (in df)
         splits = []
         for i, split in enumerate(self):
             if data_splits[i]:
                 if split is not None:
+                    if copy:
+                        split = deepcopy(split)
                     split.data = split.data.append(data_splits[i].data)
-                    split.label_enc = data_splits[i].label_enc
+                    split.label_enc.append(
+                        sorted(
+                            split.label_enc.keys()
+                            - data_splits[i].label_enc.keys()
+                        )
+                    )
                     splits.append(split)
                 else:
-                    splits.append(data_splits[i])
+                    if copy:
+                        splits.append(deepcopy(data_splits[i]))
+                    else:
+                        splits.append(data_splits[i])
             else:
-                splits.append(split)
+                if copy:
+                    splits.append(deepcopy(split))
+                else:
+                    splits.append(split)
 
         # TODO support check for repeat or non-unique sample ids, which then
         # would mean to update those prior experiences.
