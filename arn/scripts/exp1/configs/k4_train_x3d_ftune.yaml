@@ -30,7 +30,7 @@ docstr:
     arn.models.owhar:
       - OWHAPredictor
   main: run #KineticsOWL.run
-  log_sink: stdout
+  log_sink: stdout # '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/label_recent_first/logs/log.log'
   log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
@@ -72,7 +72,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures:
               post_load: flatten
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified_batched_recent_first.csv
+              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
@@ -91,11 +91,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               post_load: flatten
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified_batched_recent_first.csv
+              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
-                  batch_col: batch_x3d
+                  batch_col: batch
               device: cuda
               dtype: float32
               subset:
@@ -110,11 +110,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               post_load: flatten
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified_batched_recent_first.csv
+              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
-                  batch_col: batch_x3d
+                  batch_col: batch
               device: cuda
               dtype: float32
               subset:
@@ -131,17 +131,21 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         FineTuneLit:
           model:
             FineTuneFCLit:
+              lr: 1e-3
               model:
                 FineTuneFC:
-                  input_size: 2048
+                  input_size: 8192
                   width: 2048
                   depth: 1
                   dropout: 0.75
-                  n_classes: 401
+                  n_classes: 410
           batch_size: 1000
           trainer:
             init_trainer:
-              max_epochs: 25
+              max_epochs: 100
+              log_every_n_steps: 1
+              track_grad_norm: 2
+              num_sanity_val_steps: 0
               gpus: 1
               enable_checkpointing: True
               default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/label_recent_first/chkpts/
