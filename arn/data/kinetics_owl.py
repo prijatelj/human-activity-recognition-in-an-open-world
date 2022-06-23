@@ -665,7 +665,7 @@ class DataSplits(NamedTuple):
     validate: KineticsUnifiedFeatures = None
     test: KineticsUnifiedFeatures = None
 
-    def update(self, data_splits, copy=True):
+    def append(self, data_splits, copy=True):
         """Given data_split update internal data_split.
         The updated split's label encoder is appended with the sorted new
         labels.
@@ -674,8 +674,7 @@ class DataSplits(NamedTuple):
         ----
         data_splits : DataSplits
             The other data split to be used to update this object's data
-            splits. Perhaps should call this append, cuz update implies
-            inplace.
+            splits. Perhaps should call this append.
         copy : bool = True
             If True, copies the source and other data splits when combining
             them.
@@ -917,7 +916,7 @@ class KineticsOWL(object):
             )
             if self.experience:
                 # Add new data to experience
-                self.experience = self.experience.update(new_data_splits)
+                self.experience = self.experience.append(new_data_splits)
 
                 logger.debug(
                     'len(self.experience.train) = %d',
