@@ -306,6 +306,7 @@ class FineTuneFCLit(pl.LightningModule):
             #"""
 
         self.log('train_acc_epoch', self.train_acc.compute())
+        self.log('train_mcc_epoch', self.train_mcc.compute())
 
     def forward(self, x):
         return self.model(x)
