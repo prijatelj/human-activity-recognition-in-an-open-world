@@ -17,7 +17,7 @@ docstr:
       - KineticsSplitConfig
       - KineticsUnifiedSubset
       - LabelConfig
-      - KineticsRootDirs
+      - BatchDirs
     arn.models.fine_tune:
       - FineTuneFC
     arn.models.fine_tune_lit:
@@ -71,10 +71,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               annotation_path: /mnt/hdd/workspace/research/osr/har/sim_classify/sim_kunified.csv
               sample_dirs:
-                KineticsRootDirs:
-                  kinetics400_dir: sim_k400/
-                  kinetics600_dir: sim_k600/
-                  kinetics700_2020_dir: sim_k700/
+                BatchDirs:
+                  batch_col: batch
                   root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
               device: cuda
               dtype: float32
@@ -94,10 +92,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               split_prefix: False
               k700_suffix_label: False
               sample_dirs:
-                KineticsRootDirs:
-                  kinetics400_dir: sim_k400/
-                  kinetics600_dir: sim_k600/
-                  kinetics700_2020_dir: sim_k700/
+                BatchDirs:
+                  batch_col: batch
                   root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
               device: cuda
               dtype: float32
@@ -115,10 +111,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               split_prefix: False
               k700_suffix_label: False
               sample_dirs:
-                KineticsRootDirs:
-                  kinetics400_dir: sim_k400/
-                  kinetics600_dir: sim_k600/
-                  kinetics700_2020_dir: sim_k700/
+                BatchDirs:
+                  batch_col: batch
                   root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
               device: cuda
               dtype: float32
@@ -138,10 +132,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
                   annotation_path: /mnt/hdd/workspace/research/osr/har/sim_classify/sim_kunified.csv
                   sample_dirs:
-                    KineticsRootDirs:
-                      kinetics400_dir: sim_k400/
-                      kinetics600_dir: sim_k600/
-                      kinetics700_2020_dir: sim_k700/
+                    BatchDirs:
+                      batch_col: batch
                       root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
                   device: cuda
                   dtype: float32
@@ -161,10 +153,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   split_prefix: False
                   k700_suffix_label: False
                   sample_dirs:
-                    KineticsRootDirs:
-                      kinetics400_dir: sim_k400/
-                      kinetics600_dir: sim_k600/
-                      kinetics700_2020_dir: sim_k700/
+                    BatchDirs:
+                      batch_col: batch
                       root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
                   device: cuda
                   dtype: float32
@@ -182,10 +172,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   split_prefix: False
                   k700_suffix_label: False
                   sample_dirs:
-                    KineticsRootDirs:
-                      kinetics400_dir: sim_k400/
-                      kinetics600_dir: sim_k600/
-                      kinetics700_2020_dir: sim_k700/
+                    BatchDirs:
+                      batch_col: batch
                       root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
                   device: cuda
                   dtype: float32
@@ -203,10 +191,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
                   annotation_path: /mnt/hdd/workspace/research/osr/har/sim_classify/sim_kunified.csv
                   sample_dirs:
-                    KineticsRootDirs:
-                      kinetics400_dir: sim_k400/
-                      kinetics600_dir: sim_k600/
-                      kinetics700_2020_dir: sim_k700/
+                    BatchDirs:
+                      batch_col: batch
                       root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
                   device: cuda
                   dtype: float32
@@ -226,10 +212,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   split_prefix: False
                   k700_suffix_label: False
                   sample_dirs:
-                    KineticsRootDirs:
-                      kinetics400_dir: sim_k400/
-                      kinetics600_dir: sim_k600/
-                      kinetics700_2020_dir: sim_k700/
+                    BatchDirs:
+                      batch_col: batch
                       root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
                   device: cuda
                   dtype: float32
@@ -247,10 +231,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   split_prefix: False
                   k700_suffix_label: False
                   sample_dirs:
-                    KineticsRootDirs:
-                      kinetics400_dir: sim_k400/
-                      kinetics600_dir: sim_k600/
-                      kinetics700_2020_dir: sim_k700/
+                    BatchDirs:
+                      batch_col: batch
                       root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
                   device: cuda
                   dtype: float32
