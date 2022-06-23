@@ -601,7 +601,9 @@ class EvalConfig:
 
         # NOTE relies on predictor to turn data_split into a DataLoader
 
-        for name, dsplit in data_splits._asdict().items():
+        #for name, dsplit in data_splits._asdict().items():
+        for name in ['train', 'validate', 'test']:
+            dsplit = getattr(data_splits, name)
             if dsplit is not None and self.train:
                 logger.info("Predicting `label` for `%s`'s %s.", prefix, name)
 
@@ -652,7 +654,9 @@ class EvalConfig:
                 dsplit.return_label = reset_return_label
 
 
-class DataSplits(NamedTuple):
+#class DataSplits(NamedTuple):
+@dataclass
+class DataSplits:
     """Contains the KineticsUnifiedFeatures for train, validate, and test.
 
     Attributes
@@ -664,6 +668,10 @@ class DataSplits(NamedTuple):
     train: KineticsUnifiedFeatures = None
     validate: KineticsUnifiedFeatures = None
     test: KineticsUnifiedFeatures = None
+    ensure_knowns: InitVar[bool] = True
+
+    def __post_init__(self, ensure_known=True):
+        self.add_knowns(inplace=True)
 
     def append(self, data_splits, copy=True):
         """Given data_split update internal data_split.
@@ -687,24 +695,27 @@ class DataSplits(NamedTuple):
         """
         # Most basic is concat new data splits to end of current one. (in df)
         splits = []
-        for i, split in enumerate(self):
-            if data_splits[i]:
+        for name in ['train', 'validate', 'test']:
+            split = getattr(self, name)
+            data_split = getattr(data_splits, name)
+
+            if data_split:
                 if split is not None:
                     if copy:
                         split = deepcopy(split)
-                    split.data = split.data.append(data_splits[i].data)
+                    split.data = split.data.append(data_split.data)
                     split.label_enc.append(
                         sorted(
                             split.label_enc.keys()
-                            - data_splits[i].label_enc.keys()
+                            - data_split.label_enc.keys()
                         )
                     )
                     splits.append(split)
                 else:
                     if copy:
-                        splits.append(deepcopy(data_splits[i]))
+                        splits.append(deepcopy(data_split))
                     else:
-                        splits.append(data_splits[i])
+                        splits.append(data_split)
             else:
                 if copy:
                     splits.append(deepcopy(split))
@@ -715,6 +726,52 @@ class DataSplits(NamedTuple):
         # would mean to update those prior experiences.
         return DataSplits(*splits)
 
+    def add_knowns(self, sort_diff=True, inplace=False):
+        """Creates a new DataSplits with the label encoders having their
+        classes be updated such that the first split's labels are in all
+        following label encoders and with the same encodings is used, then any
+        different from the next split are appended to the end in order as exist
+        or sorted (default).
+
+        Order is train, val, test.
+
+        Args
+        ----
+        order : list
+            List of str or ints of the order.
+        sort : bool = True
+            Sorts the later split's new labels before appending them to the end
+            of the label encoder.
+        inplace : bool = False
+        """
+        if not inplace:
+            splits = []
+
+        label_enc = None
+        for name in ['train', 'validate', 'test']:
+            split = getattr(self, name)
+            if label_enc is None:
+                label_enc = deepcopy(split.label_enc)
+                if not inplace:
+                    splits.append(split)
+                continue
+
+            new_labels = list(label_enc.keys() - split.label_enc.keys())
+
+            if sort_diff:
+                new_labels = sorted(new_labels)
+
+            label_enc.append(new_labels)
+
+            if not inplace:
+                split = deepcopy(split)
+                split.label_enc = label_enc
+                splits.append(split)
+            else:
+                split.label_enc = label_enc
+
+        if not inplace:
+            return DataSplits(*splits)
 
 class KineticsOWL(object):
     """Kinetics Open World Learning Pipeline for incremental recognition.
