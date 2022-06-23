@@ -231,6 +231,14 @@ class FineTuneFCLit(pl.LightningModule):
     def set_n_classes(self, *args, **kwargs):
         self.model.set_n_classes(*args, **kwargs)
 
+        # This breaks use for epochs, but allows tracking during fit & val.
+        self.model.train_mcc = torchmetrics.MatthewsCorrCoef(
+                self.model.classifier.out_features
+        )
+        self.model.val_mcc = torchmetrics.MatthewsCorrCoef(
+                self.model.classifier.out_features
+        )
+
     def configure_optimizers(self):
         return torch.optim.Adam(
             self.parameters(),
@@ -306,7 +314,7 @@ class FineTuneFCLit(pl.LightningModule):
             #"""
 
         self.log('train_acc_epoch', self.train_acc.compute())
-        self.log('train_mcc_epoch', self.train_mcc.compute())
+        #self.log('train_mcc_epoch', self.train_mcc.compute())
 
     def forward(self, x):
         return self.model(x)

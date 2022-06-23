@@ -145,7 +145,8 @@ def get_increments(
 
     knowns_splits = []
     unknowns_splits = []
-    for tmp_dset in src_datasplit:
+    for dset_name in ['train', 'validate', 'test']:
+        tmp_dset = getattr(src_datasplit, dset_name)
         if tmp_dset is None:
             knowns_splits.append(None)
             unknowns_splits.append(None)
@@ -756,6 +757,8 @@ class DataSplits:
         label_enc = None
         for name in ['train', 'validate', 'test']:
             split = getattr(self, name)
+            if split is None:
+                continue
             if label_enc is None:
                 label_enc = deepcopy(split.label_enc)
                 if not inplace:
