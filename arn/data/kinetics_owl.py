@@ -670,7 +670,7 @@ class DataSplits:
     test: KineticsUnifiedFeatures = None
     ensure_knowns: InitVar[bool] = True
 
-    def __post_init__(self, ensure_known=True):
+    def __post_init__(self, ensure_knowns=True):
         self.add_knowns(inplace=True)
 
     def append(self, data_splits, copy=True):
