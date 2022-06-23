@@ -671,6 +671,12 @@ class DataSplits:
     ensure_knowns: InitVar[bool] = True
 
     def __post_init__(self, ensure_knowns=True):
+        """Init handle knowns in train consistent across val and test encoders.
+
+        Args
+        ----
+        see self
+        """
         self.add_knowns(inplace=True)
 
     def append(self, data_splits, copy=True):
@@ -706,8 +712,8 @@ class DataSplits:
                     split.data = split.data.append(data_split.data)
                     split.label_enc.append(
                         sorted(
-                            split.label_enc.keys()
-                            - data_split.label_enc.keys()
+                            data_split.label_enc.keys()
+                            - split.label_enc.keys()
                         )
                     )
                     splits.append(split)
@@ -756,7 +762,7 @@ class DataSplits:
                     splits.append(split)
                 continue
 
-            new_labels = list(label_enc.keys() - split.label_enc.keys())
+            new_labels = list(split.label_enc.keys() - label_enc.keys())
 
             if sort_diff:
                 new_labels = sorted(new_labels)
