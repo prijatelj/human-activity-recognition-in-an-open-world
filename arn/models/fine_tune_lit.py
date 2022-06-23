@@ -198,14 +198,22 @@ class FineTuneFCLit(pl.LightningModule):
         self.val_acc = torchmetrics.Accuracy()
 
         if confusion_matrix:
-            self.train_cm = torchmetrics.ConfusionMatrix(401)
-            self.val_cm = torchmetrics.ConfusionMatrix(401)
+            self.train_cm = torchmetrics.ConfusionMatrix(
+                self.model.classifier.out_features
+            )
+            self.val_cm = torchmetrics.ConfusionMatrix(
+                self.model.classifier.out_features
+            )
         else:
             self.train_cm = None
             self.val_cm = None
 
-        self.train_mcc = torchmetrics.MatthewsCorrCoef(401)
-        self.val_mcc = torchmetrics.MatthewsCorrCoef(401)
+        self.train_mcc = torchmetrics.MatthewsCorrCoef(
+                self.model.classifier.out_features
+        )
+        self.val_mcc = torchmetrics.MatthewsCorrCoef(
+                self.model.classifier.out_features
+        )
 
     def get_hparams(self, indent=None):
         hp = dict(
