@@ -213,7 +213,7 @@ def get_increments(
     not_split_only_unks = set(unique) | set(label_enc)
     split_only_unks = []
     for k, unk_split_df in enumerate(unknowns_splits[1:], start=1):
-        only_unks = set(unk_split_df[label_col].unique) - not_split_only_unks
+        only_unks = set(unk_split_df[label_col].unique()) - not_split_only_unks
 
         # Save sorted only_unks for val's and test's label enc over incs.
         split_only_unks.append(sorted(only_unks))
