@@ -123,6 +123,8 @@ def get_increments(
         descending order. This will weakly avoid too few samples of a class in
         an increment.
     deepcopy_label_enc : bool = False
+        Optional because out of this function, if called in a loop, allows
+        progressive updating of the original obejct.
 
     Returns
     -------
@@ -170,7 +172,7 @@ def get_increments(
     # separated across the increments such that there is sufficiently novel
     # classes in each increment.
 
-    # NOTE assumes train contains all unknown classes.
+    # NOTE assumes train contains all new unknown classes.
     unknown_df = unknowns_splits[0]
 
     # Randomize unique, unknown classes across n increments. Last w/ remainder
@@ -883,20 +885,6 @@ class KineticsOWL(object):
 
         # TODO will have to change this if handling multi-tasks in same
         # experiment!
-        # TODO handle datasets' label encs when it is set explicitly here?
-        """
-        if labels is None:
-            self.label_enc = deepcopy(self.environment.)
-        if isinstance(labels is None:
-            self.label_enc = NominalDataEncoder(load_file_list(labels))
-        elif isinstance(labels, list):
-            self.label_enc = NominalDataEncoder(labels)
-        else:
-            raise TypeError(
-                f'subset.labels.known unexpected type! {type(labels)}'
-            )
-        """
-
         #if tasks is None:
         #     # NOTE support this in predictor and the datasets in labels
         #     #returned!
@@ -1125,12 +1113,12 @@ class KineticsOWLExperiment(object):
                     seed=seed + i,
                     intro_freq_first=intro_freq_first,
                 )
-                # TODO Opt. Clean val sets to rm samples from val if in prior
+
+                # NOTE: Unnecessary to do live, handled prior.
+                #   Opt. Clean val sets to rm samples from val if in prior
                 # train.
-
-                # TODO Opt. Clean test sets to rm samples from test if in prior
+                #   Opt. Clean test sets to rm samples from test if in prior
                 # train/val.
-
 
     @property
     def increment(self):
@@ -1151,13 +1139,22 @@ class KineticsOWLExperiment(object):
     # TODO def reset(self, state):
 
     def feedback(self, data_splits, test=False):
+        """Feedback request from agent. For implementation simplicty for 100%
+        oracle feedback, e.g., every sample requested gets the ground truth
+        label, this just provides labels with the sample in dataset.
+        """
         # Oracle, exhaustive, no budget : labels are simply provided.
         if data_splits.train and not data_splits.train.return_label:
             data_splits.train.return_label = True
+            begin_unk_idx = len(data_splits.train.label_enc)
+        else:
+            begin_unk_idx = None
         if data_splits.validate and not data_splits.validate.return_label:
             data_splits.validate.return_label = True
+            data_splits.validate.begin_unk_idx = begin_unk_idx
         if test and data_splits.test and not data_splits.test.return_label:
             data_splits.test.return_label = True
+            data_splits.test.begin_unk_idx = begin_unk_idx
         return data_splits
 
     def step(self):

@@ -555,6 +555,11 @@ class KineticsUnified(torch.utils.data.Dataset):
     one_hot : bool = True
         If the labels, if available, from the dataset should be given in one
         hot encodings.
+    begin_unk_idx : int = None
+        If present, the labels returned by this dataset will map all label
+        encodings that are >= begin_unk_idx to zero, assumming all the unknowns
+        are located there and that the unknown_idx of label encoder is zero.
+        The assumption is for simplicity and time to implement atm.
     return_label : bool = False
         If True, which is the default, returns the label along with the
         input sample. The label typically is the smaple index to access
@@ -579,6 +584,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     one_hot : bool = True
     k700_suffix_label : InitVar[bool] = True
     split_prefix : InitVar[bool] = None
+    begin_unk_idx : int = None
     return_label : InitVar[bool] = False
     post_load : InitVar[str] = None
 
@@ -634,6 +640,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         split_prefix : bool = None
             The prefix to add to the beginning of the Kinetics split portion of
             the data directory.
+        begin_unk_idx : see self
         return_label : see self
         post_load : see self
         """
@@ -828,13 +835,22 @@ class KineticsUnified(torch.utils.data.Dataset):
         if self.return_index:
             return sample['sample_index']
         if self.label_enc:
-            return torch.as_tensor(
-                    self.label_enc.encode(
-                        [sample['labels']],
-                        one_hot=self.one_hot,
-                    ).squeeze(),
-                    dtype=self.dtype,
-                )
+            labels = self.label_enc.encode(
+                [sample['labels']],
+                one_hot=self.one_hot,
+            ).squeeze()
+
+            # If self.begin_unks, then modify how label encs returned.
+            if self.begin_unk_idx and len(self.label_enc) > self.begin_unk_idx:
+                if self.one_hot:
+                    labels[..., self.label_enc.unknown_idx] = \
+                        labels[..., self.begin_unk_idx:].sum(-1)
+                    labels = labels[..., :self.begin_unk_idx]
+                else:
+                    labels[labels >= self.begin_unk_idx] = \
+                        self.label_enc.unknown_idx
+
+            return torch.as_tensor(labels, dtype=self.dtype)
         return sample['labels']
 
 
@@ -909,18 +925,32 @@ class KineticsUnifiedFeatures(KineticsUnified):
         if self.post_load == 'flatten':
             feature_extract = feature_extract.flatten()
 
+        # TODO if self.begin_unks, then modify how label encs returned.
+
         if self.return_label:
             if self.return_index:
                 return feature_extract, sample['sample_index']
             if self.label_enc:
+                labels = self.label_enc.encode(
+                    [sample['labels']],
+                    one_hot=self.one_hot,
+                ).squeeze()
+
+                # If self.begin_unks, then modify how label encs returned.
+                if (
+                    self.begin_unk_idx
+                    and len(self.label_enc) > self.begin_unk_idx
+                ):
+                    if self.one_hot:
+                        labels[..., self.label_enc.unknown_idx] = \
+                            labels[..., self.begin_unk_idx:].sum(-1)
+                        labels = labels[..., :self.begin_unk_idx]
+                    else:
+                        labels[labels >= self.begin_unk_idx] = \
+                            self.label_enc.unknown_idx
+
                 return feature_extract, \
-                    torch.as_tensor(
-                        self.label_enc.encode(
-                            [sample['labels']],
-                            one_hot=self.one_hot,
-                        ).squeeze(),
-                        dtype=self.dtype,
-                    )
+                    torch.as_tensor(labels, dtype=self.dtype)
             return feature_extract, sample['labels']
         return feature_extract
 
