@@ -925,8 +925,6 @@ class KineticsUnifiedFeatures(KineticsUnified):
         if self.post_load == 'flatten':
             feature_extract = feature_extract.flatten()
 
-        # TODO if self.begin_unks, then modify how label encs returned.
-
         if self.return_label:
             if self.return_index:
                 return feature_extract, sample['sample_index']
