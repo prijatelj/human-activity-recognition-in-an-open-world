@@ -231,11 +231,12 @@ class FineTuneFCLit(pl.LightningModule):
     def set_n_classes(self, *args, **kwargs):
         self.model.set_n_classes(*args, **kwargs)
 
-        # This breaks use for epochs, but allows tracking during fit & val.
-        self.model.train_mcc = torchmetrics.MatthewsCorrCoef(
+        # This breaks use for epochs, but allows tracking during fit & val
+        # with growing classes over increments.
+        self.train_mcc = torchmetrics.MatthewsCorrCoef(
                 self.model.classifier.out_features
         )
-        self.model.val_mcc = torchmetrics.MatthewsCorrCoef(
+        self.val_mcc = torchmetrics.MatthewsCorrCoef(
                 self.model.classifier.out_features
         )
 
@@ -251,7 +252,6 @@ class FineTuneFCLit(pl.LightningModule):
         inputs, labels = batch
         fine_tune_reprs, classifications = self.model(inputs)
 
-        #ipdb.set_trace()
         if len(classifications.shape) == 1:
             classifications = classifications.reshape(1, -1)
         if len(labels.shape) == 1:
@@ -264,7 +264,6 @@ class FineTuneFCLit(pl.LightningModule):
 
         #print(labels.argmax(1).unique())
         #print(F.softmax(classifications, 1).argmax(1).unique())
-
         """
         logger.debug('within training_step()')
         logger.debug('self.training: %s', self.training)
