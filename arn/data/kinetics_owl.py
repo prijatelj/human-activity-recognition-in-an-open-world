@@ -219,7 +219,16 @@ def get_increments(
         split_only_unks.append(sorted(only_unks))
 
         if not only_unks:
+            logger.debug(
+                'There are no %s only unknown classes.',
+                'validate' if k == 1 else 'test',
+            )
             continue
+        logger.debug(
+            'There are %d %s only unknown classes.',
+            len(only_unks)
+            'validate' if k == 1 else 'test',
+        )
 
         split_skf = StratifiedKFold(
             n_increments,
