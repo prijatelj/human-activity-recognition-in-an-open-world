@@ -106,6 +106,14 @@ def get_increments(
     introduced across the increments. The unique unknown classes' samples are
     then spread across the remaining increments.
 
+    If there are unique unknowns in the validate or test splits outide of train,
+    then those are kept within those splits, spread across the increments using
+    stratified splitting.
+
+    If there are less samples of a class than the number of remaining
+    increments, then those samples are added into the first increment they
+    occur in, rather than being spread across the future remaining increments.
+
     Args
     ----
     n_increments : int
@@ -291,22 +299,52 @@ def get_increments(
 
             # Stratified shuffle split across this and remaining incs
             if persistent_unks is not None:
-                unknown_incs = [
-                    unks.iloc[test] for train, test in
-                    persist_unk_skf.split(unks['sample_index'], unks[label_col])
-                ]
-                logger.debug(
-                    'len(unknown_incs) at i=%d, k=%d: %d; remainder = %d',
-                    i,
-                    k,
-                    len(unknown_incs),
-                    remainder,
+                # Check unks' samples for a class < n splits.
+                unique_unks, unks_counts = np.unique(
+                    unks[label_col],
+                    return_counts=True,
                 )
-                persistent_unk_df = unknown_incs.pop(0)
+                unks_lt_rem_mask = unks[label_col].isin(
+                    unique_unks[unks_counts < remainder]
+                )
+                unks_lt_rem_count = unks_lt_rem_mask.sum()
+
+                if unks_lt_rem_count < len(unks):
+                    if unks_lt_rem_count != 0:
+                        # Separate classes w/ too few samples from others
+                        unks_lt_rem = unks[unks_lt_rem_mask]
+                        unks = unks[~unks_lt_rem_mask]
+
+                    unknown_incs = [
+                        unks.iloc[test] for train, test in
+                        persist_unk_skf.split(
+                            unks['sample_index'], unks[label_col]
+                        )
+                    ]
+                    logger.debug(
+                        'len(unknown_incs) at i=%d, k=%d: %d; remainder = %d',
+                        i,
+                        k,
+                        len(unknown_incs),
+                        remainder,
+                    )
+
+                    persistent_unk_df = unknown_incs.pop(0)
+
+                    if unks_lt_rem_count != 0:
+                        # Save those with too few samples to this inc only
+                        persistent_unk_df.append(unks_lt_rem)
+                else:
+                    # Simply make the entire dataframe for this increment only
+                    persistent_unk_df = unks
+                    # Creating unknown_incs as None to avoid accidental repeats
+                    # when not last increment (remainder > 1).
+                    unknown_incs = None
             else:
                 # Handle remainder == 1 case, no stratified splitting
                 persistent_unk_df = unks
 
+            # Combine the persistent unknowns into one DataFrame for this inc
             for j in range(i):
                 if persistent_unknowns[j][k]: # not None or not an empty stack
                     persistent_unk_df = persistent_unk_df.append(
