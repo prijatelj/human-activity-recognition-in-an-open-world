@@ -145,6 +145,7 @@ def get_increments(
     tmp_dataset.data = None
     tmp_dataset.label_enc = None
 
+    # Get known labels and unknown dataframe from each split.
     knowns_splits = []
     unknowns_splits = []
     for dset_name in ['train', 'validate', 'test']:
@@ -172,10 +173,12 @@ def get_increments(
     # separated across the increments such that there is sufficiently novel
     # classes in each increment.
 
-    # NOTE assumes train contains all new unknown classes.
+    # NOTE assumes train contains all new unknown classes we care to introduce
+    # over new increments.
     unknown_df = unknowns_splits[0]
 
-    # Randomize unique, unknown classes across n increments. Last w/ remainder
+    # Randomize unique, unknown classes across n increments. Last increment w/
+    # remainder.
     unique, unique_inv, unique_counts = np.unique(
         unknown_df[label_col],
         return_inverse=True,
@@ -205,7 +208,40 @@ def get_increments(
         dtype=int,
     )
 
-    # Loop through and create the incremental KineticsUnified datasets
+    # Stratified folds for val & test only unknown class samples, ensuring
+    # presence and balance across incs. Appends to known_splits to be included.
+    not_split_only_unks = set(unique) | set(label_enc)
+    split_only_unks = []
+    for k, unk_split_df in enumerate(unknowns_splits[1:], start=1):
+        only_unks = set(unk_split_df[label_col].unique) - not_split_only_unks
+        split_only_unks.append(sorted(only_unks))
+
+        if not only_unks:
+            continue
+
+        split_skf = StratifiedKFold(
+            n_increments,
+            random_state=seed,
+            shuffle=np_gen is not None,
+        )
+
+        # TODO handle val's and test's label enc over incs. (should be same per
+        # inc, but possibly diff btwn each other) NOTE how handled below
+
+        # Prune all but samples w/ labels in only_unks
+        unk_split_df = unk_split_df.copy(deep=True)
+        unk_split_df = unk_split_df[unk_split_df[label_col].isin(only_unks)]
+
+        # Loop thru split's unks over incs & append to known splits' df
+        for i, (train, test) in enumerate(split_skf.split(
+            unk_split_df['sample_index'],
+            unk_split_df[label_col],
+        )):
+            knowns_splits[k][i] = knowns_splits[k][i].append(
+                unk_split_df.iloc[test]
+            )
+
+    # Loop through incs and create the incremental KineticsUnified datasets
     increments = []
     persistent_unknowns = []
     for i in range(n_increments):
@@ -742,7 +778,8 @@ class DataSplits:
         different from the next split are appended to the end in order as exist
         or sorted (default).
 
-        Order is train, val, test.
+        Order is train, val, test. This ensures the following:
+        len(train.label_enc) <= len(val.label_enc) <= len(test.label_enc)
 
         Args
         ----
