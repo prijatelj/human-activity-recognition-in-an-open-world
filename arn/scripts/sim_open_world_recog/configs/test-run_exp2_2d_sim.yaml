@@ -28,7 +28,7 @@ docstr:
       - init_tensorboard_logger
     arn.models.owhar:
       - OWHAPredictor
-  main: run #KineticsOWL.run
+  main: run
   log_sink: '/home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/logs/log.log'
   log_level: DEBUG
 
