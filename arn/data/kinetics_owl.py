@@ -226,7 +226,7 @@ def get_increments(
             continue
         logger.debug(
             'There are %d %s only unknown classes.',
-            len(only_unks)
+            len(only_unks),
             'validate' if k == 1 else 'test',
         )
 
