@@ -214,6 +214,8 @@ def get_increments(
     split_only_unks = []
     for k, unk_split_df in enumerate(unknowns_splits[1:], start=1):
         only_unks = set(unk_split_df[label_col].unique) - not_split_only_unks
+
+        # Save sorted only_unks for val's and test's label enc over incs.
         split_only_unks.append(sorted(only_unks))
 
         if not only_unks:
@@ -224,9 +226,6 @@ def get_increments(
             random_state=seed,
             shuffle=np_gen is not None,
         )
-
-        # TODO handle val's and test's label enc over incs. (should be same per
-        # inc, but possibly diff btwn each other) NOTE how handled below
 
         # Prune all but samples w/ labels in only_unks
         unk_split_df = unk_split_df.copy(deep=True)
@@ -266,6 +265,10 @@ def get_increments(
         for k, unknown_df in enumerate(unknowns_splits):
             inc_dataset = deepcopy(tmp_dataset)
             inc_dataset.label_enc = deepcopy(label_enc)
+
+            if k > 0 and split_only_unks[k - 1]:
+                # Append split only unks to the label encoder.
+                inc_dataset.label_enc.append(split_only_unks[k - 1])
 
             # Get all of the unknowns introduced at this increment
             unks = unknown_df[unknown_df[label_col].isin(inc_uniques)]
