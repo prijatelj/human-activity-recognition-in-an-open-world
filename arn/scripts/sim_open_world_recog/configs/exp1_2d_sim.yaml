@@ -35,7 +35,7 @@ docstr:
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig:
-      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp1_2d_sim/fine-tune/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/sim_owr/exp1_2d_sim/fine-tune/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -50,7 +50,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp1_2d_sim/fine-tune/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/sim_owr/exp1_2d_sim/fine-tune/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -141,7 +141,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 FineTuneFC:
                   input_size: 2 #512
                   width: 512
-                  depth: 5
+                  depth: 2
                   dropout: 0.5
                   n_classes: 5
           batch_size: 1000
@@ -158,11 +158,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               max_epochs: 25
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp1_2d_sim/fine-tune/chkpts/
+              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp1_2d_sim/fine-tune/chkpts/
               #strategy:
               #  init_ray_plugin:
               #    num_workers: 8
               #    use_gpu: True
               logger:
                 init_tensorboard_logger:
-                  save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp1_2d_sim/fine-tune/tb_log/
+                  save_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp1_2d_sim/fine-tune/tb_log/
