@@ -29,13 +29,13 @@ docstr:
     arn.models.owhar:
       - OWHAPredictor
   main: run
-  log_sink: '/home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/logs/log.log'
+  log_sink: '/mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/logs/log.log'
   log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig:
-      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -50,7 +50,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -267,12 +267,12 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               enable_checkpointing: True
               num_sanity_val_steps: 1
               log_every_n_steps: 1
-              default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/chkpts/
+              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/chkpts/
               #strategy:
               #  init_ray_plugin:
               #    num_workers: 8
               #    use_gpu: True
               logger:
                 init_tensorboard_logger:
-                  save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/tb_log/
+                  save_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/tb_log/
       # TODO novelty_detector: # Classification + Clustering
