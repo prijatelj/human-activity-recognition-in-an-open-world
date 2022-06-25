@@ -30,13 +30,13 @@ docstr:
     arn.models.owhar:
       - OWHAPredictor
   main: run
-  log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/fine-tune/label_recent_first/logs/log.log'
+  log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/logs/log.log'
   log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/fine-tune/label_recent_first/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -51,7 +51,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/fine-tune/label_recent_first/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -87,10 +87,10 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               num_sanity_val_steps: 1
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/fine-tune/label_recent_first/chkpts/
+              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/fine-tune/label_recent_first/tb_log/
+                  save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/tb_log/
       #novelty_detector: None # Classification + Clustering
   environment:
     KineticsOWLExperiment:
