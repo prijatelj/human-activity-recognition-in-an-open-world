@@ -73,8 +73,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               lr: 1e-3
               model:
                 FineTuneFC:
-                  input_size: 8192
-                  width: 2048
+                  input_size: 768
+                  width: 768
                   depth: 1
                   dropout: 0.75
                   n_classes: 410
