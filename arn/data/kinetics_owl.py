@@ -704,6 +704,7 @@ class EvalConfig:
 
                 # Optionally obtain and save feature extractions of ANN
                 if self.save_features:
+                    logger.info("Saving Features for %s's %s.", prefix, name)
                     # Expects extracts first, separates from preds
                     torch.save(
                         preds[1],
