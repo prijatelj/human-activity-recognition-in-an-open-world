@@ -83,15 +83,8 @@ def bar_group(
 #    measure_title='Accuracy [0, 1]'
 #)
 
-def get_ocms_bar_plot(yaml_path):
-    # Load in yaml config file
-    with open('arn/scripts/exp1/visuals/bar_plot_mcc.yaml') as openf:
-        config = yaml.load(openf, Loader=yaml.CLoader)
-
-    root_dir = config.pop('root_dir', '')
-
-    # Load ocms given each filepath at the leaf and store in-place
-    stack = [(config['ocms'], k, v) for k, v in config['ocms'].items()]
+def load_ocm_tree_inplace(tree, root_dir=''):
+    stack = [(tree, k, v) for k, v in tree.items()]
     while stack:
         ptr, key, value = stack.pop()
         if isinstance(value, dict):
@@ -102,6 +95,44 @@ def get_ocms_bar_plot(yaml_path):
                 os.path.join(root_dir, value)
             )
 
-    # TODO Get measures per ocm and format into dataframe for bar plot
+def get_ocms_bar_plot(yaml_path):
+    # Load in yaml config file
+    with open(yaml_path) as openf:
+        config = yaml.load(openf, Loader=yaml.CLoader)
+
+    root_dir = config.pop('root_dir', '')
+
+    # Load ocms given each filepath at the leaf and store in-place
+    load_ocm_tree_inplace(config['ocms'], root_dir)
+
+    # Get measures per ocm and format into dataframe for bar plot
+    df = pd.DataFrame(
+        [],
+        columns=['F.Repr.', 'Classifier', 'Data Split']
+            + list(config['measures'].keys()),
+    )
+    for k1, v1 in config['ocms'].items():
+        for k2, v2 in v1.items():
+            for k3, ocm in v2.items():
+                measures = []
+                cm = ocm.get_conf_mat()
+                for m_attr in config['measures'].values():
+                    if isinstance(m_attr, dict):
+                        key, val = next(iter(m_attr.items()))
+                        if isinstance(val, dict):
+                            if key == 'accuracy':
+                                # top-k accuracy
+                                measure = getattr(ocm, 'accuracy')(**val)
+                            else:
+                                measure = getattr(cm, key)(**val)
+                        else: # probs never used
+                            measure = getattr(cm, key)(val)
+                    else:
+                        measure = getattr(cm, m_attr)()
+                    measures.append(measure)
+                df = df.append(pd.Series(
+                    [k1, k2, k3] + measures,
+                    index=df.columns,
+                ), ignore_index=True)
 
     # TODO Create the bar plot

@@ -1,9 +1,15 @@
 # Config for visualizing a measure for a single step, comparing models.
 
-measures:
+measures: # Determines how many figures are generated.
   Mathew's Correlation Coefficient: mcc
   #Accuracy: accuracy
-  #Normalized Mutual Information: mutual_information(
+  #Top-5 Accuracy:
+  #  accuracy:
+  #    k: 5
+  #Normalized Mutual Information:
+  #  mutual_information:
+  #    normalized: 'arithmetic'
+  #    base: 2
 root_dir: /mnt/hdd/workspace/research/osr/har/
 #measure_range: [0, 1]
 # Ordered as left-to-right for frepr and task models, back-to-front for splits
