@@ -49,6 +49,8 @@ class EVMPredictor(ExtremeValueMachine):
         self.uid = uid if isinstance(uid, str) and uid != 'datetime' \
             else f"evm-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
 
+        logger.info('Predictor UID `%s` init finished.', self.uid)
+
     def fit(self, dataset, val_dataset=None, *args, **kwargs):
         if self.skip_fit:
             return
@@ -157,6 +159,8 @@ class OWHAPredictor(object):
             self.label_enc = NominalDataEncoder.load(label_enc)
         else:
             self.label_enc = label_enc
+
+        logger.info('Predictor UID `%s` init finished.', self.uid)
 
     @property
     def increment(self):
