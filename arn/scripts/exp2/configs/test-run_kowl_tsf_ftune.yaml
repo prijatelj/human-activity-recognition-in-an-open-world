@@ -64,6 +64,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         EvalDataSplitConfig:
           pred_dir: 'preds/'
           eval_dir: 'eval/'
+  maintain_experience: True
   predictor:
     OWHAPredictor: # the Open World Agent
       fine_tune:

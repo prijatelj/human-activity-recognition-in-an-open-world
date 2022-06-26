@@ -63,6 +63,31 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         EvalDataSplitConfig:
           pred_dir: 'preds/'
           eval_dir: 'eval/'
+  maintain_experience: True
+  predictor:
+    OWHAPredictor: # the Open World Agent
+      fine_tune:
+        FineTuneLit:
+          model:
+            FineTuneFCLit:
+              model:
+                FineTuneFC:
+                  input_size: 2048 #512
+                  width: 512
+                  depth: 1
+                  dropout: 0.75
+                  n_classes: 401
+          batch_size: 1000
+          trainer:
+            init_trainer:
+              max_epochs: 25
+              gpus: 1
+              enable_checkpointing: True
+              default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/chkpts/
+              logger:
+                init_tensorboard_logger:
+                  save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/tb_log/
+      #novelty_detector: None # Classification + Clustering
   environment:
     KineticsOWLExperiment:
       intro_freq_first: True
@@ -254,27 +279,3 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       kinetics700:
                         KineticsSplitConfig:
                           test: True
-  predictor:
-    OWHAPredictor: # the Open World Agent
-      fine_tune:
-        FineTuneLit:
-          model:
-            FineTuneFCLit:
-              model:
-                FineTuneFC:
-                  input_size: 2048 #512
-                  width: 512
-                  depth: 1
-                  dropout: 0.75
-                  n_classes: 401
-          batch_size: 1000
-          trainer:
-            init_trainer:
-              max_epochs: 25
-              gpus: 1
-              enable_checkpointing: True
-              default_root_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/chkpts/
-              logger:
-                init_tensorboard_logger:
-                  save_dir: /home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/tb_log/
-      #novelty_detector: None # Classification + Clustering
