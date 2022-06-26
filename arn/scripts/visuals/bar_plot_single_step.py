@@ -133,7 +133,7 @@ def bar_multigroup(
     # Add a bar for every measure
     for i, row in enumerate(df.loc):
         fig.add_trace(go.Bar(
-            #x=x,
+            x=x,
             y=row[measure_col],
             name=names[key],
             marker_color=None if marker_colors is None else marker_colors[key],
@@ -143,6 +143,10 @@ def bar_multigroup(
             )
             error_y=None if measure_error is None else measure_error[key],
         ))
+
+    # TODO For each Feature Repr, make a stacked measure bar graph
+    # TODO first, make stacked bar graph, stacking splits and comparing
+    # classifiers for a single frepr.
 
 
 def load_ocm_tree_inplace(tree, root_dir=''):
