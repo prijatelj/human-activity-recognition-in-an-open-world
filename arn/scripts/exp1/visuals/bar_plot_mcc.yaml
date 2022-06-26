@@ -4,7 +4,7 @@ measures:
   Mathew's Correlation Coefficient: mcc
   #Accuracy: accuracy
   #Normalized Mutual Information: mutual_information(
-root_dir: path/
+root_dir: /mnt/hdd/workspace/research/osr/har/
 #measure_range: [0, 1]
 # Ordered as left-to-right for frepr and task models, back-to-front for splits
 ocms: # feature repr as groups
@@ -16,7 +16,7 @@ ocms: # feature repr as groups
     Fine-tune:
       train: results/k400_start/x3d/fine-tune/1k-batch/selected_x3d_depth-1_dropout-0.75/step-1_post-feedback_predict/train/preds_top-cm_2022-06-16_07-33-03.084807.h5
       val: results/k400_start/x3d/fine-tune/1k-batch/selected_x3d_depth-1_dropout-0.75/step-1_post-feedback_predict/validate/preds_top-cm_2022-06-16_07-33-34.088256.h5
-      test: results/k400_start/x3d/fine-tune/1k-batch/selected_x3d_depth-1_dropout-0.75/step-1_post-feedback_predict/test/preds_top-cm_2022-06-16_07-33-27.812859.h5
+      test: results/k400_start/x3d/fine-tune/1k-batch/selected_x3d_depth-1_dropout-0.75/step-1_post-feedback_predict/test/preds_top-cm_2022-06-16_07-34-27.812859.h5
   TimeSformer:
     Original:
       train: results/k400_start/timesformer/frepr_logits/train_ocm.h5

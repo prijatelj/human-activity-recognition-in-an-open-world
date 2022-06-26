@@ -1,4 +1,6 @@
 """Visualization with plotly for Experiment 1."""
+import os
+
 import pandas as pd
 import plotly.graph_objects as go
 import yaml
@@ -82,13 +84,23 @@ def bar_group(
 #)
 
 def get_ocms_bar_plot(yaml_path):
-    # TODO load in yaml file
+    # Load in yaml config file
+    with open('arn/scripts/exp1/visuals/bar_plot_mcc.yaml') as openf:
+        config = yaml.load(openf, Loader=yaml.CLoader)
 
-    # TODO Get ocms from yaml file (as paths at leaves of dict tree, saved in place
-    # of dict tree)
-    #return [OrderedConfusionMatrices.load(path) for path in paths]
-    # TODO Depth first : load ocms given each filepath at the leaf
-    #while
+    root_dir = config.pop('root_dir', '')
+
+    # Load ocms given each filepath at the leaf and store in-place
+    stack = [(config['ocms'], k, v) for k, v in config['ocms'].items()]
+    while stack:
+        ptr, key, value = stack.pop()
+        if isinstance(value, dict):
+            for k, v in value.items():
+                stack.append((value, k, v))
+        else:
+            ptr[key] = OrderedConfusionMatrices.load(
+                os.path.join(root_dir, value)
+            )
 
     # TODO Get measures per ocm and format into dataframe for bar plot
 
