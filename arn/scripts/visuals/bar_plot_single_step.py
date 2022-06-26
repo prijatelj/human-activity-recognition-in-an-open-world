@@ -3,6 +3,7 @@ import os
 
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.express.colors import qualitative as qual_colors
 import yaml
 
 from exputils.data import OrderedConfusionMatrices
@@ -91,7 +92,9 @@ def bar_multigroup(
     marker_colors=None,
     measure_error=None,
     split_kwargs=None,
-    split_col='split',
+    split_col='Data Split',
+    classifier_col='Classifier',
+    frepr_col='Feature Repr.',
 ):
     """Create a bar graph comparing multiple models' performance measures where
     the models are grouped by feature representation, classifier, and data
@@ -112,23 +115,37 @@ def bar_multigroup(
     if split_kwargs is None:
         split_kwargs = {
             'train': {
+                'opacity': 0.5,
+                'line': {
+                    'width': 2,
+                    'color': 'white',
+                },
                 'pattern': {
                     'shape': '/',
+                    'fillmode': 'replace',
+                    'solidity': 0.7,
                 },
-                'line': {
-                    'dash': 'dot',
-                }
             },
             'val': {
+                'opacity': 0.5,
+                'line': {
+                    'width': 2,
+                    'color': 'white',
+                },
                 'pattern': {
                     'shape': 'x',
+                    'fillmode': 'replace',
+                    'solidity': 0.7,
                 },
-                'line': {
-                    'dash': 'dash',
-                }
             },
-            'test': None,
+            'test': {
+                'line': {
+                    'width': 2,
+                    'color': 'white',
+                },
+            }
         }
+
 
     # Add a bar for every measure
     for i, row in enumerate(df.loc):
@@ -144,9 +161,37 @@ def bar_multigroup(
             error_y=None if measure_error is None else measure_error[key],
         ))
 
-    # TODO For each Feature Repr, make a stacked measure bar graph
     # TODO first, make stacked bar graph, stacking splits and comparing
     # classifiers for a single frepr.
+
+    # TODO For each frepr + classifier pair, create the stacked splits
+    #   Each split has its own fill/pattern shape and line style, overlaid each
+    #   other (or side by side, optional).
+    #   Each classifier has its own color.
+    frepr_figs = []
+    freprs = df[frepr_col].unique()
+    classifiers = df[classifier_col].unique()
+    for frepr in freprs:
+        fig = go.Figure()
+        for split in ['train', 'val', 'test']:
+            fig.add_trace(go.Bar(
+                name=split,
+                x=classifiers,
+                y=df[df["Data Split"]==split]["Mathew's Correlation Coefficient"],
+                marker=split_kwargs[split],
+                marker_color=qual_colors.Pastel1[:len(classifiers)],
+                textposition='inside',
+                texttemplate='%{y:.4f}',
+                textfont_color='black',
+            ))
+            fig.update_layout(barmode='overlay', template='simple_white')
+
+
+
+    # TODO Join the stacked splits of each classifier for a frepr.
+    #   White space sep between
+
+    # TODO Join the frepr plots together into one. More ws separating freprs.
 
 
 def load_ocm_tree_inplace(tree, root_dir=''):
