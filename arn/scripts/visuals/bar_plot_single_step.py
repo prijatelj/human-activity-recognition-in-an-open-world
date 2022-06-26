@@ -83,6 +83,68 @@ def bar_group(
 #    measure_title='Accuracy [0, 1]'
 #)
 
+
+def bar_multigroup(
+    df,
+    col_group_order,
+    measure_col,
+    marker_colors=None,
+    measure_error=None,
+    split_kwargs=None,
+    split_col='split',
+):
+    """Create a bar graph comparing multiple models' performance measures where
+    the models are grouped by feature representation, classifier, and data
+    split. The data splits' values are opt. overlaid. The other groups are
+    side-by-side.
+    """
+    fig = go.Figure()
+
+    if groupby == 'columns':
+        values = df.values.T
+        x = df.index
+        names = df.columns
+    else:
+        values = df.values
+        x = df.columns
+        names = df.index
+
+    if split_kwargs is None:
+        split_kwargs = {
+            'train': {
+                'pattern': {
+                    'shape': '/',
+                },
+                'line': {
+                    'dash': 'dot',
+                }
+            },
+            'val': {
+                'pattern': {
+                    'shape': 'x',
+                },
+                'line': {
+                    'dash': 'dash',
+                }
+            },
+            'test': None,
+        }
+
+    # Add a bar for every measure
+    for i, row in enumerate(df.loc):
+        fig.add_trace(go.Bar(
+            #x=x,
+            y=row[measure_col],
+            name=names[key],
+            marker_color=None if marker_colors is None else marker_colors[key],
+            marker=go.bar.Marker(
+                pattern=split_kwargs[measures[split_col]]['pattern'],
+                line=split_kwargs[measures[split_col]]['line'],
+            )
+            error_y=None if measure_error is None else measure_error[key],
+        ))
+
+
 def load_ocm_tree_inplace(tree, root_dir=''):
     stack = [(tree, k, v) for k, v in tree.items()]
     while stack:
