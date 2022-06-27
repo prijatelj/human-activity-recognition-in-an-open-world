@@ -1,8 +1,10 @@
 """Visualization with plotly for Experiment 1."""
 import os
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from plotly.express.colors import qualitative as qual_colors
 import yaml
 
@@ -101,8 +103,6 @@ def bar_multigroup(
     split. The data splits' values are opt. overlaid. The other groups are
     side-by-side.
     """
-    fig = go.Figure()
-
     if groupby == 'columns':
         values = df.values.T
         x = df.index
@@ -111,6 +111,8 @@ def bar_multigroup(
         values = df.values
         x = df.columns
         names = df.index
+
+    bar_colors = [qual_colors.Pastel2[-1]] + list(np.array(qual_colors.Pastel1)[[1, 6, 3, 2, 4, 0]])
 
     if split_kwargs is None:
         split_kwargs = {
@@ -146,20 +148,15 @@ def bar_multigroup(
             }
         }
 
+    freprs = df[frepr_col].unique()
+    classifiers = df[classifier_col].unique()
 
-    # Add a bar for every measure
-    for i, row in enumerate(df.loc):
-        fig.add_trace(go.Bar(
-            x=x,
-            y=row[measure_col],
-            name=names[key],
-            marker_color=None if marker_colors is None else marker_colors[key],
-            marker=go.bar.Marker(
-                pattern=split_kwargs[measures[split_col]]['pattern'],
-                line=split_kwargs[measures[split_col]]['line'],
-            )
-            error_y=None if measure_error is None else measure_error[key],
-        ))
+    fig = make_subplots(
+        rows=1,
+        cols=len(freprs),
+        shared_yaxes=True,
+        specs=[[{}, {}], [{}, {}]]
+    )
 
     # TODO first, make stacked bar graph, stacking splits and comparing
     # classifiers for a single frepr.
@@ -169,21 +166,23 @@ def bar_multigroup(
     #   other (or side by side, optional).
     #   Each classifier has its own color.
     frepr_figs = []
-    freprs = df[frepr_col].unique()
-    classifiers = df[classifier_col].unique()
-    for frepr in freprs:
-        fig = go.Figure()
+    for i, frepr in enumerate(freprs):
         for split in ['train', 'val', 'test']:
-            fig.add_trace(go.Bar(
-                name=split,
-                x=classifiers,
-                y=df[df["Data Split"]==split]["Mathew's Correlation Coefficient"],
-                marker=split_kwargs[split],
-                marker_color=qual_colors.Pastel1[:len(classifiers)],
-                textposition='inside',
-                texttemplate='%{y:.4f}',
-                textfont_color='black',
-            ))
+            fig.add_trace(
+                go.Bar(
+                    name=split,
+                    x=classifiers,
+                    y=df[df["Data Split"]==split]["Mathew's Correlation Coefficient"],
+                    marker=split_kwargs[split],
+                    marker_color=bar_colors[:len(classifiers)],
+                    textposition='inside',
+                    texttemplate='%{y:.4f}',
+                    textfont_color='black',
+                    #uid=f'{frepr}_{}',
+                ),
+                row=0,
+                col=i,
+            )
             fig.update_layout(barmode='overlay', template='simple_white')
 
 
