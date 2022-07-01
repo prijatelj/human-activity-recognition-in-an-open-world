@@ -1,10 +1,12 @@
 """Open World Human Activity Recognition pipeline class."""
+from datetime import datetime
 from copy import deepcopy
 import os
 
 import torch
 
 from exputils.data.labels import NominalDataEncoder
+from exputils.io import create_filepath
 from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 
 from arn.models.novelty_detector import WindowedMeanKLDiv
@@ -33,9 +35,24 @@ class EVMPredictor(ExtremeValueMachine):
     ----------
     skip_fit : bool = False
         If True, skips all calls to fit(), never training the EVM.
+    uid : str = None
+        The unique identifier to be used by EVMPredictor, if not given or given
+        'datetime', will create the uid as
+        `f"evm-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"`.
+    save_dir : str = None
+        If not None, will create the directory and save the EVM's state at that
+        directory as `f'{self.uid}-{self.increment}.h5'` after every call to
+        fit().
     see ExtremeValueMachine
     """
-    def __init__(self, skip_fit=False, uid=None, *args, **kwargs):
+    def __init__(
+        self,
+        skip_fit=False,
+        uid=None,
+        save_dir=None,
+        *args,
+        **kwargs,
+    ):
         """Docstr hotfix cuz otherwise this is unnecessary...
 
         Args
@@ -48,6 +65,9 @@ class EVMPredictor(ExtremeValueMachine):
         self.skip_fit = skip_fit
         self.uid = uid if isinstance(uid, str) and uid != 'datetime' \
             else f"evm-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
+
+        # TODO Enable checkpointing by providing a
+        self.save_dir = create_filepath(save_dir)
 
         logger.info('Predictor UID `%s` init finished.', self.uid)
 
@@ -80,6 +100,10 @@ class EVMPredictor(ExtremeValueMachine):
             )
         super().fit(dataset, *args, **kwargs)
 
+        if self.save_dir:
+            self.save(
+                os.path.join(self.save_dir, f'{self.uid}-{self.increment}.h5')
+            )
 
     def predict(self, features, unknown_last_dim=False):
         if isinstance(features, KineticsUnifiedFeatures):
