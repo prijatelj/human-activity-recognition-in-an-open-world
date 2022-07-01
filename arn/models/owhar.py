@@ -58,6 +58,8 @@ class EVMPredictor(ExtremeValueMachine):
         Args
         ----
         skip_fit : see self
+        uid : see self
+        save_dir : see self
         see ExtremeValueMachine.__init__
         """
         super().__init__(*args, **kwargs)

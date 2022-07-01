@@ -1,0 +1,136 @@
+# The Open World Human Activity Recognition pipeline from given features
+# extracted from a feature representaiton model to the end. This will probably
+# be broken down into smaller chunks for convenience.
+
+docstr:
+  style: numpy
+  from import:
+    arn.data.kinetics_owl:
+      - EvalConfig
+      - EvalDataSplitConfig
+      - DataSplits
+      - KineticsOWL
+      - KineticsOWLExperiment
+      - kinetics_owl_evm
+    arn.data.kinetics_unified:
+      - KineticsUnified
+      - KineticsUnifiedFeatures
+      - KineticsSplitConfig
+      - KineticsUnifiedSubset
+      - LabelConfig
+      - KineticsRootDirs
+      - BatchDirs
+    arn.models.fine_tune:
+      - FineTuneFC
+    arn.models.fine_tune_lit:
+      - FineTuneLit
+      - FineTuneFCLit
+      - init_trainer
+      - init_ray_plugin
+      - init_tensorboard_logger
+    arn.models.owhar:
+      - EVMPredictor
+  main: run
+  log_sink: '/mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/logs/log.log'
+  log_level: DEBUG
+
+kinetics_owl_evm: # Pipeline for the Open World Learning Data process
+  predictor: # the Open World Agent
+    EVMPredictor:
+      tail_size: 4000
+      cover_threshold: 0.7
+      distance_multiplier: 1.0
+      distance_metric: cosine
+      labels: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/train_known_labels.csv
+      device: cpu
+      chunk_size: 1
+      atol: 1e-5
+      save_dir: /mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/
+  eval_config:
+    EvalConfig:
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  post_feedback_eval_config:
+    EvalConfig:
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  environment:
+    KineticsOWLExperiment:
+      start:
+        DataSplits:
+          train:
+            KineticsUnifiedFeatures:
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
+              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              sample_dirs:
+                BatchDirs:
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
+                  batch_col: batch
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                  kinetics400:
+                    KineticsSplitConfig:
+                      train: True
+          validate:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
+              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              sample_dirs:
+                BatchDirs:
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
+                  batch_col: batch
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                  kinetics400:
+                    KineticsSplitConfig:
+                      validate: True
+          test:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
+              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              sample_dirs:
+                BatchDirs:
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
+                  batch_col: batch
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: 'label_kinetics400'
+                  kinetics400:
+                    KineticsSplitConfig:
+                      test: True
