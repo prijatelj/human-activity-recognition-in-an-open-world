@@ -18,7 +18,6 @@ docstr:
       - KineticsSplitConfig
       - KineticsUnifiedSubset
       - LabelConfig
-      - KineticsRootDirs
       - BatchDirs
     arn.models.fine_tune:
       - FineTuneFC
@@ -30,8 +29,8 @@ docstr:
       - init_tensorboard_logger
     arn.models.owhar:
       - EVMPredictor
-  main: run
-  log_sink: '/mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/logs/log.log'
+  main: run #KineticsOWL.run
+  log_sink: stdout
   log_level: DEBUG
 
 kinetics_owl_evm: # Pipeline for the Open World Learning Data process
@@ -41,14 +40,15 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
       cover_threshold: 0.7
       distance_multiplier: 1.0
       distance_metric: cosine
-      labels: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/train_known_labels.csv
+      labels: /mnt/hdd/workspace/research/osr/har/sim_classify/labels_sim_k400.csv
       device: cpu
+      dtype: float32
       chunk_size: 1
       atol: 1e-5
-      save_dir: /mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/
+      save_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp1_2d_sim/evm/
   eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/sim_owr/exp1_2d_sim/evm/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -63,7 +63,7 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/sim_owr/exp1_2d_sim/evm/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -81,15 +81,16 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
       start:
         DataSplits:
           train:
-            KineticsUnifiedFeatures:
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              annotation_path: /mnt/hdd/workspace/research/osr/har/sim_classify/sim_kunified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
+                  root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
               device: cuda
               dtype: float32
+              split_prefix: False
+              k700_suffix_label: False
               subset:
                 KineticsUnifiedSubset:
                   labels:
@@ -100,12 +101,13 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
                       train: True
           validate:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /mnt/hdd/workspace/research/osr/har/sim_classify/sim_kunified.csv
+              split_prefix: False
+              k700_suffix_label: False
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
+                  root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
               device: cuda
               dtype: float32
               subset:
@@ -118,12 +120,13 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
                       validate: True
           test:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /mnt/hdd/workspace/research/osr/har/sim_classify/sim_kunified.csv
+              split_prefix: False
+              k700_suffix_label: False
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
+                  root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
               device: cuda
               dtype: float32
               subset:
