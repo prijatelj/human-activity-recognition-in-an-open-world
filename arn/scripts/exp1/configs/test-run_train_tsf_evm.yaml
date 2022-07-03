@@ -43,6 +43,7 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
       distance_metric: cosine
       labels: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/train_known_labels.csv
       device: cpu
+      dtype: float32
       chunk_size: 1
       atol: 1e-5
       save_dir: /mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/
