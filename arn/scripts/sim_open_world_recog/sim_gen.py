@@ -207,11 +207,17 @@ def get_kinetics_unified_df(
 
 
 @ray.remote
-def save_sample(sample_tensor, dir_name, filename):
-    torch.save(sample_tensor, os.path.join(dir_name, filename))
+def save_sample(sample_tensor, dir_name, split, filename):
+    torch.save(sample_tensor, os.path.join(dir_name, split, filename))
 
 
-def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
+def gen_sim_dataset(
+    root_dir,
+    samples_per_class=100,
+    incs_per_new_class=4,
+    scale=1 / 200,
+    save_together=False,
+):
     """Create the simulated data samples and save to disk as .pt files. Save
     the labels in the format of Kinetics Unified csv. The datasets [1,3]
     correspnd to Kinetics 400, 600, and 700_2020, respectively. There are
@@ -228,14 +234,15 @@ def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
     root_dir : str
     samples_per_class : int = 100
         Number of samples to generate per class for each increment.
+    incs_per_new_class : int = 4
+        The number of increments for each new class before the next class is
+        introduced.
     save_together : bool = False
         Saves the features together as one tensor rather than as individual
         files.
     """
     logger.info('First dataset: Starting Increment')
 
-    #scale = 1 / 20 # should have been even tighter, not separable. maybe 1/100
-    scale = 1 / 200
     start_sim = SimClassifyGaussians(
         scales=scale,
         labels=[f'k400-{i}' for i in range(1, 5)],
@@ -282,7 +289,12 @@ def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
         save_dset = []
         for i, filename in enumerate(get_filename(df, ext='_feat.pt')):
             save_dset.append(
-                save_sample.remote(start_inc_samples[i], dir_name, filename)
+                save_sample.remote(
+                    start_inc_samples[i],
+                    dir_name,
+                    df['split_kinetics400'].iloc[i],
+                    filename,
+                )
             )
         ray.get(save_dset)
     del (
@@ -313,8 +325,7 @@ def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
         [-0.5, - math.sqrt(3) / 2.0],
         [- math.sqrt(3) / 2.0, -0.5],
     ]
-    incs_per_new_class = 4
-    eq_samples_per_inc = 25
+    eq_samples_per_inc = samples_per_class / incs_per_new_class
 
     new_sim, k6df, k6_sim_samples = gen_inc_sim_dataset(
         start_sim,
@@ -337,7 +348,12 @@ def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
         save_dset = []
         for i, filename in enumerate(get_filename(k6df, ext='_feat.pt')):
             save_dset.append(
-                save_sample.remote(k6_sim_samples[i], dir_name, filename)
+                save_sample.remote(
+                    k6_sim_samples[i],
+                    dir_name,
+                    k6df['split_kinetics600'].iloc[i],
+                    filename,
+                )
             )
         ray.get(save_dset)
         del k6_sim_samples
@@ -403,7 +419,12 @@ def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
         save_dset = []
         for i, filename in enumerate(get_filename(k7df, ext='_feat.pt')):
             save_dset.append(
-                save_sample.remote(k7_sim_samples[i], dir_name, filename)
+                save_sample.remote(
+                    k7_sim_samples[i],
+                    dir_name,
+                    k7df['split_kinetics700_2020'].iloc[i],
+                    filename,
+                )
             )
         ray.get(save_dset)
 
