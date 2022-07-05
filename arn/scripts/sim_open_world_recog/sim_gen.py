@@ -211,7 +211,7 @@ def save_sample(sample_tensor, dir_name, filename):
     torch.save(sample_tensor, os.path.join(dir_name, filename))
 
 
-def gen_sim_dataset(root_dir, samples_per_class=1000):
+def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
     """Create the simulated data samples and save to disk as .pt files. Save
     the labels in the format of Kinetics Unified csv. The datasets [1,3]
     correspnd to Kinetics 400, 600, and 700_2020, respectively. There are
@@ -222,10 +222,20 @@ def gen_sim_dataset(root_dir, samples_per_class=1000):
     2] matching order [train, val, test], and the sample index within the
     datasplit. The these column values will not be unique per sample (row), but
     the resulting filepath will be unique as per kinetics sample identifiers.
+
+    Args
+    ----
+    root_dir : str
+    samples_per_class : int = 100
+        Number of samples to generate per class for each increment.
+    save_together : bool = False
+        Saves the features together as one tensor rather than as individual
+        files.
     """
     logger.info('First dataset: Starting Increment')
 
-    scale = 1 / 20
+    #scale = 1 / 20 # should have been even tighter, not separable. maybe 1/100
+    scale = 1 / 100
     start_sim = SimClassifyGaussians(
         scales=scale,
         labels=[f'k400-{i}' for i in range(1, 5)],
@@ -262,14 +272,19 @@ def gen_sim_dataset(root_dir, samples_per_class=1000):
     )
 
     # Save the sample points to their own filepath
-    # TODO need to create the trian, validate, and test dirs and save there.
-    dir_name = create_filepath(os.path.join(root_dir, 'sim_k400/'))
-    save_dset = []
-    for i, filename in enumerate(get_filename(df, ext='_feat.pt')):
-        save_dset.append(
-            save_sample.remote(start_inc_samples[i], dir_name, filename)
+    if save_together:
+        torch.save(
+            start_inc_samples,
+            os.path.join(root_dir, 'sim_k400_feats.pt'),
         )
-    ray.get(save_dset)
+    else:
+        dir_name = create_filepath(os.path.join(root_dir, 'sim_k400/'))
+        save_dset = []
+        for i, filename in enumerate(get_filename(df, ext='_feat.pt')):
+            save_dset.append(
+                save_sample.remote(start_inc_samples[i], dir_name, filename)
+            )
+        ray.get(save_dset)
     del (
         start_inc_samples,
         start_inc_labels,
@@ -304,7 +319,7 @@ def gen_sim_dataset(root_dir, samples_per_class=1000):
     new_sim, k6df, k6_sim_samples = gen_inc_sim_dataset(
         start_sim,
         new_class_locs,
-        scale,
+        scale / 2,
         incs_per_new_class,
         eq_samples_per_inc,
         dataset_id='600',
@@ -315,15 +330,17 @@ def gen_sim_dataset(root_dir, samples_per_class=1000):
     df = df.append(k6df)
 
     # Save the sample points to their own filepath
-    # TODO need to create the trian, validate, and test dirs and save there.
-    dir_name = create_filepath(os.path.join(root_dir, 'sim_k600/'))
-    save_dset = []
-    for i, filename in enumerate(get_filename(k6df, ext='_feat.pt')):
-        save_dset.append(
-            save_sample.remote(k6_sim_samples[i], dir_name, filename)
-        )
-    ray.get(save_dset)
-    del k6_sim_samples
+    if save_together:
+        torch.save(k6_sim_samples, os.path.join(root_dir, 'sim_k600_feats.pt'))
+    else:
+        dir_name = create_filepath(os.path.join(root_dir, 'sim_k600/'))
+        save_dset = []
+        for i, filename in enumerate(get_filename(k6df, ext='_feat.pt')):
+            save_dset.append(
+                save_sample.remote(k6_sim_samples[i], dir_name, filename)
+            )
+        ray.get(save_dset)
+        del k6_sim_samples
 
     logger.info('Third dataset: Incremental Open World Recognition.')
     # Generate the 3rd dataset's samples
@@ -350,7 +367,7 @@ def gen_sim_dataset(root_dir, samples_per_class=1000):
     new_sim, k7df, k7_sim_samples = gen_inc_sim_dataset(
         start_sim,
         new_class_locs,
-        scale,
+        scale * 2, # This is fine to be 1/20. though perhaps 1/40.
         incs_per_new_class,
         eq_samples_per_inc,
         dataset_id='700_2020',
@@ -362,14 +379,16 @@ def gen_sim_dataset(root_dir, samples_per_class=1000):
     df.to_csv(os.path.join(root_dir, 'sim_kunified.csv'), index=False)
 
     # Save the sample points to their own filepath
-    # TODO need to create the trian, validate, and test dirs and save there.
-    dir_name = create_filepath(os.path.join(root_dir, 'sim_k700/'))
-    save_dset = []
-    for i, filename in enumerate(get_filename(k7df, ext='_feat.pt')):
-        save_dset.append(
-            save_sample.remote(k7_sim_samples[i], dir_name, filename)
-        )
-    ray.get(save_dset)
+    if save_together:
+        torch.save(k7_sim_samples, os.path.join(root_dir, 'sim_k700_feats.pt'))
+    else:
+        dir_name = create_filepath(os.path.join(root_dir, 'sim_k700/'))
+        save_dset = []
+        for i, filename in enumerate(get_filename(k7df, ext='_feat.pt')):
+            save_dset.append(
+                save_sample.remote(k7_sim_samples[i], dir_name, filename)
+            )
+        ray.get(save_dset)
 
 
 if __name__ == '__main__':
