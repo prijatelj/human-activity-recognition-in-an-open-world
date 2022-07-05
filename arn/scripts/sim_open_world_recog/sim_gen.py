@@ -235,7 +235,7 @@ def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
     logger.info('First dataset: Starting Increment')
 
     #scale = 1 / 20 # should have been even tighter, not separable. maybe 1/100
-    scale = 1 / 100
+    scale = 1 / 200
     start_sim = SimClassifyGaussians(
         scales=scale,
         labels=[f'k400-{i}' for i in range(1, 5)],
@@ -319,7 +319,7 @@ def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
     new_sim, k6df, k6_sim_samples = gen_inc_sim_dataset(
         start_sim,
         new_class_locs,
-        scale / 2,
+        scale / 5,
         incs_per_new_class,
         eq_samples_per_inc,
         dataset_id='600',
@@ -376,6 +376,23 @@ def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
 
     # Update df with new labels
     df = df.append(k7df)
+
+    # Add batch col, add unified labels
+    df['batch'] = None
+    df['label_kunified'] = None
+    for col in ['400', '600', '700']:
+        label_col = f'label_kinetics{col}'
+        split_col = f'split_kinetics{col}'
+        if col == '700':
+            label_col = f'{label_col}_2020'
+            split_col = f'{split_col}_2020'
+        col = f'sim_k{col}'
+        df['batch'][df[split_col] == 'train'] = os.path.join(col, 'train')
+        df['batch'][df[split_col] == 'validate'] = os.path.join(col, 'val')
+        df['batch'][df[split_col] == 'test'] = os.path.join(col, 'test')
+        df['label_kunified'][~pd.isna(df[label_col])] = \
+            df[label_col][~pd.isna(df[label_col])]
+
     df.to_csv(os.path.join(root_dir, 'sim_kunified.csv'), index=False)
 
     # Save the sample points to their own filepath
@@ -394,7 +411,7 @@ def gen_sim_dataset(root_dir, samples_per_class=100, save_together=False):
 if __name__ == '__main__':
     import sys
     ray.init(num_cpus=1, num_gpus=1)
-    if len(sys.argv) < 2:
+    if len(sys.argv) <= 2:
         gen_sim_dataset(sys.argv[1])
     else:
         gen_sim_dataset(sys.argv[1], int(sys.argv[2]))
