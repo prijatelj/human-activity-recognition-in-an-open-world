@@ -404,7 +404,7 @@ def gen_sim_dataset(
             split_col = f'{split_col}_2020'
         col = f'sim_k{col}'
         df['batch'][df[split_col] == 'train'] = os.path.join(col, 'train')
-        df['batch'][df[split_col] == 'validate'] = os.path.join(col, 'val')
+        df['batch'][df[split_col] == 'validate'] = os.path.join(col,'validate')
         df['batch'][df[split_col] == 'test'] = os.path.join(col, 'test')
         df['label_kunified'][~pd.isna(df[label_col])] = \
             df[label_col][~pd.isna(df[label_col])]
