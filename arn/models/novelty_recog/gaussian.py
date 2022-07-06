@@ -1,4 +1,6 @@
 """Novelty Recognition baseline using a Gaussian per class in feature space."""
+from copy import deepcopy
+
 import torch
 
 import logging
@@ -122,10 +124,10 @@ class GaussianRecog(object):
         self._start_idx = start_idx
         self._gaussians = []
         self._thresholds = []
-        for label in list(label_enc)[start_idx:]:
+        for label in list(label_enc.inv)[start_idx:]:
             class_features = features[labels == torch.tensor(label)]
 
-            if class_features.shape(0) < self.min_samples:
+            if class_features.shape[0] < self.min_samples:
                 raise ValueError(
                     f"Label {label} features' samples < min_samples."
                 )
@@ -137,14 +139,30 @@ class GaussianRecog(object):
 
             if (
                 mvn.log_prob(class_features).mean()
-                < torch.log(self.min_density)
+                < torch.log(torch.tensor(self.min_density))
             ):
                 raise ValueError(
                     f"Label {label} features' normalized density "
                     '< min_density.'
                 )
             self._gaussians.append(mvn)
-            self._thresholds.append(mvn.log_prob(class_features, dim=1).min())
+            self._thresholds.append(mvn.log_prob(class_features).min())
+
+            logger.debug(
+                'Label %d: num samples = %d',
+                label,
+                len(class_features),
+            )
+            logger.debug(
+                'Label %d: mean log_prob = %f',
+                label,
+                float(mvn.log_prob(class_features).mean().detach()),
+            )
+            logger.debug(
+                'Label %d: min log_prob = %f',
+                label,
+                float(self._thresholds[-1].detach()),
+            )
 
         # TODO use validation data to update the threshold further!
 
@@ -172,6 +190,14 @@ class GaussianRecog(object):
         """
         if self._gaussians is None:
             raise ValueError('Recognizer is not fit: self._gaussians is None.')
+        label_enc = deepcopy(label_enc)
+
+        # Defaults recognition to unknown assuming only given unknowns
+        recogs = torch.full(
+            preds.shape,
+            label_enc.unknown_idx,
+            dtype=preds.dtype,
+        )
 
         # TODO Perform clustering checking if any clusters that fit criteria:
         #   1. samples >= self.min_samples
@@ -179,10 +205,17 @@ class GaussianRecog(object):
         #   May have to use logic from DBSCAN or similar density approaches for
         #   optimal finding of clusters.
 
-        # TODO increment self._novel_class_count by the number of new class
-        # clusters recognized (unknown_#)
+        # TODO once a new class cluster is recognized, add its identifier to
+        # the label encoder and add the new label to the sample's corresponding
+        # indices in recogs
+        new_recog = f'unknown_{self._novel_class_count}'
+        label_enc.append(new_recog)
 
-        return
+        # TODO increment self._novel_class_count by the number of new class
+        # clusters recognized = f'unknown_{self._novel_class_count}'
+        self._novel_class_count += 1
+
+        return recogs, label_enc
 
     def predict(
         self,
@@ -236,7 +269,7 @@ class GaussianRecog(object):
 
         # Predict a class label per feature point
         new_preds = preds.detach().clone()
-        for i, label in enumerate(list(label_enc)[start_idx:]):
+        for i, label in enumerate(list(label_enc.inv)[start_idx:]):
             new_preds[
                 self._gaussians[i].log_prob(
                     features[new_preds == torch.tensor(label)]
