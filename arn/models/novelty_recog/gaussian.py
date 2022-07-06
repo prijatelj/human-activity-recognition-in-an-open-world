@@ -188,9 +188,12 @@ class GaussianRecog(object):
             Recognized label per feature space point and the label_encoder copy
             with the appened new class clusters.
         """
+        raise NotImplementedError('TODO')
+
         if self._gaussians is None:
             raise ValueError('Recognizer is not fit: self._gaussians is None.')
         label_enc = deepcopy(label_enc)
+
 
         # Defaults recognition to unknown assuming only given unknowns
         recogs = torch.full(
