@@ -1104,8 +1104,10 @@ class KineticsOWL(object):
                 f'step-{self.increment}_post-feedback_novelty-detect',
             )
             #"""
+        # else  TODO add fit call when no feedback to allow predictor to change
+        # state.
 
-            # TODO 6. Opt. Evaluate the updated predictor on entire experience
+        # TODO 6. Opt. Evaluate the updated predictor on entire experience
 
     def run(self, max_steps=None, tqdm=None):
         """The entire experiment run loop."""
