@@ -1,4 +1,4 @@
-"""Novelty Recognition module of the baseline OWL HAR predictor."""
+"""Novelty Recognition with HDBSCAN for hierarchical density class-clusters."""
 import hdbscan
 
 import logging
