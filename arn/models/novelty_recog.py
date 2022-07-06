@@ -41,13 +41,18 @@ class HDBSCANRecog(object):
 
             Any cluster formed that is not within this density is not
             considered a new class cluster.
+        core_dist_n_jobs : int = 4
+            The number of prallel jobs to run in core distance computations of
+            HDBSCAN.
         """
         self.min_new_class_size = min_new_class_size
         self._novel_class_count = 0
 
+        self.core_dist_n_jobs = core_dist_n_jobs
+
         # TODO hmm.
         self.clusterer = hdbscan.HDBSCAN(
-            min_cluster_dize=min_new_class_size,
+            min_cluster_size=min_new_class_size,
             prediction_data=True,
         )
 
@@ -58,6 +63,7 @@ class HDBSCANRecog(object):
     def predict(
         features,
         labels,
+        label_enc,
         class_preds=None,
         expected_classes=None,
     ):
@@ -76,9 +82,19 @@ class HDBSCANRecog(object):
         Args
         ----
         features : arn.data.kinetics_unified.KineticsUnified
+            The sample feature representation vectors to be class clustered.
         labels : arn.data.kinetics_unified.KineticsUnified = None
+            The labels for the features which includes elements as a label from
+            label_enc including unknown, 'unlabeled' when there is no class
+            assigned rather than being known as "unknown" or "other", or
+            unknown_# as from this recognizer.
+
+            unlabeled samples are to be predicted.
+
+            All known labeled samples must be included within their class
+            cluster.
         class_preds : = None
-            If the labels have a prior predicted class from another predicotr,
+            If the labels have a prior predicted class from another predictor,
             e.g., an ANN, then that may be used to inform the clustering???
         expected_classes : int = None
             The number of expected classes, thus including the total known
@@ -92,11 +108,14 @@ class HDBSCANRecog(object):
         # TODO Obtain initial known class clusters
         #   Run HDBSCAN on features, saving all hierarchy info.
         #   Get the single linkage tree to serve as cluster hierarchy.
+        clusterer = self.clusterer.fit(features)
 
         # TODO per class, find optimal hierarchy density param given labels:
-        #    Min hierarchy param, max class samples in class' cluster.
+        #    Min distance to cut, max class samples in one class' cluster.
+        #    Includes keeping track of which cluster we care about here.
+        #for label in label_enc:
 
-        # TODO Per class, determine label of sample
+        # TODO Per class, determine label of unlabeled sample
         #   if within class' density neighborhood, add to that class.
         #       aka: if clustered within same class' cluster.
         #   else an outlier:
@@ -106,6 +125,8 @@ class HDBSCANRecog(object):
         # New supervised labels given override unsupervised labels.
 
         return pred_classes
+        # TODO should mark in dataframe which samples are labeled by recognizer
+        # rather than oracle label: new col in experience dataframe.
 
         # TODO outside of this, update pred label enc, and handle environment
         # label_enc != pred label_enc
