@@ -270,11 +270,16 @@ class GaussianRecog(object):
         # Predict a class label per feature point
         new_preds = preds.detach().clone()
         for i, label in enumerate(list(label_enc.inv)[start_idx:]):
-            new_preds[
-                self._gaussians[i].log_prob(
-                    features[new_preds == torch.tensor(label)]
-                ) < torch.tensor(self._thresholds[i])
-            ] = label_enc.unknown_idx
+            mask = new_preds == torch.tensor(label)
+            logging.debug(
+                'Label %d: Total given predicted = %d',
+                label,
+                mask.sum(),
+            )
+            new_preds[torch.nonzero(mask)[
+                self._gaussians[i].log_prob(features[mask])
+                    < torch.tensor(self._thresholds[i])
+            ]] = label_enc.unknown_idx
         return new_preds
 
         # TODO outside of this, update pred label enc, and handle environment
