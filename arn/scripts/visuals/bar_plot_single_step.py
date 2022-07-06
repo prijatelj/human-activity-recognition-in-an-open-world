@@ -244,5 +244,5 @@ def get_ocms_bar_plot(yaml_path):
                     [k1, k2, k3] + measures,
                     index=df.columns,
                 ), ignore_index=True)
-
+    return df
     # TODO Create the bar plot
