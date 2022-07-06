@@ -32,10 +32,10 @@ debugpy==1.6.0
 decorator==5.1.0
 defusedxml==0.7.1
 distlib==0.3.3
-docstr==0.0.3rc0
+docstr==0.0.3rc1
 docutils==0.17.1
 entrypoints==0.4
-exputils==0.1.7rc1
+exputils==0.1.7rc2
 fairscale==0.4.6
 fastjsonschema==2.15.3
 filelock==3.4.0
