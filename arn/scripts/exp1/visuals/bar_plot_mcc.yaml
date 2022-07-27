@@ -1,7 +1,7 @@
 # Config for visualizing a measure for a single step, comparing models.
 
 measures: # Determines how many figures are generated.
-  Mathew's Correlation Coefficient: mcc
+  Mathews Correlation Coefficient: mcc
   Accuracy: accuracy
   Top-5 Accuracy:
     accuracy:

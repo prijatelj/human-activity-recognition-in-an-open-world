@@ -1,4 +1,4 @@
-## Formalization and Analysis of Human Activity Recognition with Novelty
+## Human Activity Recognition in the Open World
 
 Human Activity Recognition (HAR) as a classification task is the task of mapping videos to their corresponding activity label.
 Novelty and open world learning in this domain is akin to the open world learning versions of image classification or any traditional classification task.

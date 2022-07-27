@@ -325,7 +325,7 @@ def gen_sim_dataset(
         [-0.5, - math.sqrt(3) / 2.0],
         [- math.sqrt(3) / 2.0, -0.5],
     ]
-    eq_samples_per_inc = samples_per_class / incs_per_new_class
+    eq_samples_per_inc = samples_per_class // incs_per_new_class
 
     new_sim, k6df, k6_sim_samples = gen_inc_sim_dataset(
         start_sim,

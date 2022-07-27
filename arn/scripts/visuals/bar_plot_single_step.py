@@ -10,6 +10,8 @@ import yaml
 
 from exputils.data import OrderedConfusionMatrices
 
+from arn.scripts.visuals.load_results import load_inplace_results_tree
+
 
 def bar_group(
     df,
@@ -112,7 +114,9 @@ def bar_multigroup(
         x = df.columns
         names = df.index
 
-    bar_colors = [qual_colors.Pastel2[-1]] + list(np.array(qual_colors.Pastel1)[[1, 6, 3, 2, 4, 0]])
+    bar_colors = [qual_colors.Pastel2[-1]] + list(
+        np.array(qual_colors.Pastel1)[[1, 6, 3, 2, 4, 0]]
+    )
 
     if split_kwargs is None:
         split_kwargs = {
@@ -193,19 +197,7 @@ def bar_multigroup(
     # TODO Join the frepr plots together into one. More ws separating freprs.
 
 
-def load_ocm_tree_inplace(tree, root_dir=''):
-    stack = [(tree, k, v) for k, v in tree.items()]
-    while stack:
-        ptr, key, value = stack.pop()
-        if isinstance(value, dict):
-            for k, v in value.items():
-                stack.append((value, k, v))
-        else:
-            ptr[key] = OrderedConfusionMatrices.load(
-                os.path.join(root_dir, value)
-            )
-
-def get_ocms_bar_plot(yaml_path):
+def get_ocms_bar_plot_df(yaml_path):
     # Load in yaml config file
     with open(yaml_path) as openf:
         config = yaml.load(openf, Loader=yaml.CLoader)
@@ -213,7 +205,12 @@ def get_ocms_bar_plot(yaml_path):
     root_dir = config.pop('root_dir', '')
 
     # Load ocms given each filepath at the leaf and store in-place
-    load_ocm_tree_inplace(config['ocms'], root_dir)
+    load_inplace_results_tree(
+        config['ocms'],
+        root_dir,
+        get_ocm=True,
+        leaf_is_dir=False,
+    )
 
     # Get measures per ocm and format into dataframe for bar plot
     df = pd.DataFrame(
@@ -245,4 +242,3 @@ def get_ocms_bar_plot(yaml_path):
                     index=df.columns,
                 ), ignore_index=True)
     return df
-    # TODO Create the bar plot
