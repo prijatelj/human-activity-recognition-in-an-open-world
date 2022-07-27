@@ -358,6 +358,11 @@ class FineTuneFCLit(pl.LightningModule):
         raise NotImplementedError()
 
 
+# TODO need to add the option to SAVE the ckpt of a given file for FineTuneFCLit
+#   specifically, at every step/increment of KOWL! Put w/in OWHAPredictor???
+# TODO need to add the option to LOAD the ckpt of a given file for FineTuneFCLit
+
+
 class FineTuneLit(object):
     """FineTune modified to manage Pytorch Lightning models.
 
