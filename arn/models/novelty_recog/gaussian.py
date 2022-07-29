@@ -146,6 +146,14 @@ class GaussianRecog(object):
                     '< min_density.'
                 )
             self._gaussians.append(mvn)
+
+            # TODO implement saving the threshold for that least likely point +
+            # scalar * class' standard deviation farther away from mean along its
+            # current direction from the mean (centroid). Current is just
+            # scalar=0
+            # Perhaps instead of basing it on the min log prob sample, just
+            # base it on the min log prob of a point a set N*standard
+            # deviations away from mean.
             self._thresholds.append(mvn.log_prob(class_features).min())
 
             logger.debug(
