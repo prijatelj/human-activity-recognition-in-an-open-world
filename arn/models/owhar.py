@@ -1,4 +1,4 @@
-"""Open World Human Activity Recognition pipeline class."""
+"""Open World Human Activity Recognition predictor pipeline classes."""
 from datetime import datetime
 from copy import deepcopy
 import os
@@ -82,7 +82,14 @@ class EVMPredictor(ExtremeValueMachine):
                 'the EVMPredictor does not support validation in fitting!'
             )
         # TODO handle being given unknowns in first dim of encoded labels!
-        if isinstance(dataset, KineticsUnifiedFeatures):
+        if (
+            isinstance(dataset, tuple)
+            and len(dataset) == 2
+            and isinstance(dataset[0], torch.Tensor)
+            and isinstance(dataset[1], torch.Tensor)
+        ):
+            return super().fit(dataset[0], dataset[1], *args, **kwargs)
+        elif isinstance(dataset, KineticsUnifiedFeatures):
             features = []
             labels = []
             extra_ns = []
@@ -102,6 +109,7 @@ class EVMPredictor(ExtremeValueMachine):
             )
         super().fit(dataset, *args, **kwargs)
 
+        # TODO add saving of predictor state conditioned hook
         if self.save_dir:
             self.save(
                 os.path.join(self.save_dir, f'{self.uid}-{self.increment}.h5')
@@ -230,6 +238,8 @@ class OWHAPredictor(object):
         self._increment += 1
         self.fine_tune.fit(dataset, val_dataset=val_dataset)
 
+        # TODO add saving of predictor state conditioned hook
+
     def predict(self, dataset, task_id=None):
         """Predictor performs the prediction (classification) tasks given
         dataset.
@@ -248,6 +258,9 @@ class OWHAPredictor(object):
             which samples to request feedback for matters.
         """
         return self.fine_tune.predict(dataset)
+
+    def extract(self, dataset, task_id=None):
+        return self.fine_tune.extract(dataset)
 
     def extract_predict(self, dataset, task_id=None):
         return self.fine_tune.extract_predict(dataset)
@@ -278,17 +291,17 @@ class OWHAPredictor(object):
 
 
 # TODO class OWHAPredictorEVM(OWHAPredictor):
-class ANNEVM(OWHAPredictor):
-    """Combo of OWHAPredictor and EVMPredictor.
+class ANNEVM(object):
+    """Simple combo of OWHAPredictor and EVMPredictor.
 
     Attributes
     ----------
-    fine_tune: arn.models.fine_tune_lit.FineTuneLit
+    fine_tune: OWHAPredictor
+        arn.models.fine_tune_lit.FineTuneLit
         fine_tune: arn.models.fine_tune.FineTune
     evm : EVMPredictor
     novelty_detector: WindowedMeanKLDiv = None
     feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
-    label_enc : NominalDataEncoder = None
     _uid : str = None
         An optional str unique identifier for this predictor. When not
         given, the uid property of this class' object is the trainer
@@ -300,8 +313,6 @@ class ANNEVM(OWHAPredictor):
         evm,
         novelty_detector=None,
         feedback_interpreter=None,
-        dtype=None,
-        label_enc=None,
         uid=None,
     ):
         """Initializes the OWHAR.
@@ -312,8 +323,6 @@ class ANNEVM(OWHAPredictor):
         evm: see self
         novelty_detector: see self
         feedback_interpreter: see self
-        label_enc : str | NominalDataEncoder = None
-            Filepath to be loaded or the actual NominalDataEncoder.
         uid : str = None
             An optional str unique identifier for this predictor. When not
             given, the uid property of this class' object is the trainer
@@ -321,16 +330,50 @@ class ANNEVM(OWHAPredictor):
             of init.
         """
         self.fine_tune = fine_tune
+        self.evm = evm
+
         self.novelty_detector = novelty_detector
         self.feedback_interpreter = feedback_interpreter
+
         self._increment = 0
-        self._uid = uid if uid != 'datetime'  \
-            else f"owhap-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
-        self.dtype = torch_dtype(dtype)
-        # TODO Use the dtype in all interior predictor parts unless None.
-        if isinstance(label_enc, str):
-            self.label_enc = NominalDataEncoder.load(label_enc)
+
+        if uid is None:
+            self._uid = self.evm.uid.replace('evm', 'ann-evm')
+        elif uid == 'datetime':
+            self._uid = \
+                f"ann-evm-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
         else:
-            self.label_enc = label_enc
+            self._uid = uid
 
         logger.info('Predictor UID `%s` init finished.', self.uid)
+
+    @property
+    def uid(self):
+        """Returns a string Unique Identity for this predictor."""
+        return self._uid
+
+    @property
+    def label_enc(self):
+        return self.evm.label_enc
+
+    def fit(self, dataset, val_dataset=None, task_id=None):
+        self.fine_tune.fit(dataset, val_dataset, task_id)
+        self.evm.fit(
+            (
+                self.fine_tune.extract(dataset),
+                torch.stack([label for x, label in dataset]).argmax(1),
+            ),
+            # No passing of val_dataset for EVM until it uses it.
+            #None if val_dataset is None else
+            #    self.fine_tune.extract(
+            #        val_dataset,
+            #        torch.stack([label for x, label in dataset]),
+            #),
+        )
+
+    def predict(self, features, unknown_last_dim=False):
+        return self.evm.predict(self.fine_tune.extract(features))
+
+    def extract_predict(self, dataset, task_id=None):
+        extracts = self.fine_tune.extract(dataset)
+        return extracts, self.evm.predict(extracts)

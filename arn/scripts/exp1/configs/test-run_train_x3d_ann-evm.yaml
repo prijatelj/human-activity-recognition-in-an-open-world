@@ -1,0 +1,173 @@
+# The Open World Human Activity Recognition pipeline from given features
+# extracted from a feature representaiton model to the end. This will probably
+# be broken down into smaller chunks for convenience.
+
+docstr:
+  style: numpy
+  from import:
+    arn.data.kinetics_owl:
+      - EvalConfig
+      - EvalDataSplitConfig
+      - DataSplits
+      - KineticsOWL
+      - KineticsOWLExperiment
+      - kinetics_owl_annevm
+    arn.data.kinetics_unified:
+      - KineticsUnified
+      - KineticsUnifiedFeatures
+      - KineticsSplitConfig
+      - KineticsUnifiedSubset
+      - LabelConfig
+      - KineticsRootDirs
+      - BatchDirs
+    arn.models.fine_tune:
+      - FineTuneFC
+    arn.models.fine_tune_lit:
+      - FineTuneLit
+      - FineTuneFCLit
+      - init_trainer
+      - init_ray_plugin
+      - init_tensorboard_logger
+    arn.models.owhar:
+      - OWHAPredictor
+      - EVMPredictor
+      - ANNEVM
+  main: run
+  log_sink: '/mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/logs/log.log'
+  log_level: DEBUG
+
+kinetics_owl_annevm: # Pipeline for the Open World Learning Data process
+  predictor:
+    ANNEVM:
+      fine_tune:
+        OWHAPredictor: # the Open World Agent
+          fine_tune:
+            FineTuneLit:
+              model:
+                FineTuneFCLit:
+                  lr: 1e-3
+                  model:
+                    FineTuneFC:
+                      input_size: 8192
+                      width: 2048
+                      #feature_repr_width: 1024
+                      #depth: 2
+                      depth: 1
+                      dropout: 0.75
+                      n_classes: 410
+              batch_size: 1000
+              trainer:
+                init_trainer:
+                  max_epochs: 1
+                  log_every_n_steps: 1
+                  track_grad_norm: 2
+                  num_sanity_val_steps: 1
+                  gpus: 1
+                  enable_checkpointing: True
+                  default_root_dir: /mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/chkpts/
+                  logger:
+                    init_tensorboard_logger:
+                      save_dir: /mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/tb_log/
+      evm:
+        EVMPredictor:
+          tail_size: 100
+          cover_threshold: 0.7
+          distance_multiplier: 1.0
+          distance_metric: cosine
+          labels: /home/prijatelj/workspace/research/osr/repos/har/data/kinetics400/train_known_labels.csv
+          device: cpu
+          dtype: float32
+          chunk_size: 1
+          atol: 1e-5
+          save_dir: /mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/
+  eval_config:
+    EvalConfig:
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  post_feedback_eval_config:
+    EvalConfig:
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  environment:
+    KineticsOWLExperiment:
+      start:
+        DataSplits:
+          train:
+            KineticsUnifiedFeatures:
+              post_load: flatten
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              sample_dirs:
+                BatchDirs:
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  batch_col: batch
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: label_recent_first #'label_kinetics400'
+                  kinetics400:
+                    KineticsSplitConfig:
+                      train: True
+          validate:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              post_load: flatten
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              sample_dirs:
+                BatchDirs:
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  batch_col: batch
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: label_recent_first #'label_kinetics400'
+                  kinetics400:
+                    KineticsSplitConfig:
+                      validate: True
+          test:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              post_load: flatten
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              sample_dirs:
+                BatchDirs:
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  batch_col: batch
+              device: cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: label_recent_first #'label_kinetics400'
+                  kinetics400:
+                    KineticsSplitConfig:
+                      test: True
