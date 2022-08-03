@@ -1295,20 +1295,24 @@ def kinetics_owl_evm(*args, **kwargs):
     return KineticsOWL(*args, **kwargs)
 
 
-def kinetics_owl_owhapredictor_evm(*args, **kwargs):
+def kinetics_owl_annevm(*args, **kwargs):
     """Initialize the KineticsOWL experiment.
 
     Args
     ----
-    environment : see KineticsOWL.__init__
-    predictor : arn.models.owhar.OWHAPredictorEVM
-    feedback : see KineticsOWL.__init__
-    rng_state : see KineticsOWL.__init__
-    eval_on_start : see KineticsOWL.__init__
-    eval_config : see KineticsOWL.__init__
-    post_feedback_eval_config : see KineticsOWL.__init__
-    tasks : see KineticsOWL.__init__
-    maintain_experience : see KineticsOWL.__init__
-    labels : see KineticsOWL.__init__
+    environment : see KineticsOWL
+    predictor : arn.models.owhar.ANNEVM
+    feedback : see KineticsOWL
+    rng_state : see KineticsOWL
+    eval_on_start : see KineticsOWL
+    eval_config : see KineticsOWL
+    post_feedback_eval_config : see KineticsOWL
+    tasks : see KineticsOWL
+    maintain_experience : bool = False
+        If False, the default, the past experienced samples are not saved
+        in the simulation for use by the predictor. Otherwise, the
+        experienced samples are saved by concatenating the new data splits
+        to the end of the prior ones.
+    labels : str = None
     """
     return KineticsOWL(*args, **kwargs)

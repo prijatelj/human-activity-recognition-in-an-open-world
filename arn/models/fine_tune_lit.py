@@ -319,7 +319,8 @@ class FineTuneFCLit(pl.LightningModule):
         return self.model(x)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        if isinstance(batch, list) and len(batch) == 1:
+        if isinstance(batch, list) and len(batch) in {1, 2}:
+            # Batch len 2 is allowed as hotfix cuz using ANNEVM extract in fit
             batch = batch[0]
         fine_tune_reprs, classifs = self.model(batch)
         return fine_tune_reprs, F.softmax(classifs, 1)
