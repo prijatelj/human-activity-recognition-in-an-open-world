@@ -6,7 +6,7 @@ the simulation data using:
 Then you may load in the data using `sim_dir` and the following script.
 """
 
-sim_dir = 'dir/to/hold/data/CHANGE/ME/'
+sim_dir = '/mnt/scratch_3/sim_data/'
 
 from arn.data.kinetics_unified import *
 from arn.data.kinetics_owl import *
@@ -41,7 +41,21 @@ sim_k4_test = KineticsUnifiedFeatures(
     one_hot=False,
 )
 
-"""Examples of the other sims:
+sim_k6_train = KineticsUnifiedFeatures(
+    f'{sim_dir}sim_kunified.csv',
+    sample_dirs=BatchDirs(
+        root_dir=sim_dir,
+        batch_col='batch',
+    ),
+    subset=KineticsUnifiedSubset(
+        kinetics600=KineticsSplitConfig(train=True),
+        labels=LabelConfig('label_kunified', known=True)
+    ),
+    return_label=True,
+    one_hot=False,
+)
+
+# """Examples of the other sims:
 sim_k6_train = KineticsUnifiedFeatures(
     f'{sim_dir}sim_kunified.csv',
     sample_dirs=BatchDirs(
@@ -68,10 +82,10 @@ sim_k7_train = KineticsUnifiedFeatures(
     return_label=True,
     one_hot=False,
 )
-#"""
 
-"""Example of loading ALL train data including all splits.
-# Note this totals 126000 samples. 42K each data split.
+#
+# """Example of loading ALL train data including all splits.
+# # Note this totals 126000 samples. 42K each data split.
 sim_all = KineticsUnifiedFeatures(
     f'{sim_dir}sim_kunified.csv',
     sample_dirs=BatchDirs(
@@ -99,7 +113,7 @@ sim_all = KineticsUnifiedFeatures(
     return_label=True,
     one_hot=False,
 )
-#"""
+
 
 # Obtain features and labels as tensors
 features = []
@@ -112,7 +126,7 @@ labels = torch.stack(labels)
 
 test_features = []
 test_labels = []
-for x, y in sim_k4_test:
+for x, y in sim_all:
     test_features.append(x)
     test_labels.append(y)
 test_features = torch.stack(test_features)
@@ -120,7 +134,7 @@ test_labels = torch.stack(test_labels)
 
 # Visualize the feature space w/ labels
 def visualize_feature_repr(df, features, labels='label_kunified', opacity=0.3):
-    import plostly.express as px
+    import plotly.express as px
     fig = px.scatter(
         df,
         x=features[:, 0],
@@ -136,7 +150,29 @@ recog = GaussianRecog(10, 0.1)
 recog.fit(features, labels, sim_k4_train.label_enc)
 
 # Obtain the unknowns (outliers) given the recognizer
-test_recogs = recog.predict(test_features, test_labels, sim_k4_train.label_enc)
+
+
+
+test_labels_masked = []
+for x in range(len(test_features)):
+    px = test_features[x][0]
+    py = test_features[x][1]
+    one = px>=-py
+    two = px>=py
+    if one and not two:
+        test_labels_masked.append(1)
+    elif one and two:
+        test_labels_masked.append(2)
+    elif not one and two:
+        test_labels_masked.append(3)
+    elif not one and not two:
+        test_labels_masked.append(4)
+    else:
+        assert False
+
+test_labels_masked = torch.tensor(test_labels_masked)
+
+test_recogs = recog.predict(test_features, test_labels_masked, sim_k4_train.label_enc)
 recog_unknown_mask = test_recogs == sim_k4_train.label_enc.unknown_idx
 unknown_labels = test_recogs[recog_unknown_mask]
 unknown_features = test_features[recog_unknown_mask]
@@ -148,8 +184,15 @@ unknown_features = test_features[recog_unknown_mask]
 # visualize_feature_repr(sim_k4_test, test_features, test_recogs
 
 # TODO perform recognition with recog.recognize()
+import matplotlib.pyplot as plt
+plt.scatter(test_features[:, 0], test_features[:, 1], c=test_labels)
+plt.show()
+plt.scatter(test_features[:, 0], test_features[:, 1], c=test_labels_masked)
+plt.show()
+plt.scatter(unknown_features[:, 0], unknown_features[:, 1])
+plt.show()
 recog_preds, recog_label_enc = recog.recognize(
     unknown_features,
     unknown_labels,
-    sim_k4_train.label_enc,
+    sim_k4_train.label_enc
 )
