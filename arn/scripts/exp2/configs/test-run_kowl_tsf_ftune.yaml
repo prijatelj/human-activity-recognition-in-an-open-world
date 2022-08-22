@@ -67,10 +67,12 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
   maintain_experience: True
   predictor:
     OWHAPredictor: # the Open World Agent
+      save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/chkpts/
       fine_tune:
         FineTuneLit:
           model:
             FineTuneFCLit:
+              #unk_thresh: 0.0
               lr: 1e-3
               model:
                 FineTuneFC:
@@ -95,7 +97,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
       #novelty_detector: None # Classification + Clustering
   environment:
     KineticsOWLExperiment:
-      inc_splits_per_dset: 10
+      inc_splits_per_dset: 5
       intro_freq_first: True
       start:
         DataSplits:
@@ -232,24 +234,6 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       kinetics700_2020:
                         KineticsSplitConfig:
                           train: True
-              validate:
-                KineticsUnifiedFeatures:
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
-                  sample_dirs:
-                    BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
-                      batch_col: batch
-                  device: cuda
-                  dtype: float32
-                  subset:
-                    KineticsUnifiedSubset:
-                      labels:
-                        LabelConfig:
-                          name: label_recent_first
-                      kinetics700_2020:
-                        KineticsSplitConfig:
-                          validate: True
               test:
                 KineticsUnifiedFeatures:
                   blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
@@ -267,4 +251,4 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                           name: label_recent_first
                       kinetics700_2020:
                         KineticsSplitConfig:
-                          test: True
+                          validate: True

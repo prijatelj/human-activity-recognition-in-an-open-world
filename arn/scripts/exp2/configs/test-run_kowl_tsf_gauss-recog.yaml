@@ -1,6 +1,6 @@
 # The Open World Human Activity Recognition pipeline from given features
-# extracted from a feature representaiton model to the end. This will probably
-# be broken down into smaller chunks for convenience.
+# extracted from a feature representaiton model to the end.
+# This will probably be broken down into smaller chunks for convenience.
 
 docstr:
   style: numpy
@@ -12,6 +12,7 @@ docstr:
       - KineticsOWL
       - KineticsOWLExperiment
       - get_steps
+      - kinetics_owl_grecog
     arn.data.kinetics_unified:
       - KineticsUnified
       - KineticsUnifiedFeatures
@@ -29,14 +30,16 @@ docstr:
       - init_tensorboard_logger
     arn.models.owhar:
       - OWHAPredictor
+    arn.models.novelty_recog.gaussian:
+      - GaussianRecognizer
   main: run
-  log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/skip-fit-1/fine-tune/label_recent_first/logs/log.log'
+  log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/label_recent_first/logs/log.log'
   log_level: DEBUG
 
-KineticsOWL: # Pipeline for the Open World Learning Data process
+kinetics_owl_grecog: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/skip-fit-1/fine-tune/label_recent_first/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -51,7 +54,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/skip-fit-1/fine-tune/label_recent_first/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -66,8 +69,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   maintain_experience: True
   predictor:
-    OWHAPredictor: # the Open World Agent
-      skip_fit: 1
+    GaussianRecognizer: # the Open World Agent
+      save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/label_recent_first/chkpts/
       fine_tune:
         FineTuneLit:
           model:
@@ -75,8 +78,8 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               lr: 1e-3
               model:
                 FineTuneFC:
-                  input_size: 8192
-                  width: 2048
+                  input_size: 768
+                  width: 768
                   depth: 1
                   dropout: 0.75
                   n_classes: 410
@@ -89,11 +92,10 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               num_sanity_val_steps: 1
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/skip-fit-1/fine-tune/label_recent_first/chkpts/
+              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/test-run/label_recent_first/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/skip-fit-1/fine-tune/label_recent_first/tb_log/
-      #novelty_detector: None # Classification + Clustering
+                  save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/label_recent_first/tb_log/
   environment:
     KineticsOWLExperiment:
       inc_splits_per_dset: 5
@@ -102,12 +104,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         DataSplits:
           train:
             KineticsUnifiedFeatures:
-              post_load: flatten
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
               annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
               device: cuda
               dtype: float32
@@ -121,12 +122,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       train: True
           validate:
             KineticsUnifiedFeatures:
-              post_load: flatten
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
               annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
               device: cuda
               dtype: float32
@@ -140,12 +140,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       validate: True
           test:
             KineticsUnifiedFeatures:
-              post_load: flatten
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
               annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
               device: cuda
               dtype: float32
@@ -163,12 +162,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             DataSplits:
               train:
                 KineticsUnifiedFeatures:
-                  post_load: flatten
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
                   annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
                   device: cuda
                   dtype: float32
@@ -182,12 +180,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                           train: True
               validate:
                 KineticsUnifiedFeatures:
-                  post_load: flatten
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
                   annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
                   device: cuda
                   dtype: float32
@@ -201,12 +198,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                           validate: True
               test:
                 KineticsUnifiedFeatures:
-                  post_load: flatten
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
                   annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
                   device: cuda
                   dtype: float32
@@ -223,12 +219,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             DataSplits:
               train:
                 KineticsUnifiedFeatures:
-                  post_load: flatten
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
                   annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
                   device: cuda
                   dtype: float32
@@ -242,12 +237,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                           train: True
               test:
                 KineticsUnifiedFeatures:
-                  post_load: flatten
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
+                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
                   annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
                   device: cuda
                   dtype: float32

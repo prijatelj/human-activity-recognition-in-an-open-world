@@ -109,7 +109,6 @@ class EVMPredictor(ExtremeValueMachine):
             )
         super().fit(dataset, *args, **kwargs)
 
-        # TODO add saving of predictor state conditioned hook
         if self.save_dir:
             self.save(
                 os.path.join(self.save_dir, f'{self.uid}-{self.increment}.h5')
@@ -149,8 +148,6 @@ class OWHAPredictor(object):
     ----------
     fine_tune: arn.models.fine_tune_lit.FineTuneLit
         fine_tune: arn.models.fine_tune.FineTune
-    novelty_detector: WindowedMeanKLDiv = None
-    feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
     label_enc : NominalDataEncoder = None
     _uid : str = None
         An optional str unique identifier for this predictor. When not
@@ -163,24 +160,25 @@ class OWHAPredictor(object):
         skip_fit serves as an exclusive upperbound to the range of incremental
         fitting allowed for this predictor. Values less than zero does not
         result in any skipping of calls to fit().
+    save_dir : str = None
+        If given, the filepath to a directory to save all model checkpoints
+        after fitting on an increment.
     """
     def __init__(
         self,
         fine_tune,
-        novelty_detector=None,
-        feedback_interpreter=None,
-        dtype=None,
+        #dtype=None,# TODO perhaps have the predictor manage the dtypes overall
         label_enc=None,
         uid=None,
         skip_fit=-1,
+        save_dir=None,
+        start_increment=0,
     ):
         """Initializes the OWHAR.
 
         Args
         ----
         fine_tune: see self
-        novelty_detector: see self
-        feedback_interpreter: see self
         label_enc : str | NominalDataEncoder = None
             Filepath to be loaded or the actual NominalDataEncoder.
         uid : str = None
@@ -189,20 +187,22 @@ class OWHAPredictor(object):
             tensorboard log_dir version number. If 'datetime', saves datetime
             of init.
         skip_fit : see self
+        save_dir : str = None
+        start_increment : int = 0
         """
         self.fine_tune = fine_tune
-        self.novelty_detector = novelty_detector
-        self.feedback_interpreter = feedback_interpreter
-        self._increment = 0
+        self._increment = int(start_increment)
         self.skip_fit = skip_fit
+        self.save_dir = create_filepath(save_dir) if save_dir else None
         self._uid = uid if uid != 'datetime'  \
             else f"owhap-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
-        self.dtype = torch_dtype(dtype)
-        # TODO Use the dtype in all interior predictor parts unless None.
+
         if isinstance(label_enc, str):
             self.label_enc = NominalDataEncoder.load(label_enc)
         else:
             self.label_enc = label_enc
+
+        # TODO add predictor.experience, default None.
 
         logger.info('Predictor UID `%s` init finished.', self.uid)
 
@@ -227,18 +227,25 @@ class OWHAPredictor(object):
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:
             return
         if isinstance(dataset, KineticsUnified):
-            if self.label_enc is None:
-                self.fine_tune.set_n_classes(len(dataset.label_enc))
+            if (
+                self.label_enc is None
+                or set(dataset.label_enc) - set(self.label_enc)
+            ):
+                # Assumes dataset label enc is superset of label enc.
                 self.label_enc = deepcopy(dataset.label_enc)
-            elif set(dataset.label_enc) - set(self.label_enc):
-                n_classes = len(dataset.label_enc)
-                if n_classes != len(self.label_enc):
-                    self.fine_tune.set_n_classes(n_classes)
-                self.label_enc = deepcopy(dataset.label_enc)
-        self._increment += 1
-        self.fine_tune.fit(dataset, val_dataset=val_dataset)
 
-        # TODO add saving of predictor state conditioned hook
+            n_classes = len(self.label_enc)
+            if n_classes != self.fine_tune.n_classes:
+                self.fine_tune.set_n_classes(n_classes)
+
+        self._increment += 1
+        self.fine_tune.fit(dataset, val_dataset, label_enc=self.label_enc)
+
+        if self.save_dir:
+            self.fine_tune.trainer.save_checkpoint(os.path.join(
+                self.save_dir,
+                f'{self.uid}-{self.increment}.ckpt',
+            ))
 
     def predict(self, dataset, task_id=None):
         """Predictor performs the prediction (classification) tasks given
@@ -300,8 +307,6 @@ class ANNEVM(object):
         arn.models.fine_tune_lit.FineTuneLit
         fine_tune: arn.models.fine_tune.FineTune
     evm : EVMPredictor
-    novelty_detector: WindowedMeanKLDiv = None
-    feedback_interpreter: arn.models.feedback.CLIPFeedbackInterpreter = None
     _uid : str = None
         An optional str unique identifier for this predictor. When not
         given, the uid property of this class' object is the trainer
@@ -311,8 +316,6 @@ class ANNEVM(object):
         self,
         fine_tune,
         evm,
-        novelty_detector=None,
-        feedback_interpreter=None,
         uid=None,
     ):
         """Initializes the OWHAR.
@@ -331,9 +334,6 @@ class ANNEVM(object):
         """
         self.fine_tune = fine_tune
         self.evm = evm
-
-        self.novelty_detector = novelty_detector
-        self.feedback_interpreter = feedback_interpreter
 
         self._increment = 0
 

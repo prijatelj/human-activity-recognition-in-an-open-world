@@ -130,3 +130,109 @@ class HDBSCANRecog(object):
 
         # TODO outside of this, update pred label enc, and handle environment
         # label_enc != pred label_enc
+
+    def recognize(self, features, preds, label_enc, copy=True):
+        raise NotImplementedError(
+            'Placeholder: Copied over GaussRecog.recog when it used hdbscan.'
+        )
+        if copy:
+            label_enc = deepcopy(label_enc)
+
+        clusterer = hdbscan.HDBSCAN(
+            min_cluster_size=self.min_samples,
+            gen_min_span_tree=True,
+        )
+        clusters = clusterer.fit(features)
+        labels =  clusters.labels_
+        bad_clusters = []
+        for label in range(max(labels)+1):
+            class_features = features[labels == torch.tensor(label)]
+            if class_features.shape[0] < self.min_samples:
+                # raise ValueError(
+                #     f"Label {label} features' samples < min_samples."
+                # )
+                continue
+            mvn = torch.distributions.multivariate_normal.MultivariateNormal(
+                    class_features.mean(0),
+                    class_features.T.cov(),
+                )
+
+            if (
+                mvn.log_prob(class_features).mean()
+                < torch.log(torch.tensor(self.min_density))
+            ):
+                bad_clusters.append(labels)
+                # raise ValueError(
+                #     f"Label {label} features' normalized density "
+                #     '< min_density.'
+                # )
+            #TODO: this might need to be changed, depending on the other parts of the loop
+            self._gaussians.append(mvn)
+            self._thresholds.append(mvn.log_prob(class_features).min())
+        new_classes = 0
+        remapper = {}
+        remapper[-1] = -1
+        for x in range(max(labels)+1):
+            if x in bad_clusters:
+                remapper[x] = -1
+            else:
+                remapper[x] = new_classes + self._novel_class_count
+                new_classes += 1
+
+        self._novel_class_count += new_classes
+        new_classes = []
+        still_unknown = []
+        # for x in range(max(clusters.labels_) + 1):
+        #     new_classes.append([])
+        #
+        #
+        # for i,x in enumerate(clusters.labels_):
+        #     if x == -1:
+        #         still_unknown.append(i)
+        #     else:
+        #         new_classes[x].append(i)
+        #
+        #
+        #
+        # print("do it here")
+
+
+        # Defaults recognition to unknown assuming only given unknowns
+        recogs = torch.full(
+            preds.shape,
+            label_enc.unknown_idx,
+            dtype=preds.dtype,
+        )
+
+        for x in range(len(recogs)):
+            label = remapper[labels[x]]
+            if label == -1:
+                continue
+            recogs[x] = label
+
+
+        for i, x in enumerate(new_classes):
+            for y in x:
+                recogs[y] = i + len(label_enc)
+
+        # TODO Perform clustering checking if any clusters that fit criteria:
+        #   1. samples >= self.min_samples
+        #   2. mvn.log_prob(samples).mean() >= torch.log(self.min_density)
+        #   May have to use logic from DBSCAN or similar density approaches for
+        #   optimal finding of clusters.
+
+        # TODO once a new class cluster is recognized, add its identifier to
+        # the label encoder and add the new label to the sample's corresponding
+        # indices in recogs
+        for x in remapper:
+            index = remapper[x]
+            if index == -1:
+                continue
+            new_recog = f'unknown_{index}'
+            label_enc.append(new_recog)
+
+        # TODO increment self._novel_class_count by the number of new class
+        # clusters recognized = f'unknown_{self._novel_class_count}'
+        # self._novel_class_count += 1
+
+        return recogs, label_enc
