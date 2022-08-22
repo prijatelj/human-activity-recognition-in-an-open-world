@@ -1,20 +1,241 @@
 """FineTune written in Pytorch Lightning for simplicty."""
+from functools import partial
 from collections import OrderedDict
 import json
 
+import numpy as np
 import pytorch_lightning as pl
 import ray
 from ray_lightning import RayPlugin
+from scipy.optimize import minimize, minimize_scalar
 import torch
 nn = torch.nn
 F = torch.nn.functional
 import torchmetrics
+
+from exputils.data import ConfusionMatrix
 
 from arn.models.fine_tune import FineTuneFC
 from arn.data.kinetics_unified import get_kinetics_uni_dataloader
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def crossover_error_rate(cm, default=1.0):
+    fpr, fnr = cm.false_rates(cm.label_enc.unknown_idx)
+    if np.isnan([fpr, fnr]).any():
+        return default
+    # TODO FIX ME TO BE A SCALAR!!!! Currently a vecotr of dim 2!
+    return (fpr - fnr)**2
+
+
+def negative_mcc_squared(cm):
+    return -(cm.mcc() ** 2)
+
+
+def get_attr_measure(cm, measure='mcc'):
+    return getattr(cm, measure)()
+
+
+def unk_thresh_opt(
+    threshold,
+    targets,
+    pred_labels,
+    probs,
+    label_enc,
+    measure_func=None,
+    copy=True,
+    is_key=False,
+):
+    """Calculates the crossover error rate of known vs unknown with given
+    threshold that converts predicted known labels into 'unknown' if their
+    probability is less than the threshold.
+
+    Args
+    ----
+    targets : np.ndarray
+        An integer vector as the target labels as discrete elements within a
+        vector.
+    pred_labels : np.ndarray
+        An integer vector as the predicted labels as discrete elements within a
+        vector.
+    probs : np.ndarray
+        A float vector as the predicted labels' probability value for
+        predictions.
+    label_enc : NominalDataEncoder
+        The predictor's label encoder, denoting which are unknown to it.
+    measure_func : callable = None
+        A callable that takes in the resulting reduced confusion matrix and the
+        rest of the positional arguments. Defaults to crossover_error_rate.
+    copy : bool = True
+        Copies the pred_labels to prevent side effect of changing source tensor
+
+    Returns
+    -------
+    float
+        The measure func the data given the threshold.
+    """
+    if measure_func is None:
+        measure_func = crossover_error_rate
+    if copy:
+        pred_labels = pred_labels.copy()
+    pred_labels[probs < threshold] = label_enc.unknown_key if is_key else \
+        label_enc.unknown_idx
+    cm = ConfusionMatrix(
+        targets,
+        pred_labels,
+        labels=label_enc,
+    ).reduce(['unknown'], 'known', inverse=True)
+    return measure_func(cm)
+
+
+def binary_minimize(func, args=None, bounds=None, max_divisions=20):
+    """Binary search of a bounded space that minimizes the ouput of a function.
+    Assumes a monotonic postively increasing function, thus favoring lower
+    values towards the left bound. Longest run time is capped by the number of
+    max_divisions.
+
+    Args
+    ----
+    func:
+    args: list = None
+        The list of positional arguments to provide to func after the first
+        arg, which is the optimal float threshold being searched for.
+    bounds: list = None
+        Default is [0, 1].
+    max_divisions: int = 20
+        The maximum number of divisions to perform for the binary search of the
+        minimum.  Fun fact, divisions is equal to the number of decimal places
+        needed to contain the final result due to dividing by 2 every time.
+
+    Returns
+    -------
+    float
+        The resulting threshold that yields the minimum measurement/output of
+        func given the arguments.
+    """
+    raise NotImplementedError(
+        "Use `scipy.optimize.minimize_scalar(..., method='bounded')`. "
+        'This code is kept for future interest as a thought problem to '
+        'compare to Brent or Golden search methods.'
+    )
+
+    thresh_left, thresh_right = bounds
+    measure_left = func(thresh_left, *args)
+    measure_right = func(thresh_left, *args)
+
+    for divs in range(max_divisions):
+        thresh = np.floor((thresh_left + thresh_right) / 2.0)
+        measure = func(thresh, *args)
+
+        if measure < measure_left:
+            thresh_right = thresh
+            measure_right = measure
+        else:
+            thresh_left = thresh
+            measure_left = measure
+
+        if thresh_left > thresh_right:
+            break
+
+    return left_thresh
+
+
+def find_unknown_threshold(
+    targets,
+    preds,
+    label_enc,
+    start_thresh=0,
+    method='bounded',
+    bounds=None,
+    maxiter=50,
+):
+    """Binary search for the best threshold to minimize the crossover error
+    rate of binary known versus unknown (or equal error rate) to level of
+    precision desired. This prefers lower valued thresholds, erroring on
+    the side of predicting known.
+
+    Args
+    ----
+    targets : torch.Tensor
+        The target labels as discrete elements within a vector.
+    preds : torch.Tensor
+        A matrix where rows are samples matching size of targets and columns
+        are correspond the the labels in the label_enc.
+    label_enc : NominalDataEncoder
+        The predictor's label encoder, denoting which are unknown to it.
+    start_thresh : floot = 0.0
+        The starting threshold.
+    method : str = 'bounded'
+        If a str, the method to use for scipy.optimize.minimize. If an int,
+        the number steps to use in np.linspace for the linear scan.
+
+    Returns
+    -------
+    float
+        The threshold found to yield the best binary classification performance
+        on the knowns versus unknowns given the predictor's label encoder.
+    """
+    if bounds is None:
+        bounds = [0.0, 1.0]
+
+    if isinstance(method, int):
+        # Basic linear scan of threshold w/in bound given number of steps.
+        preds_argmax = preds.argmax(1)
+        preds_max = preds.max(1)
+        opt_thresh = None
+        opt_measure = np.inf
+        for thresh in np.linspace(bounds[0], bounds[1], method):
+            measure = unk_thresh_opt(
+                thresh,
+                targets,
+                preds_argmax,
+                preds_max,
+                label_enc,
+            )
+            if measure < opt_measure:
+                opt_measure = measure
+                opt_thresh = thresh
+        return opt_thresh
+    if method in {'brent', 'golden', 'bounded'}:
+        return minimize_scalar(
+            unk_thresh_opt,
+            args=(
+                targets,
+                preds.argmax(1),
+                preds.max(1),
+                label_enc,
+            ),
+            bounds=bounds,
+            method=method,
+            options={'maxiter': maxiter},
+        ).x
+    if method == 'binary':
+        # Perform binary search to the given float's precision
+        return binary_minimize(
+            unk_thresh_opt,
+            args=(
+                targets,
+                preds.argmax(1),
+                preds.max(1),
+                label_enc,
+            ),
+            bounds=bounds,
+            divisions=maxiter,
+        )
+    return minimize(
+        unk_thresh_opt,
+        start_thresh,
+        args=(
+            targets,
+            preds.argmax(1),
+            preds.max(1),
+            label_enc,
+        ),
+        bounds=[bounds],
+        method=method,
+    ).x[0]
 
 
 def init_ray_plugin(
@@ -154,6 +375,13 @@ class FineTuneFCLit(pl.LightningModule):
         Parameter to expect one hot when True, or the class index integer for
         labels when False. This to be False when using CrossEntropyLoss for
         older versions of torch, such as v1.7.
+    unk_thresh : float = None
+        If given, the unknown threshold that is used to compare the highest
+        probability score in the classificaiton probability vector upon
+        prediction. If the max probability of a single class is less than the
+        threshold then the class predicted is to be `unknown` rather than
+        whatever the highest class predicted is. Defaults to None for no
+        threshold to be used.
 
     Notes
     -----
@@ -170,6 +398,9 @@ class FineTuneFCLit(pl.LightningModule):
         amsgrad=False,
         confusion_matrix=False,
         expect_one_hot=True,
+        save_hyperparameters=False,
+        unk_thresh=None,
+        load_state=None,
         *args,
         **kwargs,
     ):
@@ -180,10 +411,15 @@ class FineTuneFCLit(pl.LightningModule):
         see self
         confusion_matrix : bool = False
             If True, records the ConfusionMatrix for train and val loops.
+        load_state : str = None
         """
         super().__init__(*args, **kwargs)
+        if save_hyperparameters:
+            self.save_hyperparameters()
         self.model = model
         self.expect_one_hot = expect_one_hot
+
+        self.unk_thresh = unk_thresh
 
         if loss is None:
             self.loss = nn.CrossEntropyLoss()
@@ -215,6 +451,13 @@ class FineTuneFCLit(pl.LightningModule):
                 self.model.classifier.out_features
         )
 
+        if load_state is not None:
+            self.load_from_checkpoint(load_state, model=self.model)
+
+    @property
+    def n_classes(self):
+        return self.model.n_classes
+
     def get_hparams(self, indent=None):
         hp = dict(
             loss=self.loss,
@@ -227,6 +470,16 @@ class FineTuneFCLit(pl.LightningModule):
             hp['loss'] = str(hp['loss'])
             return json.dumps(hp, indent=indent)
         return hp
+
+    def on_save_checkpoint(self, checkpoint):
+        if self.unk_thresh is not None:
+            checkpoint['unk_thresh'] = self.unk_thresh
+
+    def on_load_checkpoint(self, checkpoint):
+        if 'unk_thresh' in checkpoint:
+            self.unk_thresh = float(checkpoint['unk_thresh'])
+        else:
+            self.unk_thresh = None
 
     def set_n_classes(self, *args, **kwargs):
         self.model.set_n_classes(*args, **kwargs)
@@ -364,6 +617,22 @@ class FineTuneFCLit(pl.LightningModule):
 # TODO need to add the option to LOAD the ckpt of a given file for FineTuneFCLit
 
 
+def load_fine_tune_fc_lit(checkpoint_path):
+    """Loads a FineTuneFCLit model from the given checkpoint filepath.
+
+    Args
+    ----
+    checkpoint_path : str
+        Filepath to the checkpoint to load.
+
+    Returns
+    -------
+    FineTuneFCLit
+        The loaded FineTuneLit object.
+    """
+    return FineTuneFCLit.load_from_checkpoint(checkpoint_path)
+
+
 class FineTuneLit(object):
     """FineTune modified to manage Pytorch Lightning models.
 
@@ -384,6 +653,10 @@ class FineTuneLit(object):
         Number of works to ues for the DataLoader.
     pin_memory : bool = False
         Pin memory for data loaders.
+    unk_thresh_method : str = 'bounded'
+        Measure function for finding unknown threshold post-prediction using
+        scipy.optimize.minimize_scalar. Only performs finding of threshold when
+        fit is given a label enc and a validation dataset.
     """
     def __init__(
         self,
@@ -394,8 +667,7 @@ class FineTuneLit(object):
         shuffle=True,
         num_workers=0,
         pin_memory=False,
-        #*args,
-        #**kwargs,
+        unk_thresh_method='bounded',
     ):
         """Init the FineTune model.
 
@@ -403,11 +675,14 @@ class FineTuneLit(object):
         ----
         see self
         """
-        if not isinstance(model, torch.nn.Module):
+        #if isinstance(model, str):
+        #    self.model = FineTuneFCLit.load_from_checkpoint(model)
+        if isinstance(model, torch.nn.Module):
+            self.model = model
+        else:
             raise TypeError(
                 'Expected model typed as `torch.nn.Module`, not {type(model)}'
             )
-        self.model = model
         self.batch_size = batch_size
         if predict_batch_size:
             self.predict_batch_size = predict_batch_size
@@ -415,6 +690,8 @@ class FineTuneLit(object):
             self.predict_batch_size = batch_size
         self.shuffle = shuffle
         self.num_workers = num_workers
+
+        self.unk_thresh_method = unk_thresh_method
 
         # Multiprocessing params for DataLoaders
         self.pin_memory = pin_memory #num_workers > 0
@@ -441,6 +718,10 @@ class FineTuneLit(object):
                 self.trainer.global_step,
             )
 
+    @property
+    def n_classes(self):
+        return self.model.n_classes
+
     def get_hparams(self, indent=None):
         hp = dict(
             batch_size=self.batch_size,
@@ -455,7 +736,7 @@ class FineTuneLit(object):
             return json.dumps(hp, indent=indent)
         return hp
 
-    def fit(self, dataset, val_dataset=None, reset_epoch=True):
+    def fit(self, dataset, val_dataset=None, label_enc=None, reset_epoch=True):
         """Fit the fine tuning model with the given train and val datasets.
 
         Args
@@ -494,6 +775,29 @@ class FineTuneLit(object):
             train_dataloaders=dataset,
             val_dataloaders=val_dataset,
         )
+
+        # Find threshold for unknowns on val_dataset combined with train
+        if (
+            self.model.unk_thresh is not None
+            and label_enc is not None
+            and val_dataset is not None
+        ):
+            targets = np.concatenate([
+                dataset.dataset.data['labels'].values,
+                val_dataset.dataset.data['labels'].values,
+            ]).squeeze()
+            preds = torch.cat([
+                self.predict(dataset),
+                self.predict(val_dataset),
+            ]).detach().numpy().squeeze()
+
+            self.model.unk_thresh = find_unknown_threshold(
+                targets,
+                preds,
+                label_enc,
+                start_thresh=self.model.unk_thresh,
+                method=self.unk_thresh_method,
+            )
 
     def set_n_classes(self, *args, **kwargs):
         self.model.set_n_classes(*args, **kwargs)

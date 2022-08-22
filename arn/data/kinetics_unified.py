@@ -391,7 +391,7 @@ class LabelConfig(NamedTuple):
 
     Attributes
     ----------
-    name : str
+    name : str = None
         The name of the label set expressed by this label configuration.
     known : list = True
         The known labels whose symbols are used as is.
@@ -610,7 +610,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         """
         Args
         ----
-        annotation_path : str
+        annotation_path : str = None
             The filepath to the annotations for the data.
         kinetics_class_map : see self
         sample_dirs : see self
@@ -645,6 +645,20 @@ class KineticsUnified(torch.utils.data.Dataset):
         return_label : see self
         post_load : see self
         """
+        logger.info(
+            'Start KineticsUnified.__init__ of %s with annotation path = %s',
+            type(self),
+            annotation_path,
+        )
+        if annotation_path is None:
+            self = None
+            logger.info(
+                'Done KineticsUnified.__init__ of %s with annotation path = '
+                '%s',
+                type(self),
+                annotation_path,
+            )
+            return
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
 
@@ -798,6 +812,12 @@ class KineticsUnified(torch.utils.data.Dataset):
                 raise TypeError(
                     f'Unexpected type sample_dirs: {type(sample_dirs)}'
                 )
+
+        logger.info(
+            'Done KineticsUnified.__init__ of %s with annotation path = %s',
+            type(self),
+            annotation_path,
+        )
 
     def __copy__(self):
         cls = self.__class__

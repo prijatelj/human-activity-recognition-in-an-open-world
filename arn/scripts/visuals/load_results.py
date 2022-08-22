@@ -328,6 +328,7 @@ def load_incremental_ocms_df(
     filename=None,
     binary=None,
     pred_dir_path=None,
+    kowl=None,
 ):
     # Load in yaml config file
     with open(yaml_path) as openf:
@@ -347,16 +348,16 @@ def load_incremental_ocms_df(
         binary = config.pop('binary', False)
 
 
-    # Load for getting knowns and unknowns at time steps
-    kowl = config.pop('kowl', None)
-    if kowl is not None:
-        kowl = docstr_cap(kowl, return_prog=True).environment
-        kowl = [kowl.start] + kowl.steps
+    # Give kowl=False to avoid loading this if in config.
+    if kowl in {None, True}:
+        # Load for getting knowns and unknowns at time steps
+        kowl = config.pop('kowl', None)
+        if kowl is not None:
+            kowl = docstr_cap(kowl, return_prog=True).environment
+            kowl = [kowl.start] + kowl.steps
 
-        # Causes errors otherwise
-        config['measures'].pop('Top-5 Accuracy', None)
-
-    # TODO Load Pre-feedback.
+            # Causes errors otherwise
+            config['measures'].pop('Top-5 Accuracy', None)
 
     load_inplace_results_tree(
         config['ocms'],
@@ -373,14 +374,15 @@ def load_incremental_ocms_df(
     #   predictor.predict_recognize(), but the known labels get updated in 100%
     #   feedback of human labels.
 
-
     # Get DataFrame of measures over increments.
     if os.path.splitext(filename)[-1] == '.h5':
-        # TODO If pre-feedback, increase post-feedback step by 0.5
+        # TODO If post-feedback, increase post-feedback step by 0.5
         return get_step_measures_ocm(
             config['ocms'],
             data_split,
             config['measures'],
             cumulative=cumulative,
         )
-    raise NotImplementedError('Loading DataFrames for novelty preds.')
+
+    # Expects to be returning the tree containing lists of DataFrames:
+    return config['ocms']

@@ -24,6 +24,7 @@ from arn.data.kinetics_unified import (
     KineticsUnified,
     KineticsUnifiedFeatures,
     load_file_list,
+    get_filename,
 )
 from arn.models.owhar import OWHAPredictor
 
@@ -76,17 +77,50 @@ def get_known_and_unknown_dfs(
     )
     logger.debug('len(known_label_enc) = %d', len(known_label_enc))
 
-    # Stratified folds for known class samples, ensuring presence and balance
-    # across incs
+    # If unique counts <= splits, then include those samples in first inc
+    unique_known_labels, counts = np.unique(
+        known_df[label_col],
+        return_counts=True,
+    )
+
+    mask_knowns_le_incs = np.array([False] * len(known_df))
+    for i, count in enumerate(counts):
+        if count > n_increments:
+            continue
+        mask_knowns_le_incs |= known_df[label_col] == unique_known_labels[i]
+
+    # Create the placeholder for known increments w/ an empty known DataFrame.
+    known_incs = [known_df[[False] * len(known_df)]] * n_increments
+    if mask_knowns_le_incs.sum() == len(known_df):
+        logger.warning(
+            'There are not enough known class\' samples to spread across '
+            'increments.'
+        )
+        logger.debug(
+            'The unique known classes and their counts %s\n%s',
+            unique_known_labels,
+            counts,
+        )
+        known_incs[0] = known_df
+        return known_incs, unknown_df
+
+    known_incs[0] = known_df[mask_knowns_le_incs]
+    known_df = known_df[~mask_knowns_le_incs]
+
+    # Otherwise stratify split the samples across the future increments
+    # they persist across the rest of the future split.
     skf = StratifiedKFold(
         n_increments,
         random_state=seed,
         shuffle=np_gen is not None,
     )
-    known_incs = [
-        known_df.iloc[test] for train, test in
+
+    # Stratified folds for known class samples, ensuring presence and balance
+    # across incs
+    for i, (_, test) in enumerate(
         skf.split(known_df['sample_index'], known_df[label_col])
-    ]
+    ):
+        known_incs[i] = known_incs[i].append(known_df.iloc[test])
 
     return known_incs, unknown_df
 
@@ -156,7 +190,8 @@ def get_increments(
     # Get known labels and unknown dataframe from each split.
     knowns_splits = []
     unknowns_splits = []
-    for dset_name in ['train', 'validate', 'test']:
+    split_names = ['train', 'validate', 'test']
+    for dset_name in split_names:
         tmp_dset = getattr(src_datasplit, dset_name)
         if tmp_dset is None:
             knowns_splits.append(None)
@@ -176,7 +211,7 @@ def get_increments(
     label_enc = known_label_enc
     del known_label_enc
 
-    # TODO randomization criteron that forces certain classes to be separate,
+    # NOTE randomization criteron that forces certain classes to be separate,
     # e.g. classes farther from each other in some class hierarchy should be
     # separated across the increments such that there is sufficiently novel
     # classes in each increment.
@@ -221,6 +256,9 @@ def get_increments(
     not_split_only_unks = set(unique) | set(label_enc)
     split_only_unks = []
     for k, unk_split_df in enumerate(unknowns_splits[1:], start=1):
+        if unk_split_df is None:
+            split_only_unks.append(None)
+            continue
         only_unks = set(unk_split_df[label_col].unique()) - not_split_only_unks
 
         # Save sorted only_unks for val's and test's label enc over incs.
@@ -280,6 +318,9 @@ def get_increments(
         # Create each k-th data split: train, val, test
         inc_datasets = []
         for k, unknown_df in enumerate(unknowns_splits):
+            if unknown_df is None:
+                inc_datasets.append(None)
+                continue
             inc_dataset = deepcopy(tmp_dataset)
             inc_dataset.label_enc = deepcopy(label_enc)
 
@@ -290,10 +331,10 @@ def get_increments(
             # Get all of the unknowns introduced at this increment
             unks = unknown_df[unknown_df[label_col].isin(inc_uniques)]
             logger.debug(
-                'increment %d: split %d: total new unknown samples to be '
+                'increment %d: split %s: total new unknown samples to be '
                 'spread across remaining increments = %d',
                 i,
-                k,
+                split_names[k],
                 len(unks),
             )
 
@@ -322,9 +363,9 @@ def get_increments(
                         )
                     ]
                     logger.debug(
-                        'len(unknown_incs) at i=%d, k=%d: %d; remainder = %d',
+                        'len(unknown_incs) at i=%d, k=%s: %d; remainder = %d',
                         i,
-                        k,
+                        split_names[k],
                         len(unknown_incs),
                         remainder,
                     )
@@ -333,7 +374,9 @@ def get_increments(
 
                     if unks_lt_rem_count != 0:
                         # Save those with too few samples to this inc only
-                        persistent_unk_df.append(unks_lt_rem)
+                        persistent_unk_df = persistent_unk_df.append(
+                            unks_lt_rem
+                        )
                 else:
                     # Simply make the entire dataframe for this increment only
                     persistent_unk_df = unks
@@ -356,15 +399,15 @@ def get_increments(
                 persistent_unks[k] = unknown_incs
 
             logger.debug(
-                'increment %d: split %d: unknown samples = %d',
+                'increment %d: split %s: unknown samples = %d',
                 i,
-                k,
+                split_names[k],
                 len(persistent_unk_df),
             )
             logger.debug(
-                'increment %d: split %d: known samples = %d',
+                'increment %d: split %s: known samples = %d',
                 i,
-                k,
+                split_names[k],
                 len(knowns_splits[k][i]),
             )
             inc_dataset.data = knowns_splits[k][i].append(persistent_unk_df)
@@ -397,7 +440,23 @@ def get_steps(step_1, step_2):
     list
         List of step 1 and step 2
     """
-    return [step_1, step_2]
+    steps = [step_1, step_2]
+    for i, step in enumerate(steps):
+        for split in ['train', 'validate', 'test']:
+            if (
+                step.validate is not None
+                and step.validate.subset is not None
+                and step.validate.subset.labels is not None
+                and step.validate.subset.labels.name is None
+            ):
+                logger.warning(
+                    "Removing step source %d's split %s because "
+                    'subset.labels.name is None',
+                    i,
+                    split,
+                )
+                setattr(step, split, None)
+    return steps
 
 
 class EvalDataSplitConfig(NamedTuple):
@@ -430,7 +489,14 @@ class EvalDataSplitConfig(NamedTuple):
     def __bool__(self):
         return self.pred_dir is not None or self.eval_dir is not None
 
-    def eval(self, data_split, preds, measures, prefix=None):
+    def eval(
+        self,
+        data_split,
+        preds,
+        measures,
+        prefix=None,
+        predictor=None,
+    ):
         """Evaluated the predictions to the given datasplit using the measures.
 
         Args
@@ -446,6 +512,22 @@ class EvalDataSplitConfig(NamedTuple):
         """
         prefix = os.path.join(prefix, self.file_prefix)
         labels = None
+
+        if predictor is None:
+            n_classes = len(data_split.label_enc)
+            if preds.shape[1] < n_classes:
+                # TODO the mismatch in test to the predictor.label_enc will
+                # result in issues!
+
+                # Relies on data split label enc including all prior known
+                # classes the predictor has seen.
+                preds = np.hstack((
+                    preds,
+                    np.zeros([preds.shape[0], n_classes - preds.shape[1]]),
+                ))
+            label_enc = data_split.label_enc
+        else:
+            label_enc = deepcopy(predictor.label_enc)
 
         if isinstance(preds, torch.Tensor):
             if preds.device.type == 'cuda':
@@ -500,7 +582,7 @@ class EvalDataSplitConfig(NamedTuple):
                 ].join(
                     pd.DataFrame(
                         contents,
-                        columns=['target_labels'] + list(data_split.label_enc),
+                        columns=['target_labels'] + list(label_enc),
                         index=data_split.data.index,
                     ),
                     #on=['youtube_id', 'time_start', 'time_end'],
@@ -509,16 +591,14 @@ class EvalDataSplitConfig(NamedTuple):
                     create_filepath(os.path.join(prefix, 'preds.csv')),
                     index=False,
                 )
+                del contents
             else:
-                # TODO single class prediction case ['pred']
-                # TODO verify the datasplit and predictor encoders have the
-                # same order for known classes. Perhaps check after every fit.
                 data_split.data[
                     ['youtube_id', 'time_start', 'time_end']
                 ].join(
                     pd.DataFrame(
                         preds,
-                        columns=list(data_split.label_enc),
+                        columns=list(label_enc),
                         index=data_split.data.index,
                     ),
                     #on=['youtube_id', 'time_start', 'time_end'],
@@ -559,15 +639,32 @@ class EvalDataSplitConfig(NamedTuple):
                 len(preds),
             )
 
+            if predictor is not None:
+                # Add missing data split labels to the end of pred label enc
+                missing_labels = set(data_split.label_enc.encoder) \
+                    - set(label_enc.encoder)
+                if missing_labels:
+                    label_enc.append(missing_labels)
+
+                    # Update end of preds
+                    pad_widths = [(0,0) for d in range(len(preds.shape))]
+                    pad_widths[-1] = (0, len(missing_labels))
+                    preds = np.pad(
+                        preds,
+                        pad_widths,
+                        'constant',
+                        constant_values=0,
+                    )
+
             for measure in measures:
                 if issubclass(measure, ConfusionMatrix):
-                    measurements = measure(labels, preds, data_split.label_enc)
+                    measurements = measure(labels, preds, label_enc)
                     measurements.save(os.path.join(prefix, 'preds_cm.csv'))
                 elif issubclass(measure, OrderedConfusionMatrices):
                     measurements = measure(
                         labels,
                         preds,
-                        data_split.label_enc,
+                        label_enc,
                         5,
                     )
                     if logging.root.isEnabledFor(logging.DEBUG):
@@ -603,10 +700,6 @@ class EvalDataSplitConfig(NamedTuple):
                 else:
                     raise NotImplementedError('TODO: non-confusion matrix.')
                     measurements = measure(labels, preds)
-                    # TODO scalars? store in dict?
-                    # TODO Tensorboard hook?
-                    # TODO some callable object: scalar, tensors, etc.
-                    #   Simply take the callable object's name if available.
 
 
 @dataclass
@@ -666,7 +759,7 @@ class EvalConfig:
     def __bool__(self):
         return self.train or self.validate or self.test
 
-    def eval(self, data_splits, predict, prefix=None):
+    def eval(self, data_splits, predictor, prefix=None):
         """Given the datasplits, performs the predictions and evaluations to
         be saved.
 
@@ -674,7 +767,7 @@ class EvalConfig:
         ----
         data_splits : DataSplits
             The data splits to potentially be predicted on and evaluated.
-        predict : Callable
+        predictor : Callable
             A function of the predictor to perform predictions given a dataset
             within the data_splits object.
         prefix : str = None
@@ -699,7 +792,7 @@ class EvalConfig:
                 reset_return_label = dsplit.return_label
                 if dsplit.return_label:
                     dsplit.return_label = False
-                preds = predict(dsplit)
+                preds = predictor.predict(dsplit)
                 prefix_dir = os.path.join(prefix, name)
 
                 # Optionally obtain and save feature extractions of ANN
@@ -712,14 +805,6 @@ class EvalConfig:
                     )
                     preds = preds[1]
 
-                n_classes = len(dsplit.label_enc)
-                if preds.shape[1] < n_classes:
-                    # Relies on data split label enc including all prior known
-                    # classes the predictor has seen.
-                    preds = np.hstack((
-                        preds,
-                        np.zeros([preds.shape[0], n_classes - preds.shape[1]]),
-                    ))
                 dsplit.return_label = True
 
                 logger.debug(
@@ -740,6 +825,7 @@ class EvalConfig:
                     preds,
                     self.measures,
                     prefix_dir,
+                    predictor if hasattr(predictor, 'predict') else None,
                 )
                 dsplit.return_label = reset_return_label
 
@@ -818,7 +904,7 @@ class DataSplits:
                 else:
                     splits.append(split)
 
-        # TODO support check for repeat or non-unique sample ids, which then
+        # NOTE support check for repeat or non-unique sample ids, which then
         # would mean to update those prior experiences.
         return DataSplits(*splits)
 
@@ -848,6 +934,15 @@ class DataSplits:
         for name in ['train', 'validate', 'test']:
             split = getattr(self, name)
             if split is None:
+                if not inplace:
+                    splits.append(None)
+                continue
+            elif not hasattr(split, 'data'):
+                # HotFix for annotation_path = None and docstr
+                if not inplace:
+                    splits.append(None)
+                else:
+                    setattr(self, name, None)
                 continue
             if label_enc is None:
                 label_enc = deepcopy(split.label_enc)
@@ -930,13 +1025,13 @@ class KineticsOWL(object):
         feedback='oracle',
         rng_state=None,
         measures=None,
-        #inc_splits_per_dset : 10
         eval_on_start=False,
         eval_config=None,
         post_feedback_eval_config=None,
         tasks=None,
-        maintain_experience=False,
+        maintain_experience=True,
         labels=None,
+        start_step=0,
         # configure state saving ...
     ):
         """Initialize the KineticsOWL experiment.
@@ -951,14 +1046,17 @@ class KineticsOWL(object):
         eval_config : see self
         post_feedback_eval_config : see self
         tasks : see self
-        maintain_experience : bool = False
+        maintain_experience : bool = True
             If False, the default, the past experienced samples are not saved
             in the simulation for use by the predictor. Otherwise, the
             experienced samples are saved by concatenating the new data splits
             to the end of the prior ones.
         labels : str = None
+        start_step : int = 0
+            The starting step of the experiment. Used to fast forwards the
+            KOWLExperiment to the correct state.
         """
-        # TODO handle seed/rng_state if given, otherwise randomly select seed.
+        # NOTE handle seed/rng_state if given, otherwise randomly select seed.
         self.rng_state = rng_state
 
         self.environment = environment
@@ -971,7 +1069,7 @@ class KineticsOWL(object):
         else:
             self.post_feedback_eval_config = post_feedback_eval_config
 
-        # TODO will have to change this if handling multi-tasks in same
+        # NOTE will have to change this if handling multi-tasks in same
         # experiment!
         #if tasks is None:
         #     # NOTE support this in predictor and the datasets in labels
@@ -984,6 +1082,9 @@ class KineticsOWL(object):
         else:
             self.experience = None
 
+        if start_step > 0:
+            self.fast_forward(start_step)
+
     @property
     def increment(self):
         return self.environment.increment
@@ -991,21 +1092,21 @@ class KineticsOWL(object):
     def step(self, state=None):
         """The incremental step in incremental learning of Kinetics OWL."""
         # 1. Get new data (input samples only)
-        logger.info("Getting step %d's data.", self.increment + 1)
+        logger.info("Getting step %d's data.", self.increment)
         eval_prefix = f'{self.predictor.uid}{os.path.sep}step-{self.increment}'
         new_data_splits = self.environment.step()
 
         logger.debug(
             'len(new_data_splits.train) = %d',
-            len(new_data_splits.train),
+            0 if new_data_splits.train is None else len(new_data_splits.train),
         )
         logger.debug(
             'len(new_data_splits.validate) = %d',
-            len(new_data_splits.validate),
+            0 if new_data_splits.validate is None else len(new_data_splits.validate),
         )
         logger.debug(
             'len(new_data_splits.test) = %d',
-            len(new_data_splits.test),
+            0 if new_data_splits.test is None else len(new_data_splits.test),
         )
 
         # 2. Inference/Eval on new data if self.eval_untrained_start
@@ -1017,13 +1118,13 @@ class KineticsOWL(object):
 
             logger.info(
                 "Eval for new data, no feedback, for step %d.",
-                self.increment,
+                self.increment - 1,
             )
             self.eval_config.eval(
                 new_data_splits,
-                self.predictor.predict
-                    if not self.eval_config.save_features
-                    else self.predictor.extract_predict,
+                self.predictor,
+                #    if not self.eval_config.save_features
+                #    else self.predictor.extract_predict,
                 f'{eval_prefix}_new-data_predict',
             )
             """ TODO Novelty Detect
@@ -1033,7 +1134,7 @@ class KineticsOWL(object):
                 f'step-{self.increment}_new-data_novelty-detect',
             )
             #"""
-            # TODO novelty detect task is based on the NominalDataEncoder for
+            # NOTE novelty detect task is based on the NominalDataEncoder for
             # the current time step as it knows when something is a known or
             # unknown class at the current time step.
             #   Keep experience/datasplit label encoders in sync.
@@ -1047,14 +1148,14 @@ class KineticsOWL(object):
             logger.info(
                 "Requesting feedback (%s) for step %d's data.",
                 self.feedback,
-                self.increment,
+                self.increment - 1,
             )
             new_data_splits = self.environment.feedback(new_data_splits)
 
             logger.info(
                 "Updating with feedback (%s) for step %d's data.",
                 self.feedback,
-                self.increment,
+                self.increment - 1,
             )
             if self.experience:
                 # Add new data to experience
@@ -1062,15 +1163,18 @@ class KineticsOWL(object):
 
                 logger.debug(
                     'len(self.experience.train) = %d',
-                    len(self.experience.train),
+                    0 if self.experience.train is None else \
+                        len(self.experience.train),
                 )
                 logger.debug(
                     'len(self.experience.validate) = %d',
-                    len(self.experience.validate),
+                    0 if self.experience.validate is None else \
+                        len(self.experience.validate),
                 )
                 logger.debug(
                     'len(self.experience.test) = %d',
-                    len(self.experience.test),
+                    0 if self.experience.test is None else \
+                        len(self.experience.test),
                 )
 
                 # 4. Opt. Predictor Update/train on new data w/ feedback
@@ -1087,14 +1191,14 @@ class KineticsOWL(object):
             logger.info(
                 "Post-feedback Eval (%s) for step %d.",
                 self.feedback,
-                self.increment,
+                self.increment - 1,
             )
             # 5. Opt. Predictor eval post update
             self.post_feedback_eval_config.eval(
                 new_data_splits,
-                self.predictor.predict
-                    if not self.eval_config.save_features
-                    else self.predictor.extract_predict,
+                self.predictor,
+                #    if not self.eval_config.save_features
+                #    else self.predictor.extract_predict,
                 f'{eval_prefix}_post-feedback_predict',
             )
             """ TODO Novelty Detect
@@ -1107,14 +1211,80 @@ class KineticsOWL(object):
         # else  TODO add fit call when no feedback to allow predictor to change
         # state.
 
-        # TODO 6. Opt. Evaluate the updated predictor on entire experience
+        # NOTE 6. Opt. Evaluate the updated predictor on entire experience
 
     def run(self, max_steps=None, tqdm=None):
         """The entire experiment run loop."""
-        for i in range(self.environment.total_increments):
-            logger.info("Starting this run's step: %d", i + 1)
-            logger.info("Increment: %d", self.increment + 1)
+        for i in range(self.increment, self.environment.total_increments):
+            logger.info(
+                "Starting step (zero-indexed): %d. Increment %d / %d",
+                i,
+                self.increment,
+                self.environment.total_increments - 1,
+            )
             self.step()
+
+    def fast_forward(self, exclusive_end_step):
+        """Run through the steps of the experiment such that it is ready on the
+        given end state.
+        """
+        logger.info(
+            'Fast forwarding the experiment by %d steps',
+            exclusive_end_step,
+        )
+        for i in range(exclusive_end_step):
+            # 1. Get new data (input samples only)
+            logger.info("Getting step %d's data.", self.increment)
+            new_data_splits = self.environment.step()
+
+            logger.debug(
+                'len(new_data_splits.train) = %d',
+                0 if new_data_splits.train is None \
+                    else len(new_data_splits.train),
+            )
+            logger.debug(
+                'len(new_data_splits.validate) = %d',
+                0 if new_data_splits.validate is None \
+                    else len(new_data_splits.validate),
+            )
+            logger.debug(
+                'len(new_data_splits.test) = %d',
+                0 if new_data_splits.test is None \
+                    else len(new_data_splits.test),
+            )
+            if self.feedback == 'oracle':
+                # 3. Opt. Feedback on this step's new data
+                logger.info(
+                    "Requesting feedback (%s) for step %d's data.",
+                    self.feedback,
+                    self.increment - 1,
+                )
+                new_data_splits = self.environment.feedback(new_data_splits)
+
+                logger.info(
+                    "Updating with feedback (%s) for step %d's data.",
+                    self.feedback,
+                    self.increment - 1,
+                )
+                if self.experience:
+                    # Add new data to experience
+                    self.experience = self.experience.append(new_data_splits)
+
+                    logger.debug(
+                        'len(self.experience.train) = %d',
+                        0 if self.experience.train is None else \
+                            len(self.experience.train),
+                    )
+                    logger.debug(
+                        'len(self.experience.validate) = %d',
+                        0 if self.experience.validate is None else \
+                            len(self.experience.validate),
+                    )
+                    logger.debug(
+                        'len(self.experience.test) = %d',
+                        0 if self.experience.test is None else \
+                            len(self.experience.test),
+                    )
 
 
 class KineticsOWLExperiment(object):
@@ -1140,8 +1310,10 @@ class KineticsOWLExperiment(object):
         Each step has the evaluator's (oracle's) knowledge of the labels. The
         predictor's known label encoder is managed elsewhere, preferably within
         the predictor object as label_enc.
-    _inc_splits_per_dset : int = 10
-        The number of incremental splits per dataset.
+    _inc_splits_per_dset : int = 5
+        The number of incremental splits per dataset. Set this to default to
+        5 given the K600 dataset introduced very few samples relative to K400:
+        1056 new samples in validation and 4359 new samples in test.
     _increment : int = 0
         The current increment of the experiment. Starts at zero, increments
         after a step is complete. After initial increment is increment = 1.
@@ -1150,9 +1322,10 @@ class KineticsOWLExperiment(object):
         self,
         start,
         steps=None,
-        inc_splits_per_dset=10,
+        inc_splits_per_dset=5,
         intro_freq_first=False,
         seed=0,
+        repeat_samples=False,
     ):
         """Initialize the Kinetics Open World Learning Experiment.
 
@@ -1165,6 +1338,10 @@ class KineticsOWLExperiment(object):
             see get_increments
         seed : int = 0
             The seed for the random number generator
+        repeat_samples: bool = False
+            If False, the default, the loading of future datasets removes prior
+            seen samples based on their unique identifier. If True, no checking
+            or removal of samples is done.
         """
         self._increment = 0
         self._inc_splits_per_dset = inc_splits_per_dset
@@ -1179,7 +1356,7 @@ class KineticsOWLExperiment(object):
             len(start.train),
         )
         logger.debug(
-            'validate n_classes = %d, len(start.train) = %d',
+            'validate n_classes = %d, len(start.validate) = %d',
             len(start.validate.label_enc),
             len(start.validate),
         )
@@ -1189,13 +1366,58 @@ class KineticsOWLExperiment(object):
             len(start.test),
         )
 
-
         if steps is None:
             self.steps = steps
         else:
+            if repeat_samples:
+                prior_sample_uids = None
+            else:
+                prior_sample_uids = set()
+                for split in ['train', 'validate', 'test']:
+                    split = getattr(self.start, split)
+                    if split is not None:
+                        prior_sample_uids.update(
+                            get_filename(split.data, ext=None)
+                        )
             self.steps = []
             known_label_enc = deepcopy(self.start.train.label_enc)
             for i, step in enumerate(steps):
+                if prior_sample_uids:
+                    # rm any prior seen samples.
+                    for step_split in ['train', 'validate', 'test']:
+                        split = getattr(step, step_split)
+                        if split is None:
+                            logger.warning(
+                                'Source steps[%d], split %s is None',
+                                i,
+                                step_split,
+                            )
+                            continue
+                        step_uids = get_filename(split.data, ext=None)
+                        mask = step_uids.isin(prior_sample_uids)
+                        if mask.any():
+                            logger.info(
+                                "Prior seen samples (total %d of %d) exist in steps["
+                                "%d]'s dsplit %s of source dataset.",
+                                mask.sum(),
+                                len(mask),
+                                i,
+                                step_split,
+                            )
+                            logger.debug(
+                                'prior seen samples in steps[%d] dsplit %s:\n'
+                                '%s',
+                                i,
+                                step_split,
+                                step_uids[mask],
+                            )
+
+                            # Drop the indices from step.
+                            split.data = split.data[~mask]
+
+                            # Add new labels to prior_sample_uids
+                            prior_sample_uids.update(step_uids)
+
                 self.steps += get_increments(
                     inc_splits_per_dset,
                     step,
@@ -1203,12 +1425,6 @@ class KineticsOWLExperiment(object):
                     seed=seed + i,
                     intro_freq_first=intro_freq_first,
                 )
-
-                # NOTE: Unnecessary to do live, handled prior.
-                #   Opt. Clean val sets to rm samples from val if in prior
-                # train.
-                #   Opt. Clean test sets to rm samples from test if in prior
-                # train/val.
 
     @property
     def increment(self):
@@ -1226,7 +1442,7 @@ class KineticsOWLExperiment(object):
             return 1 + len(self.steps)
         return 1
 
-    # TODO def reset(self, state):
+    # NOTE def reset(self, state):
 
     def feedback(self, data_splits, test=False):
         """Feedback request from agent. For implementation simplicty for 100%
@@ -1268,7 +1484,7 @@ class KineticsOWLExperiment(object):
         return data
 
 
-# TODO the following is all a workaround for the current docstr prototype to
+# NOTE the following is all a workaround for the current docstr prototype to
 # support the ease of swapping predictors by changing the config only, not the
 # doc strings of KineticsOWL. This is what happens when reseach code meets
 # prototype code.
@@ -1285,7 +1501,7 @@ def kinetics_owl_evm(*args, **kwargs):
     eval_config : see KineticsOWL
     post_feedback_eval_config : see KineticsOWL
     tasks : see KineticsOWL
-    maintain_experience : bool = False
+    maintain_experience : bool = True
         If False, the default, the past experienced samples are not saved
         in the simulation for use by the predictor. Otherwise, the
         experienced samples are saved by concatenating the new data splits
@@ -1308,7 +1524,30 @@ def kinetics_owl_annevm(*args, **kwargs):
     eval_config : see KineticsOWL
     post_feedback_eval_config : see KineticsOWL
     tasks : see KineticsOWL
-    maintain_experience : bool = False
+    maintain_experience : bool = True
+        If False, the default, the past experienced samples are not saved
+        in the simulation for use by the predictor. Otherwise, the
+        experienced samples are saved by concatenating the new data splits
+        to the end of the prior ones.
+    labels : str = None
+    """
+    return KineticsOWL(*args, **kwargs)
+
+
+def kinetics_owl_grecog(*args, **kwargs):
+    """Initialize the KineticsOWL experiment.
+
+    Args
+    ----
+    environment : see KineticsOWL
+    predictor : arn.models.novelty_recog.gaussian.GaussianRecognizer
+    feedback : see KineticsOWL
+    rng_state : see KineticsOWL
+    eval_on_start : see KineticsOWL
+    eval_config : see KineticsOWL
+    post_feedback_eval_config : see KineticsOWL
+    tasks : see KineticsOWL
+    maintain_experience : bool = True
         If False, the default, the past experienced samples are not saved
         in the simulation for use by the predictor. Otherwise, the
         experienced samples are saved by concatenating the new data splits

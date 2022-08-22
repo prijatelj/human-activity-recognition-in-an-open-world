@@ -172,7 +172,8 @@ for x in range(len(test_features)):
 
 test_labels_masked = torch.tensor(test_labels_masked)
 
-test_recogs = recog.predict(test_features, test_labels_masked, sim_k4_train.label_enc)
+#test_recogs = recog.predict(test_features, test_labels_masked, sim_k4_train.label_enc)
+test_recogs = recog.detect(test_features, test_labels_masked, sim_k4_train.label_enc)
 recog_unknown_mask = test_recogs == sim_k4_train.label_enc.unknown_idx
 unknown_labels = test_recogs[recog_unknown_mask]
 unknown_features = test_features[recog_unknown_mask]

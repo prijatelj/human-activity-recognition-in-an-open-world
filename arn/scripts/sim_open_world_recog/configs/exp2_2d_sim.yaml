@@ -65,6 +65,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   environment:
     KineticsOWLExperiment:
+      inc_splits_per_dset: 10
       start:
         DataSplits:
           train:

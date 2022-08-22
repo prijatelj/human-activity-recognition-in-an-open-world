@@ -63,8 +63,40 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         EvalDataSplitConfig:
           pred_dir: 'preds/'
           eval_dir: 'eval/'
+  maintain_experience: True
+  predictor:
+    OWHAPredictor: # the Open World Agent
+      fine_tune:
+        FineTuneLit:
+          model:
+            FineTuneFCLit:
+              lr: 1e-3
+              model:
+                FineTuneFC:
+                  input_size: 2 #512
+                  width: 512
+                  depth: 2
+                  dropout: 0.5
+                  n_classes: 5
+          batch_size: 1000
+          trainer:
+            init_trainer:
+              max_epochs: 1
+              gpus: 1
+              enable_checkpointing: True
+              num_sanity_val_steps: 1
+              log_every_n_steps: 1
+              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/chkpts/
+              #strategy:
+              #  init_ray_plugin:
+              #    num_workers: 8
+              #    use_gpu: True
+              logger:
+                init_tensorboard_logger:
+                  save_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/tb_log/
   environment:
     KineticsOWLExperiment:
+      inc_splits_per_dset: 10
       start:
         DataSplits:
           train:
@@ -244,35 +276,3 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       kinetics700_2020:
                         KineticsSplitConfig:
                           test: True
-  maintain_experience: True
-  predictor:
-    OWHAPredictor: # the Open World Agent
-      fine_tune:
-        FineTuneLit:
-          model:
-            FineTuneFCLit:
-              lr: 1e-3
-              model:
-                FineTuneFC:
-                  input_size: 2 #512
-                  width: 512
-                  depth: 2
-                  dropout: 0.5
-                  n_classes: 5
-          batch_size: 1000
-          trainer:
-            init_trainer:
-              max_epochs: 1
-              gpus: 1
-              enable_checkpointing: True
-              num_sanity_val_steps: 1
-              log_every_n_steps: 1
-              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/chkpts/
-              #strategy:
-              #  init_ray_plugin:
-              #    num_workers: 8
-              #    use_gpu: True
-              logger:
-                init_tensorboard_logger:
-                  save_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/tb_log/
-      # TODO novelty_detector: # Classification + Clustering

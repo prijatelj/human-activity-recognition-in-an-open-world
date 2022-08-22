@@ -606,6 +606,10 @@ class FineTuneFC(nn.Module):
             input_name,
         )
 
+    @property
+    def n_classes(self):
+        return self.classifier.out_features
+
     def get_hparams(self, indent=None):
         hp = copy.copy(self._init_hparams)
         if indent:
