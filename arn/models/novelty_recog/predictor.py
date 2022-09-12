@@ -1,4 +1,7 @@
-"""The Open World Predictor with Novelty Recognition."""
+"""The generic/abstract classes of the open world predictor with Novelty
+Recognition.
+"""
+from abc import abstractmethod
 from copy import deepcopy
 
 import numpy as np
@@ -12,7 +15,99 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class OWHARecognizer(OWHAPredictor):
+class Predictor(object):
+    """The base predictor class that contains and manages the predictor parts.
+
+    Attributes
+    ----------
+    _uid : str = None
+        An optional str unique identifier for this predictor. When not
+        given, the uid property of this class' object is the trainer
+        tensorboard log_dir version number.
+    skip_fit : int = -1
+        If >= 0, skips fitting the model starting on the increment that matches
+        skip_fit's value. Thus, skip_fit == 0 skips all fitting, skip_fit == 1
+        skips all fitting after the first increment/starting data, 0th index.
+        skip_fit serves as an exclusive upperbound to the range of incremental
+        fitting allowed for this predictor. Values less than zero does not
+        result in any skipping of calls to fit().
+    save_dir : str = None
+        If given, the filepath to a directory to save all model checkpoints
+        after fitting on an increment.
+    """
+    def __init__(
+        self,
+        uid=None,
+        skip_fit=-1,
+        save_dir=None,
+        start_increment=0,
+    ):
+        """Initializes the OWHAR.
+
+        Args
+        ----
+        uid : str = None
+            An optional str unique identifier for this predictor. When not
+            given, the uid property of this class' object is the trainer
+            tensorboard log_dir version number. If 'datetime', saves datetime
+            of init.
+        skip_fit : see self
+        save_dir : str = None
+        start_increment : int = 0
+        """
+        self.skip_fit = skip_fit
+        if save_dir:
+            self.save_dir = create_filepath(save_dir)
+        if uid:
+            self._uid = uid
+        else:
+            self._uid = (
+                f'{type(self).__name__}-'
+                f"{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
+            )
+
+    @property
+    def increment(self):
+        """Increments correspond to how many times the predictor was fit."""
+        return self._increment
+
+    @property
+    def uid(self):
+        """Returns a string Unique Identity for this predictor."""
+        return self._uid
+
+    def fit(self, dataset, val_dataset=None):
+        """Incrementally fit the OWHAPredictor's parts. Update classes in
+        classifier to match the training dataset. This assumes the training
+        dataset contains all prior classes. This deep copy is convenient for
+        ensuring the class indices are always aligned.
+        """
+        if self.skip_fit >= 0 and self._increment >= self.skip_fit:
+            return
+        self._increment += 1
+
+    @abstractmethod
+    def predict(self, dataset):
+        """Predictor performs the prediction (classification) tasks given
+        dataset.
+
+        Args
+        ----
+        dataset : torch.Dataset
+        task_id : str = None
+            The str identifier of the task to perform with the given inputs.
+            This assumes the proper dataset input format is given for each task
+            or that every task has the same input format.When task_id is None,
+            default, it performs all tasks sequentially.
+        feedback_budget : int | float = None
+            TODO implement a feedback budget that allows the predictor to
+            request feedback for only so many samples, so the selection of
+            which samples to request feedback for matters.
+        """
+        raise NotImplementedError()
+
+
+class Recognizer(Predictor):
     """Abstract predictor with recognition functionality.
 
     Attributes
@@ -37,13 +132,17 @@ class OWHARecognizer(OWHAPredictor):
         versus all other known classes.
     recog_label_enc : NominalDataEncoder = None
     label_enc : NominalDataEncoder
+    store_all : bool = True
+        When True, the default, store all feature points encountered in order
+        they were encountered, regardless of their data split being train,
+        validate, or test. If False (TODO), only store the training points.
     """
     def __init__(self, **kwargs):
         """Initialize the OWHARecognizer.
 
         Args
         ----
-        see OWHAPredictor.__init__
+        see Predictor.__init__
         """
         super().__init__(**kwargs)
         self.experience = pd.DataFrame(
@@ -62,13 +161,12 @@ class OWHARecognizer(OWHAPredictor):
         all_labels = 0 if self.label_enc is None else len(self.label_enc)
         return  all_labels - self.n_recog_labels
 
-    def detect(self, features, preds, n_expected_classes=None):
-        raise NotImplementedError('Inheriting class overrides this.')
+    @property
+    def
 
-    def recognize(self, features, n_expected_classes=None, **kwargs):
-        raise NotImplementedError('Inheriting class overrides this.')
+    def fit(self, dataset, val_dataset=None):
+        super().fit(dataset, val_dataset=None)
 
-    def fit(self, dataset, val_dataset=None, task_id=None):
         # NOTE This is an unideal hotfix, the predictor should not effect
         # evaluator data, but in this case we need to use recogs as labels, so
         # those recogs need added if missing to the provided experience
@@ -81,42 +179,17 @@ class OWHARecognizer(OWHAPredictor):
             unique_labels = self.experience['labels'].unique()
             self.experience = self.experience[~mask]
 
-            # TODO Replace any sample's label still in experience with the feedback
-
-            # If there are multiple feedbak classes assigned to an unknown
-            # class, then need to figure out some logic to assign those
-            # classes. Perhaps, simply make them unknown to be handled in recog
-
         # Update the predictor's label encoder with new knowns
         self.label_enc = deepcopy(dataset.label_enc)
         if self.recog_label_enc:
             # TODO rm recog classes that have been determined as a new class
             self.label_enc.append(self.recog_label_enc)
 
-        # Ensure the new recogs are used in fitting.
-        #   Predictor experience is the unlabeld recogs, temporairly append it
-        #   and swap the label encoders.
-        original_data_len = len(dataset.data)
-        original_label_enc = dataset.label_enc
-
-        dataset.data = dataset.data.append(self.experience)
-        dataset.label_enc = self.label_enc
-
-        # NOTE need todo val_datset management... if ever using it
-        super().fit(dataset, val_dataset=None, task_id=None)
-
-        # Now rm the experience from the dataframe and restore the label enc
-        dataset.data = dataset.data.iloc[:original_data_len]
-        dataset.label_enc = original_label_enc
-
-        # NOTE if there are any unlabeled samples, then perform recognition.
-        #   Currently not included in project's experiments.
-
     def predict(self, dataset):
         if self.label_enc is None:
             raise ValueError('label enc is None. This predictor is not fit.')
-        preds = super().predict(dataset)
-        features = torch.stack(list(dataset))
+        if isinstance(dataset, (torch.DataSet, torch.DataLoader)):
+            features = torch.stack(list(dataset))
 
         detected_novelty = self.detect(features, preds) \
             == self.label_enc.unknown_idx
@@ -188,7 +261,16 @@ class OWHARecognizer(OWHAPredictor):
 
         return preds
 
-    # TODO feedback_request: Enable different priority schemes.
-    #   1. some number of unknown recognized samples w/ highest certainty
-    #   2. prioritize recognized unknown samples w/ lowest certainty
-    #   3. prioritize general unknown samples w/ lowest certainty
+    @abstractmethod
+    def detect(self, features):
+        """The inference task of binary classification if the sample belongs to
+        a known class or unknown class. This may be a post process step to
+        predict().
+        """
+        raise NotImplementedError('Inheriting class overrides this.')
+
+
+# TODO feedback_request: Enable different priority schemes.
+#   1. some number of unknown recognized samples w/ highest certainty
+#   2. prioritize recognized unknown samples w/ lowest certainty
+#   3. prioritize general unknown samples w/ lowest certainty

@@ -3,14 +3,14 @@
 measures: # Determines how many figures are generated.
   Matthews Correlation Coefficient: mcc
   Accuracy: accuracy
-  Top-5 Accuracy:
-    accuracy:
-      k: 5
+  #Top-5 Accuracy:
+  #  accuracy:
+  #    k: 5
   Normalized Mutual Information:
     mutual_information:
       normalized: 'arithmetic'
       base: 2
-  #Uknown Mathews Correlation Coefficient: mcc
+  #Unknown Mathews Correlation Coefficient: mcc
 # TODO Novelty Detection Performance : reduce unks and knowns.
 # hmm... need the incremental KOWL classes.
 kowl: arn/scripts/exp2/configs/test-run_kowl_tsf_ftune.yaml
@@ -19,9 +19,10 @@ data_split: test
 root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/
 # Ordered as left-to-right for frepr and task models, back-to-front for splits
 ocms: # feature repr as groups
-  X3D: # task models per frepr
-    ANN-Incremental: x3d/test-run/fine-tune/label_recent_first/version_0/
-    ANN-No-Update: x3d/test-run/skip-fit-1/fine-tune/kowl_x3d-ann-skip-fit-1_label-recent-first/version_0/
   TimeSformer:
-    ANN-Incremental: timesformer/test-run/fine-tune/label_recent_first/version_0/
-    ANN-No-Update: timesformer/test-run/skip-fit-1/fine-tune/kowl_timesformer-ann-skip-fit-1_label-recent-first/version_0/
+    MVN-FINCH-100%: timesformer/test-run/gauss-recog/finch/label_recent_first/version_4/
+    ANN-0%: timesformer/test-run/skip-fit-1/fine-tune/label_recent_first/version_3/
+    ANN-100%: timesformer/test-run/fine-tune/label_recent_first/version_72/
+  X3D: # task models per frepr
+    ANN-0%: x3d/test-run/skip-fit-1/fine-tune/label_recent_first/version_0/
+    ANN-100%: x3d/test-run/fine-tune/label_recent_first/version_5/

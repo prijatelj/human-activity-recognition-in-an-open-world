@@ -16,79 +16,11 @@ from exputils.data import OrderedConfusionMatrices
 from docstr.cli.cli import docstr_cap
 
 
-# TODO Line Plot with error bars, horizontal axis is time-step
-
-def line_plot_group(
-    df,
-    groupby='columns',
-    title=None,
-    measure_range=None,
-    measure_title=None,
-    measure_title_font_size=16,
-    measure_tick_font_size=14,
-    measure_nticks=5,
-    measure_error=None,
-    xaxis_tickfont_size=14,
-    x_title=None,
-    marker_colors=None,
-    plot_bgcolor=None,
-):
-    """Line plot comparison of measures."""
-    fig = go.Figure()
-
-    if groupby == 'columns':
-        values = df.values.T
-        x = df.index
-        names = df.columns
-    else:
-        values = df.values
-        x = df.columns
-        names = df.index
-
-    for key, measures in enumerate(values):
-        fig.add_trace(go.Scatter(
-            x=x,
-            y=measures,
-            mode='lines+markers',
-            name=names[key],
-            marker_color=None if marker_colors is None else marker_colors[key],
-            error_y=None if measure_error is None else measure_error[key],
-        ))
-
-    # Update general layout
-    fig.update_layout(
-        title=title,
-        xaxis=dict(
-            tickfont_size=xaxis_tickfont_size,
-            title=x_title,
-            showgrid=True,
-            showline=True,
-        ),
-        yaxis=dict(
-            title=measure_title,
-            titlefont_size=measure_title_font_size,
-            tickfont_size=measure_tick_font_size,
-            range=measure_range,
-            showgrid=True,
-            showline=True,
-        ),
-        legend=dict(
-            x=0,
-            y=1.0,
-            bgcolor='rgba(255, 255, 255, 0)',
-            bordercolor='rgba(255, 255, 255, 0)'
-        ),
-        plot_bgcolor=plot_bgcolor,
-    )
-
-    return fig
-
-
 def line_plot(
     df,
     uid_col='Feature Repr.',
-    k6_start_line=True,
-    k7_start_line=True,
+    k6_start_line=1,
+    k7_start_line=5,
     steps='Step',
     measure='Matthews Correlation Coefficient',
     line_colors='Vivid',
@@ -129,7 +61,7 @@ def line_plot(
     fig = go.Figure()
     if k7_start_line:
         fig.add_trace(go.Scatter(
-            x=[1, 1],
+            x=[k6_start_line, k6_start_line],
             y=[0, 1],
             mode='lines',
             name='Kinetics-600 Start',
@@ -141,7 +73,7 @@ def line_plot(
         ))
     if k7_start_line:
         fig.add_trace(go.Scatter(
-            x=[10, 10],
+            x=[k7_start_line, k7_start_line],
             y=[0, 1],
             mode='lines',
             name='Kinetics-700-2020 Start',
@@ -201,16 +133,23 @@ def line_plot(
 
 
 def square_mcc_exp2(df):
-    fig = line_plot(
+    return line_plot(
         df[~df['Pre-feedback']],
-        x_range=[0,20],
+        x_range=[0,10],
         y_range=[0.62, 0.73],
         x_dtick=1,
         symbols=[
             'star-triangle-up',
             'star-triangle-down',
+
             'star-diamond',
             'star-square',
+
+            'x',
+            'cross',
+
+            'square',
+            'diamond',
         ],
         uid_col='uid',
         legend=dict(
@@ -219,7 +158,7 @@ def square_mcc_exp2(df):
             xanchor='left',
             x=0.52,
         ),
-        line_dashes=['solid', 'dash', 'solid', 'dash'],
+        line_dashes=['solid', 'dash'] * 4,
         margin=dict(l=0, r=20, t=0, b=0, pad=0),
         width=800,
         height=800,
@@ -228,16 +167,23 @@ def square_mcc_exp2(df):
 
 def wide_mcc_exp2(df):
     # Validation specifically.
-    fig = line_plot(
+    return line_plot(
         df[~df['Pre-feedback']],
-        x_range=[0,20],
+        x_range=[0,10],
         y_range=[0.49, 0.75],
         x_dtick=1,
         symbols=[
             'star-triangle-up',
             'star-triangle-down',
+
             'star-diamond',
             'star-square',
+
+            'x',
+            'cross',
+
+            'square',
+            'diamond',
         ],
         uid_col='uid',
         legend=dict(
@@ -246,7 +192,42 @@ def wide_mcc_exp2(df):
             xanchor='right',
             x=0.3,
         ),
-        line_dashes=['solid', 'dash', 'solid', 'dash'],
+        line_dashes=['solid', 'dash'] * 4,
+        margin=dict(l=0, r=20, t=0, b=0, pad=0),
+        width=1600,
+        height=400,
+    )
+
+
+def wide_nmi_exp2_legend_on_side(df):
+    return line_plot(
+        df,
+        #measure='Accuracy',
+        measure='Normalized Mutual Information',
+        x_range=[0,10.6],
+        y_range=[-0.1, 1.0],
+        x_dtick=1,
+        symbols=[
+            'star-triangle-up',
+            'star-triangle-down',
+
+            'star-diamond',
+            'star-square',
+
+            'x', #'x-thin',
+            'cross', #'cross-thin',
+
+            'square',
+            'diamond',
+        ],
+        uid_col='uid',
+        legend=dict(
+            yanchor='bottom',
+            y=0.1,
+            xanchor='left',
+            x=1.01,
+        ),
+        line_dashes=['solid', 'dash'] * 4,
         margin=dict(l=0, r=20, t=0, b=0, pad=0),
         width=1600,
         height=400,
@@ -257,11 +238,9 @@ if __name__ == '__main__':
     #df = load_incremental_ocms_df(...)
     df = pd.read_csv('/mnt/hdd/workspace/research/osr/har/results/kowl/exp2_val_set_possibly_overlapping_training.csv')
 
-    df['uid'] = df['Feature Repr.'] + '+' + df['Classifier']
-
     fig = line_plot(
         df[~df['Pre-feedback']],
-        x_range=[0,20],
+        x_range=[0,10],
         x_dtick=1,
         symbols=['circle', 'diamond'],
         uid_col='uid',

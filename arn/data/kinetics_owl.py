@@ -535,6 +535,56 @@ class EvalDataSplitConfig(NamedTuple):
             else:
                 preds = preds.numpy()
 
+        if predictor is None:
+            n_classes = len(data_split.label_enc)
+            if preds.shape[-1] < n_classes:
+                missing_labels = list(data_split.label_enc.keys())[
+                    :n_classes - preds.shape[-1]
+                ]
+                logger.warning(
+                    'The predictions are missing labels (%d) within the data '
+                    'set used to evaluate it. The predictions are being '
+                    'padded with zeros for the sake of evaluation only.',
+                    len(missing_labels),
+                )
+                logger.debug(
+                    'Last %d labels in data_split.label_enc %s. May exist in '
+                    'predictor label encoder, but unable to tell when not '
+                    'given predictor.',
+                    len(missing_labels),
+                    missing_labels,
+                )
+                # NOTE Relies on data split label enc including all prior known
+                # classes the predictor has seen.
+                preds = np.hstack((
+                    preds,
+                    np.zeros([preds.shape[0], len(missing_labels)]),
+                ))
+            label_enc = data_split.label_enc
+        else:
+            label_enc = deepcopy(predictor.label_enc)
+            n_recogs_in_pred = preds.shape[-1] - predictor.n_known_labels
+            n_recogs = predictor.n_recog_labels
+            if n_recogs_in_pred < n_recogs:
+                logger.warning(
+                    'n_recogs_in_pred < n_recogs: %d < %d. When the predictor '
+                    'is given, then the label encoder used is the  '
+                    "predictor's label encoder and this was not caught by the "
+                    'predictor itself. Beware this may indicate an issue in '
+                    'class alignment of preds.',
+                    n_recogs_in_pred,
+                    predictor.n_known_labels
+                )
+                # Update end of preds
+                pad_widths = [(0, 0)] * len(preds.shape)
+                pad_widths[-1] = (0, n_recogs - n_recogs_in_pred)
+                preds = np.pad(
+                    preds,
+                    pad_widths,
+                    'constant',
+                    constant_values=0,
+                )
+
         if self.pred_dir:
             if self.save_preds_with_labels:
                 if data_split.one_hot:
@@ -552,8 +602,8 @@ class EvalDataSplitConfig(NamedTuple):
                 else:
                     labels = data_split.label_enc.decode(
                         np.vstack([row[1] for row in data_split]),
-                    )
-                    contents = [labels, preds]
+                    ).reshape(-1, 1)
+                    contents = np.hstack([labels, preds])
 
                 logger.debug(
                     '%s: eval dsplit: save_preds_with_labels: type(labels) = %s',
@@ -644,10 +694,18 @@ class EvalDataSplitConfig(NamedTuple):
                 missing_labels = set(data_split.label_enc.encoder) \
                     - set(label_enc.encoder)
                 if missing_labels:
+                    logger.warning(
+                        'The predictor is missing labels (%d) within the data '
+                        'set used to evaluate it. The predictions are being '
+                        'padded with zeros for the sake of evaluation only.',
+                        len(missing_labels),
+                    )
+                    logger.debug('missing labels = %s', missing_labels)
+
                     label_enc.append(missing_labels)
 
                     # Update end of preds
-                    pad_widths = [(0,0) for d in range(len(preds.shape))]
+                    pad_widths = [(0, 0)] * len(preds.shape)
                     pad_widths[-1] = (0, len(missing_labels))
                     preds = np.pad(
                         preds,
@@ -1217,7 +1275,7 @@ class KineticsOWL(object):
         """The entire experiment run loop."""
         for i in range(self.increment, self.environment.total_increments):
             logger.info(
-                "Starting step (zero-indexed): %d. Increment %d / %d",
+                "Starting step (init step at zero): %d. Increment %d / %d",
                 i,
                 self.increment,
                 self.environment.total_increments - 1,
@@ -1534,13 +1592,36 @@ def kinetics_owl_annevm(*args, **kwargs):
     return KineticsOWL(*args, **kwargs)
 
 
-def kinetics_owl_grecog(*args, **kwargs):
+def kinetics_owl_naive_dpgmm(*args, **kwargs):
     """Initialize the KineticsOWL experiment.
 
     Args
     ----
     environment : see KineticsOWL
-    predictor : arn.models.novelty_recog.gaussian.GaussianRecognizer
+    predictor : arn.models.novelty_recog.naive_dpgmm.NaiveDPGMM
+    feedback : see KineticsOWL
+    rng_state : see KineticsOWL
+    eval_on_start : see KineticsOWL
+    eval_config : see KineticsOWL
+    post_feedback_eval_config : see KineticsOWL
+    tasks : see KineticsOWL
+    maintain_experience : bool = True
+        If False, the default, the past experienced samples are not saved
+        in the simulation for use by the predictor. Otherwise, the
+        experienced samples are saved by concatenating the new data splits
+        to the end of the prior ones.
+    labels : str = None
+    """
+    return KineticsOWL(*args, **kwargs)
+
+
+def kinetics_owl_gauss_finch(*args, **kwargs):
+    """Initialize the KineticsOWL experiment.
+
+    Args
+    ----
+    environment : see KineticsOWL
+    predictor : arn.models.novelty_recog.gauss_finch.GaussFINCH
     feedback : see KineticsOWL
     rng_state : see KineticsOWL
     eval_on_start : see KineticsOWL

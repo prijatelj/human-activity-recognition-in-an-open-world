@@ -20,7 +20,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def load_ocm_step(path, regex, re_groups, steps=None, binary=False):
+def load_ocm_step(
+    path,
+    regex,
+    re_groups,
+    steps=None,
+    reduce_known=False,
+    reduce_unknown=True,
+):
     ocm = OrderedConfusionMatrices.load(path)
     matched = regex.match(path)
     for re_group, dtype in re_groups.items():
@@ -55,6 +62,9 @@ def load_ocm_step(path, regex, re_groups, steps=None, binary=False):
                 ocm.label_enc = label_enc
 
         if unknowns:
+            if 'unknown' not in unknowns:
+                unknowns.add('unknown')
+
             unknowns = np.array(list(unknowns))
             logging.debug(
                 '%d unknowns at step %d',
@@ -62,22 +72,33 @@ def load_ocm_step(path, regex, re_groups, steps=None, binary=False):
                 step_num,
             )
 
-            ocm.reduce(
-                unknowns,
-                'unknown', #ocm.label_enc.unknown_key,
-                reduced_idx=0, #ocm.label_enc.unknown_idx,
-                inplace=True,
-            )
-
-            if binary:
-                # Collapse knowns if steps and binary
+            # if collapse unknowns
+            if reduce_unknown:
                 ocm.reduce(
-                    ['unknown'],
+                    unknowns,
+                    'unknown', #ocm.label_enc.unknown_key,
+                    reduced_idx=0, #ocm.label_enc.unknown_idx,
+                    inplace=True,
+                )
+                if reduce_known:
+                    # Collapse knowns if steps and reduce_known
+                    ocm.reduce(
+                        ['unknown'],
+                        'known', #ocm.label_enc.unknown_key,
+                        reduced_idx=-1, #ocm.label_enc.unknown_idx,
+                        inverse=True,
+                        inplace=True,
+                    )
+            elif reduce_known:
+                # Collapse knowns, preserving unknowns.
+                ocm.reduce(
+                    unknowns,
                     'known', #ocm.label_enc.unknown_key,
                     reduced_idx=-1, #ocm.label_enc.unknown_idx,
                     inverse=True,
                     inplace=True,
                 )
+
         ocm.step_num = step_num
         ocm.pre_feedback = pre_feedback
     return ocm
@@ -91,7 +112,8 @@ def load_inplace_results_tree(
     leaf_is_dir=True,
     pred_dir_path='step-*_*_predict',
     steps=None,
-    binary=False,
+    reduce_known=False,
+    reduce_unknown=True,
 ):
     """Inplace update of paths at leaves. Load either the
     OrderedConfusionMatrices or pandas DataFrame given the paths of prediction
@@ -113,27 +135,33 @@ def load_inplace_results_tree(
     steps : list = None
         If given, assumed to be a list of KineticsUnified objects that
         correspond to the step number based on their index.
-    binary : bool = False
-        If True, and steps given, reduces known and unknown classes.
+    reduce_known : bool = False
+        If True, and steps given, reduces known classes into 'known'
+    reduce_unknown : bool = True
+        If True, and steps given, reduces unknown classes into 'unknown'
     """
     logger.debug('Begin `load_inplace_results_tree`')
-    if binary and not steps:
-        raise ValueError('`binary` is True and steps is None! Cannot compute')
+    if reduce_known and not steps:
+        raise ValueError(
+            '`reduce_known` is True and steps is None! Cannot compute'
+        )
+    if reduce_unknown and not steps:
+        raise ValueError(
+            '`reduce_unknown` is True and steps is None! Cannot compute'
+        )
     regex = re.compile(
         '.*step-(?P<step_num>\d+)_(?P<pre_feedback>.*)_predict.*'
     )
 
     get_ocm = os.path.splitext(filename)[-1] == '.h5'
 
-    # TODO construct load_ocm_step partial such that it reduces for unks, and
-    # binary
-
     func = partial(
         load_ocm_step,
         regex=regex,
         re_groups={'step_num': int, 'pre_feedback': lambda x: x == 'new-data'},
         steps=steps,
-        binary=binary,
+        reduce_known=reduce_known,
+        reduce_unknown=reduce_unknown,
     ) if get_ocm else pd.read_csv
 
     def regex_cast(x):
@@ -163,38 +191,8 @@ def load_inplace_results_tree(
                 )]
             else:
                 if get_ocm:
-                    ocm = OrderedConfusionMatrices.load(base_path)
-                    if steps:
-                        # Collapse unknowns if steps
-                        # NOTE: OCM.reduce DNE, so discard ocm, get cm
-                        ocm = ocm.get_conf_mat()
-                        step = steps[ocm.step_num]
-                        unknowns = np.array(
-                            set(ocm.label_enc) - set(step.train.label_enc)
-                        )
-                        logging.debug(
-                            '%d unknowns at step %d',
-                            len(unknowns),
-                            ocm.step_num,
-                        )
-
-                        ocm.reduce(
-                            unknowns,
-                            'unknown', #ocm.label_enc.unknown_key,
-                            reduced_idx=0, #ocm.label_enc.unknown_idx,
-                            inplace=True,
-                        )
-
-                        if binary:
-                            # Collapse knowns if steps and binary
-                            ocm.reduce(
-                                ['unknown'],
-                                'known', #ocm.label_enc.unknown_key,
-                                reduced_idx=-1, #ocm.label_enc.unknown_idx,
-                                inverse=True,
-                                inplace=True,
-                            )
-                    ptr[key] = ocm
+                    # Pretty sure you just call func anyways on the singl obj.
+                    ptr[key] = func(base_path)
                 else:
                     # Loads DataFrames, but takes argmax.
                     df = pd.read_csv(base_path)
@@ -217,8 +215,8 @@ def load_inplace_results_tree(
                         # Not necessary on pred_labels given they can only be
                         # known labels.
 
-                        if binary:
-                            # Collapse knowns if steps and binary
+                        if reduce_known:
+                            # Collapse knowns if steps and reduce_known
                             df['pred_labels'][df['pred_labels'] != 'unknown'] \
                                 = 'known'
                     df['step_num'] = step_num
@@ -262,13 +260,26 @@ def get_ocm_measures(ocm, measures, prefix_col, col_names, known_labels=None):
     return pd.Series(prefix_col + calc_measures, index=col_names)
 
 
+def add_uid_col(df, cols=None, uid_col_name='uid'):
+    """Inplace add of uid col."""
+    if cols is None:
+        cols = ['Feature Repr.', 'Classifier']
+
+    tmp = df[cols[0]]
+    for col in cols[1:]:
+        tmp += '+' + df[col]
+
+    df[uid_col_name] = tmp
+
+
 def get_step_measures_ocm(
     tree,
     data_split,
     measures,
     cumulative=True,
     kenv=None,
-    binary=False, # If True calculates
+    post_feedback_step=0.5,
+    uid_col_name='uid',
 ):
     dtypes = {
         'Feature Repr.': str,
@@ -319,16 +330,71 @@ def get_step_measures_ocm(
                     ),
                     ignore_index=True,
                 )
+    if post_feedback_step:
+        df['Step'][~df['Pre-feedback']] += post_feedback_step
+    if uid_col_name and uid_col_name not in df.columns:
+        add_uid_col(df, uid_col_name=uid_col_name)
     return df
+
+
+def get_balance_df(kowl_dsplits, eval_split='test'):
+    """Returns a DataFrame with the number of known and novel classes and their
+    samples per increment at pre- and post-feedback
+    """
+    balance_stats = []
+    for i, dsplits in enumerate(kowl_dsplits):
+        eval_dsplit = getattr(dsplits, eval_split)
+        if eval_dsplit is None:
+            continue
+        if i > 0:
+            # pre_feedback
+            pre_novel = set(eval_dsplit.label_enc) \
+                - set(kowl_dsplits[i-1].train.label_enc)
+            balance_stats.append([
+                i,
+                True,
+                len(kowl_dsplits[i-1].train.label_enc),
+                eval_dsplit.data['labels'].isin(
+                    kowl_dsplits[i-1].train.label_enc
+                ).sum(),
+                len(pre_novel),
+                eval_dsplit.data['labels'].isin(pre_novel).sum(),
+            ])
+
+        post_novel = set(eval_dsplit.label_enc) - set(dsplits.train.label_enc)
+        # post_feedback
+        balance_stats.append([
+            i,
+            False,
+            len(dsplits.train.label_enc),
+            eval_dsplit.data['labels'].isin(dsplits.train.label_enc).sum(),
+            len(post_novel),
+            eval_dsplit.data['labels'].isin(post_novel).sum(),
+        ])
+
+    return pd.DataFrame(
+        balance_stats,
+        columns=[
+            'Step',
+            'Pre-feedback',
+            'known classes',
+            'known samples',
+            'novel classes',
+            'novel samples'
+        ],
+    )
 
 
 def load_incremental_ocms_df(
     yaml_path,
     data_split=None,
     filename=None,
-    binary=None,
+    reduce_known=None,
+    reduce_unknown=None,
     pred_dir_path=None,
     kowl=None,
+    cumulative=None,
+    get_ocms=False,
 ):
     # Load in yaml config file
     with open(yaml_path) as openf:
@@ -338,25 +404,29 @@ def load_incremental_ocms_df(
         data_split = config.pop('data_split', 'test')
     if filename is None:
         filename = config.pop('filename', 'preds_top-cm.h5')
-    cumulative = config.pop('cumulative', True)
+
+    if cumulative is None:
+        cumulative = config.pop('cumulative', True)
 
     if pred_dir_path is None:
         # 'step-*_post-feedback_predict',
-        binary = config.pop('pred_dir_path', 'step-*_*_predict')
+        pred_dir_path = config.pop('pred_dir_path', 'step-*_*_predict')
 
-    if binary is None:
-        binary = config.pop('binary', False)
+    if reduce_known is None:
+        reduce_known = config.pop('reduce_known', False)
+    if reduce_unknown is None:
+        reduce_unknown = config.pop('reduce_unknown', True)
 
 
     # Give kowl=False to avoid loading this if in config.
-    if kowl in {None, True}:
+    if kowl is None or kowl is True:
         # Load for getting knowns and unknowns at time steps
         kowl = config.pop('kowl', None)
         if kowl is not None:
             kowl = docstr_cap(kowl, return_prog=True).environment
             kowl = [kowl.start] + kowl.steps
 
-            # Causes errors otherwise
+            # Otherwise, causes errors as is
             config['measures'].pop('Top-5 Accuracy', None)
 
     load_inplace_results_tree(
@@ -366,6 +436,8 @@ def load_incremental_ocms_df(
         filename=filename,
         leaf_is_dir=True,
         steps=kowl,
+        reduce_known=reduce_known,
+        reduce_unknown=reduce_unknown,
     )
 
     # TODO When calculating novelty, need to look at pre-novlety.
@@ -375,8 +447,7 @@ def load_incremental_ocms_df(
     #   feedback of human labels.
 
     # Get DataFrame of measures over increments.
-    if os.path.splitext(filename)[-1] == '.h5':
-        # TODO If post-feedback, increase post-feedback step by 0.5
+    if not get_ocms and os.path.splitext(filename)[-1] == '.h5':
         return get_step_measures_ocm(
             config['ocms'],
             data_split,

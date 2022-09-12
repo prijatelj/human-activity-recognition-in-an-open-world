@@ -8,6 +8,7 @@ __all__ = [
     'feedback',
     'fine_tune',
     'fine_tune_lit',
+    'novelty_recog',
 ]
 
 for module in __all__:
