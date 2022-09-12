@@ -12,7 +12,7 @@ docstr:
       - KineticsOWL
       - KineticsOWLExperiment
       - get_steps
-      - kinetics_owl_grecog
+      - kinetics_owl_gauss_finch
     arn.data.kinetics_unified:
       - KineticsUnified
       - KineticsUnifiedFeatures
@@ -32,14 +32,16 @@ docstr:
       - OWHAPredictor
     arn.models.novelty_recog.gaussian:
       - GaussianRecognizer
+    arn.models.novelty_recog.gauss_finch:
+      - GaussFINCH
   main: run
-  log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/label_recent_first/logs/log.log'
+  log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/finch/label_recent_first/logs/log.log'
   log_level: DEBUG
 
-kinetics_owl_grecog: # Pipeline for the Open World Learning Data process
+kinetics_owl_gauss_finch: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/label_recent_first/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/finch/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -54,7 +56,7 @@ kinetics_owl_grecog: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/label_recent_first/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/finch/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -69,12 +71,12 @@ kinetics_owl_grecog: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   maintain_experience: True
   predictor:
-    GaussianRecognizer: # the Open World Agent
+    GaussFINCH: # the Open World Agent
       #min_samples: 2
       detect_error_tol: 1e-5
       device: cpu
       skip_fit: 0 # Does not use the FineTune ANN at all.
-      save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/label_recent_first/chkpts/
+      save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/finch/label_recent_first/chkpts/
       fine_tune:
         FineTuneLit:
           model:
@@ -96,10 +98,10 @@ kinetics_owl_grecog: # Pipeline for the Open World Learning Data process
               num_sanity_val_steps: 1
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/test-run/label_recent_first/chkpts/
+              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/finch/test-run/label_recent_first/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/label_recent_first/tb_log/
+                  save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/finch/label_recent_first/tb_log/
   environment:
     KineticsOWLExperiment:
       inc_splits_per_dset: 5

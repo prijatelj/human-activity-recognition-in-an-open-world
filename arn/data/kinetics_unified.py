@@ -699,6 +699,10 @@ class KineticsUnified(torch.utils.data.Dataset):
             },
         )
 
+        # Create an index column for ease of accessing labels from DataLoader
+        # Do this early to ensure consistency across any subset of K.Unified.
+        self.data['sample_index'] = self.data.index
+
         # Using subset config, prune the undesired samples from this dataset
         # instance, leaving only a subset of all of the Kinetics unified data.
         if subset is not None:
@@ -775,9 +779,6 @@ class KineticsUnified(torch.utils.data.Dataset):
             self.data = self.data[
                 get_filename(self.data, ext=None).isin(whitelist)
             ]
-
-        # Create an index column for ease of accessing labels from DataLoader
-        self.data['sample_index'] = self.data.index
 
         # Ensure the sample path exists for ease of grabbing.
         if 'sample_path' not in self.data:

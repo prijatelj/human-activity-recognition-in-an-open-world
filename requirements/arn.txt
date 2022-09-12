@@ -6,6 +6,7 @@ tqdm>=4.62.2
 pytorch>=1.9.1
 torchsummary>=1.5.1
 pytorch-lightning>=1.5.10
+pyro-ppl
 
 exputils==0.1.7rc3
 

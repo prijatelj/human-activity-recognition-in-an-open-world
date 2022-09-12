@@ -1,0 +1,26 @@
+# Config for visualizing measures over the incremental learning.
+
+measures: # Determines how many figures are generated.
+  Matthews Correlation Coefficient: mcc
+  Accuracy: accuracy
+  Top-5 Accuracy:
+    accuracy:
+      k: 5
+  Normalized Mutual Information:
+    mutual_information:
+      normalized: 'arithmetic'
+      base: 2
+  #Uknown Mathews Correlation Coefficient: mcc
+# TODO Novelty Detection Performance : reduce unks and knowns.
+# hmm... need the incremental KOWL classes.
+#kowl: arn/scripts/sim_open_world_recog/configs/test-run_exp2_gauss-recog_2d_sim.yaml
+kowl: arn/scripts/sim_open_world_recog/configs/test-run_exp2_gfinch.yaml
+measure_range: [0, 1]
+data_split: test
+root_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/gauss-recog/
+# Ordered as left-to-right for frepr and task models, back-to-front for splits
+ocms: # feature repr as groups
+  F.Repr.:
+    NaiveDPGMM-v0:  naive-dpgmm/version_0/
+    NaiveDPGMM-v15:  naive-dpgmm/version_15/
+    GaussFINCH:  finch/version_0/

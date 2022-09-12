@@ -9,7 +9,6 @@ from exputils.data.labels import NominalDataEncoder
 from exputils.io import create_filepath
 from vast.opensetAlgos.extreme_value_machine import ExtremeValueMachine
 
-from arn.models.novelty_detector import WindowedMeanKLDiv
 from arn.torch_utils import torch_dtype
 from arn.data.kinetics_unified import KineticsUnifiedFeatures, KineticsUnified
 
@@ -146,7 +145,7 @@ class OWHAPredictor(object):
 
     Attributes
     ----------
-    fine_tune: arn.models.fine_tune_lit.FineTuneLit
+    fine_tune: arn.models.fine_tune_lit.FineTuneLit = None
         fine_tune: arn.models.fine_tune.FineTune
     label_enc : NominalDataEncoder = None
     _uid : str = None
@@ -166,7 +165,7 @@ class OWHAPredictor(object):
     """
     def __init__(
         self,
-        fine_tune,
+        fine_tune=None,
         #dtype=None,# TODO perhaps have the predictor manage the dtypes overall
         label_enc=None,
         uid=None,
@@ -218,7 +217,7 @@ class OWHAPredictor(object):
             return self._uid
         return self.fine_tune.trainer.log_dir.rpartition(os.path.sep)[-1]
 
-    def fit(self, dataset, val_dataset=None, task_id=None):
+    def fit(self, dataset, val_dataset=None):
         """Incrementally fit the OWHAPredictor's parts. Update classes in
         classifier to match the training dataset. This assumes the training
         dataset contains all prior classes. This deep copy is convenient for
@@ -247,7 +246,7 @@ class OWHAPredictor(object):
                 f'{self.uid}-{self.increment}.ckpt',
             ))
 
-    def predict(self, dataset, task_id=None):
+    def predict(self, dataset):
         """Predictor performs the prediction (classification) tasks given
         dataset.
 
@@ -266,17 +265,17 @@ class OWHAPredictor(object):
         """
         return self.fine_tune.predict(dataset)
 
-    def extract(self, dataset, task_id=None):
+    def extract(self, dataset):
         return self.fine_tune.extract(dataset)
 
-    def extract_predict(self, dataset, task_id=None):
+    def extract_predict(self, dataset):
         return self.fine_tune.extract_predict(dataset)
 
     def known_probs(self, dataset):
         """Backwards compat for older agents in eval."""
         return self.predict(dataset)
 
-    def novelty_detect(self, dataset, task_id=None):
+    def novelty_detect(self, dataset):
         """Predictor performs novelty detection given the dataset, possibly
         conditioned on specific task set. Novelty detection is the same as
         anaomaly detection, outlier detection, out-of-distirbution detection,
@@ -294,7 +293,7 @@ class OWHAPredictor(object):
         """
         return self.fine_tune.feature_extract(dataset)
 
-    # TODO def feedback_query(self, dataset, task_id=None):
+    # TODO def feedback_query(self, dataset):
 
 
 # TODO class OWHAPredictorEVM(OWHAPredictor):
@@ -356,7 +355,7 @@ class ANNEVM(object):
     def label_enc(self):
         return self.evm.label_enc
 
-    def fit(self, dataset, val_dataset=None, task_id=None):
+    def fit(self, dataset, val_dataset=None):
         self.fine_tune.fit(dataset, val_dataset, task_id)
         self.evm.fit(
             (
@@ -374,6 +373,6 @@ class ANNEVM(object):
     def predict(self, features, unknown_last_dim=False):
         return self.evm.predict(self.fine_tune.extract(features))
 
-    def extract_predict(self, dataset, task_id=None):
+    def extract_predict(self, dataset):
         extracts = self.fine_tune.extract(dataset)
         return extracts, self.evm.predict(extracts)
