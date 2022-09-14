@@ -65,7 +65,7 @@ class OWHARecognizer(OWHAPredictor):
         self.experience = pd.DataFrame(
             [],
             columns=['uid', 'sample_path', 'labels', 'oracle'],
-        )
+        ).convert_dtypes([int, str, str, bool])
         self.recog_label_enc = None
         self.label_enc = None
 
@@ -126,18 +126,20 @@ class OWHARecognizer(OWHAPredictor):
         # Need to test this!
 
         if any(unseen_mask):
-            self.experience = self.experience.append(pd.DataFrame(
-                np.stack(
-                    [
-                        dataset.data['sample_index'][unseen_mask],
-                        dataset.data[unseen_mask]['sample_path'],
-                        dataset.data[unseen_mask]['labels'],
-                        [True] * len(unseen_mask),
-                    ],
-                    axis=1,
-                ),
-                columns=self.experience.columns,
-            ))
+            self.experience = self.experience.append(
+                pd.DataFrame(
+                    np.stack(
+                        [
+                            dataset.data['sample_index'][unseen_mask],
+                            dataset.data[unseen_mask]['sample_path'],
+                            dataset.data[unseen_mask]['labels'],
+                            [True] * len(unseen_mask),
+                        ],
+                        axis=1,
+                    ),
+                    columns=self.experience.columns,
+                ).convert_dtypes([int, str, str, bool])
+            )
 
     def predict(self, dataset):
         if self.label_enc is None:
@@ -186,20 +188,24 @@ class OWHARecognizer(OWHAPredictor):
         )
 
         if any(unseen_mask):
-            self.experience = self.experience.append(pd.DataFrame(
-                np.stack(
-                    [
-                        dataset.data['sample_index'][unseen_mask],
-                        dataset.data[unseen_mask]['sample_path'],
-                        self.label_enc.decode(
-                            preds[unseen_mask].argmax(1).detach().cpu().numpy()
-                        ),
-                        [False] * len(unseen_mask),
-                    ],
-                    axis=1,
-                ),
-                columns=self.experience.columns,
-            ))
+            self.experience = self.experience.append(
+                pd.DataFrame(
+                    np.stack(
+                        [
+                            dataset.data['sample_index'][unseen_mask],
+                            dataset.data[unseen_mask]['sample_path'],
+                            self.label_enc.decode(
+                                preds[unseen_mask].argmax(
+                                    1,
+                                ).detach().cpu().numpy()
+                            ),
+                            [False] * len(unseen_mask),
+                        ],
+                        axis=1,
+                    ),
+                    columns=self.experience.columns,
+                ).convert_dtypes([int, str, str, bool])
+            )
 
         # TODO also, i suppose the predictor should not hold onto val/test
         # samples.... though it can. and currently as written does.
@@ -734,6 +740,11 @@ class GaussianRecognizer(OWHARecognizer):
 
         return detects
 
+    def feedback_request(self):
+        """The predictor's method of requesting feedback."""
+        raise NotImplementedError()
+        #return feedback_request_state
+
     def save(self, h5, save_fine_tune=False, overwrite=False):
         """Save as an HDF5 file."""
         close = isinstance(h5, str)
@@ -854,8 +865,7 @@ class GaussianRecognizer(OWHARecognizer):
             ).convert_dtypes([int, str, str, bool])
 
         loaded._gaussians = [
-            MultivariateNormal(
-                torch.tensor(
+            MultivariateNormal(torch.tensor(
                     h5['_gaussians']['locs'][i]
                 ).to(loaded.device, loaded.dtype),
                 torch.tensor(cov_mat).to(loaded.device, loaded.dtype),
