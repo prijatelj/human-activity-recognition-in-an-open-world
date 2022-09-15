@@ -1040,7 +1040,14 @@ class KineticsOWL(object):
         TODO docstr: support at least basic checking of multiple configurable
         types. Or maybe just parse all of them as options and support so in
         MultiType.
-    feedback : str = 'oracle'
+    feedback_type : str = 'oracle'
+        Originally intended to indicate different types of feedback, this is
+        intended to always have the value 'oracle' for now.
+        Different types of feedback is now a future feature.
+    feedback_amount : float = 1.0
+        The maximum percentage of feedback as ground truth labels given by an
+        oracle to provide to the predictor upon request. Valid values within
+        range [0, 1.0].
     rng_state : int = None
         Random seed.
     eval_on_start : bool = False
@@ -1080,7 +1087,8 @@ class KineticsOWL(object):
         environment,
         predictor,
         #augmentation=None # sensors
-        feedback='oracle',
+        feedback_type='oracle',
+        feedback_amount=1.0,
         rng_state=None,
         measures=None,
         eval_on_start=False,
@@ -1098,7 +1106,8 @@ class KineticsOWL(object):
         ----
         environment : see self
         predictor : see self
-        feedback : see self
+        feedback_type : see self
+        feedback_amount : see self
         rng_state : see self
         eval_on_start : see self
         eval_config : see self
@@ -1119,7 +1128,8 @@ class KineticsOWL(object):
 
         self.environment = environment
         self.predictor = predictor
-        self.feedback = feedback
+        self.feedback_type = feedback_type
+        self.feedback_amount = feedback_amount
         self.eval_on_start = eval_on_start
         self.eval_config = eval_config
         if post_feedback_eval_config is True:
@@ -1201,18 +1211,37 @@ class KineticsOWL(object):
             #       - Difference to actual novelty occurrence (by sample idx)
             #           If early detection, negative, otherwise positive.
 
-        if self.feedback == 'oracle':
+        if self.feedback_type:
             # 3. Opt. Feedback on this step's new data
             logger.info(
-                "Requesting feedback (%s) for step %d's data.",
-                self.feedback,
+                "Requesting feedback (%s: %f) for step %d's data.",
+                self.feedback_type,
+                self.feedback_amount,
                 self.increment - 1,
             )
             new_data_splits = self.environment.feedback(new_data_splits)
 
+            # TODO cut out ammount of feedback for requested uids and w/ max
+            # allowed feedback labels this increment.
+            if self.feedback_amount:
+                # Provide the uids the predictor may request from and amount
+                feedback_uids = self.predictor.feedback_request(
+                    new_data_splits.train.data['sample_index'].values,
+                    self.feedback_amount,
+                )
+                feedback_mask = \
+                    new_data_splits.train.data['sample_index'].isin(
+                    feedback_uids[:int(np.floor(
+                        self.feedback_amount * len(new_data_splits.train)
+                    ))]
+                )
+                new_data_splits.train.data[feedback_mask]['feedback'] \
+                    = new_data_splits.train.data[feedback_mask]['labels']
+
             logger.info(
-                "Updating with feedback (%s) for step %d's data.",
-                self.feedback,
+                "Updating with feedback (%s: %f) for step %d's data.",
+                self.feedback_type,
+                self.feedback_amount,
                 self.increment - 1,
             )
             if self.experience:
@@ -1236,19 +1265,26 @@ class KineticsOWL(object):
                 )
 
                 # 4. Opt. Predictor Update/train on new data w/ feedback
+                label_col = self.experience.train.label_col
+                self.experience.train.label_col = 'feedback'
                 self.predictor.fit(
                     self.experience.train,
                     self.experience.validate,
                 )
+                self.experience.train.label_col = label_col
             else:
+                label_col = new_data_splits.train.label_col
+                new_data_splits.train.label_col = 'feedback'
                 self.predictor.fit(
                     new_data_splits.train,
                     new_data_splits.validate,
                 )
+                new_data_splits.train.label_col = label_col
 
             logger.info(
-                "Post-feedback Eval (%s) for step %d.",
-                self.feedback,
+                "Post-feedback Eval (%s: %f) for step %d.",
+                self.feedback_type,
+                self.feedback_amount,
                 self.increment - 1,
             )
             # 5. Opt. Predictor eval post update
@@ -1259,15 +1295,6 @@ class KineticsOWL(object):
                 #    else self.predictor.extract_predict,
                 f'{eval_prefix}_post-feedback_predict',
             )
-            """ TODO Novelty Detect
-            self.post_feedback_eval_config.eval(
-                new_data_splits,
-                self.predictor.novelty_detect,
-                f'step-{self.increment}_post-feedback_novelty-detect',
-            )
-            #"""
-        # else  TODO add fit call when no feedback to allow predictor to change
-        # state.
 
         # NOTE 6. Opt. Evaluate the updated predictor on entire experience
 
@@ -1292,36 +1319,41 @@ class KineticsOWL(object):
         )
         for i in range(exclusive_end_step):
             # 1. Get new data (input samples only)
-            logger.info("Getting step %d's data.", self.increment)
+            logger.info(
+                "Fast forward: Getting step %d's data.",
+                self.increment,
+            )
             new_data_splits = self.environment.step()
 
             logger.debug(
-                'len(new_data_splits.train) = %d',
+                'Fast forward: len(new_data_splits.train) = %d',
                 0 if new_data_splits.train is None \
                     else len(new_data_splits.train),
             )
             logger.debug(
-                'len(new_data_splits.validate) = %d',
+                'Fast forward: len(new_data_splits.validate) = %d',
                 0 if new_data_splits.validate is None \
                     else len(new_data_splits.validate),
             )
             logger.debug(
-                'len(new_data_splits.test) = %d',
+                'Fast forward: len(new_data_splits.test) = %d',
                 0 if new_data_splits.test is None \
                     else len(new_data_splits.test),
             )
-            if self.feedback == 'oracle':
+            if self.feedback_type == 'oracle':
                 # 3. Opt. Feedback on this step's new data
                 logger.info(
+                    'Fast forward: '
                     "Requesting feedback (%s) for step %d's data.",
-                    self.feedback,
+                    self.feedback_type,
                     self.increment - 1,
                 )
                 new_data_splits = self.environment.feedback(new_data_splits)
 
                 logger.info(
+                    'Fast forward: '
                     "Updating with feedback (%s) for step %d's data.",
-                    self.feedback,
+                    self.feedback_type,
                     self.increment - 1,
                 )
                 if self.experience:
@@ -1329,17 +1361,17 @@ class KineticsOWL(object):
                     self.experience = self.experience.append(new_data_splits)
 
                     logger.debug(
-                        'len(self.experience.train) = %d',
+                        'Fast forward: len(self.experience.train) = %d',
                         0 if self.experience.train is None else \
                             len(self.experience.train),
                     )
                     logger.debug(
-                        'len(self.experience.validate) = %d',
+                        'Fast forward: len(self.experience.validate) = %d',
                         0 if self.experience.validate is None else \
                             len(self.experience.validate),
                     )
                     logger.debug(
-                        'len(self.experience.test) = %d',
+                        'Fast forward: len(self.experience.test) = %d',
                         0 if self.experience.test is None else \
                             len(self.experience.test),
                     )
