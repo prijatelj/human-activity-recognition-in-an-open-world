@@ -217,6 +217,23 @@ class OWHAPredictor(object):
             return self._uid
         return self.fine_tune.trainer.log_dir.rpartition(os.path.sep)[-1]
 
+
+    # TODO feedback request for ANN batching fun times
+    #   If fitting a torch ANN w/ batching, will need to tmp rm all
+    #   samples w/o a label before fitting and then restore after.
+    def feedback_request(self, available_uids=None, amount=1.0):
+        """The predictor's method of requesting feedback."""
+        raise NotImplementedError()
+        #return feedback_request_state
+
+        if available_uids is None:
+            raise NotImplementedError('available_uids is necessary for ANNs.')
+        idx = np.arange(len(available_uids))
+        np.random.suffle(idx)
+
+        return available_uids[idx]
+
+
     def fit(self, dataset, val_dataset=None):
         """Incrementally fit the OWHAPredictor's parts. Update classes in
         classifier to match the training dataset. This assumes the training

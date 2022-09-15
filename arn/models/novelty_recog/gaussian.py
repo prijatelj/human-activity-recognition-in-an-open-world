@@ -53,6 +53,9 @@ class OWHARecognizer(OWHAPredictor):
         When True, the default, store all feature points encountered in order
         they were encountered, regardless of their data split being train,
         validate, or test. If False (TODO), only store the training points.
+    feedback_request_method : str = 'uncertain first'
+        The method used to request feedback. Defaults to 'uncertain first',
+        allows also 'random'.
     """
     def __init__(self, **kwargs):
         """Initialize the OWHARecognizer.
@@ -60,7 +63,12 @@ class OWHARecognizer(OWHAPredictor):
         Args
         ----
         see OWHAPredictor.__init__
+        feedback_request_method : see self
         """
+        self.feedback_request_method = kwargs.pop(
+            'feedback_request_method',
+            'uncertain first',
+        )
         super().__init__(**kwargs)
         self.experience = pd.DataFrame(
             [],
@@ -140,6 +148,52 @@ class OWHARecognizer(OWHAPredictor):
                     columns=self.experience.columns,
                 ).convert_dtypes([int, str, str, bool])
             )
+
+    def feedback_request(self, features, available_uids=None, amount=1.0):
+        """The predictor's method of requesting feedback.
+        Args
+        ----
+        features : torch.Tensor
+        available_uids : list = None
+            List of uids, integers unique to the smaples for this Kinetics
+            OWL experiment.
+        amount : float = 1.0
+            The decimal amount of feedback to be expected to be given of the
+            new data for this increment.
+        """
+        if available_uids is None:
+            available_uids = self.experience[
+                self.experience['oracle']
+            ]['uid'].values
+
+        if self.feedback_request_method == 'random':
+            return super().feedback_request(available_uids)
+
+        # Recognize w/ all knowns and unknown hierarchical
+        recogs = self.recognize(features)
+
+        if self.feedback_request_method == 'uncertain first':
+            # Get latest uncertainty scores for recog samples, sort by
+            # descending uncertainty overall, regardless of most likely class
+            mins = recogs.min(1)
+            desc_mins = torch.sort(mins.values, descending=True)
+            return available_uids[
+                mins.indices[desc_mins].detach().cpu().numpy()
+            ]
+
+        if self.feedback_request_method == 'uncertain known certain unknown':
+            # TODO prioritize most uncertain knowns and most certain knowns
+            raise NotImplementedError()
+            maxes = recogs.max(1)
+            # TODO Determine if argmax is known or unknown
+            # TODO if recognized as known, most uncertain first
+            # TODO if recognized as unknown, most certain first
+            return
+
+        raise ValueError(
+            'Unexpected feedback request method: '
+            f'{self.feedback_request_method}'
+        )
 
     def predict(self, dataset):
         if self.label_enc is None:
@@ -739,11 +793,6 @@ class GaussianRecognizer(OWHARecognizer):
                 < self._thresholds[i]
 
         return detects
-
-    def feedback_request(self):
-        """The predictor's method of requesting feedback."""
-        raise NotImplementedError()
-        #return feedback_request_state
 
     def save(self, h5, save_fine_tune=False, overwrite=False):
         """Save as an HDF5 file."""
