@@ -567,6 +567,9 @@ class KineticsUnified(torch.utils.data.Dataset):
         the DataFrame row which contains all labels.
     post_load : str = None
         A string identifier of what to do.
+    label_col : str = 'labels'
+        The str identifier for the column to use as the labels when sampling
+        from this dataset.
     """
     annotation_path : InitVar[str]
     kinetics_class_map :  InitVar[str] = None
@@ -588,6 +591,7 @@ class KineticsUnified(torch.utils.data.Dataset):
     begin_unk_idx : int = None
     return_label : InitVar[bool] = False
     post_load : InitVar[str] = None
+    label_col : str = 'labels'
 
     def __post_init__(
         self,
@@ -644,6 +648,7 @@ class KineticsUnified(torch.utils.data.Dataset):
         begin_unk_idx : see self
         return_label : see self
         post_load : see self
+        label_col : see self
         """
         logger.info(
             'Start KineticsUnified.__init__ of %s with annotation path = %s',
@@ -713,7 +718,7 @@ class KineticsUnified(torch.utils.data.Dataset):
                 # Label Config determines the data column to use for labels.
                 # This way, if any masking occurs, it does not change the
                 # source the dataframe column which can then be used for eval.
-                self.data[['labels']] = self.data[[subset.labels.name]]
+                self.data[[self.label_col]] = self.data[[subset.labels.name]]
 
                 # Mask the unknowns and unlabeled samples.
                 if subset.labels.unknown not in {None, False, True}:
@@ -721,30 +726,30 @@ class KineticsUnified(torch.utils.data.Dataset):
                     self.data.loc[
                         np.logical_or.reduce(
                             [
-                                self.data['labels'] == label
+                                self.data[self.label_col] == label
                                 for label in subset.labels.unknown
                             ],
                             axis=0,
                         ),
-                        'labels',
+                        self.label_col,
                     ] = 'unknown'
 
                 if subset.labels.unlabeled is not None: # Mask the unlabeled
                     self.data.loc[
                         np.logical_or.reduce(
                             [
-                                self.data['labels'] == label
+                                self.data[self.label_col] == label
                                 for label in subset.labels.unlabeled
                             ],
                             axis=0,
                         ),
-                        'labels',
+                        self.label_col,
                     ] = self.unlabeled_token
 
                 if isinstance(subset.labels.known, str):
                     labels = load_file_list(labels)
                 elif subset.labels.known is True: # Yes, _IS_ True.
-                    labels = self.data['labels'].unique()
+                    labels = self.data[self.label_col].unique()
                     labels.sort()
                 elif subset.labels.known is None:
                     labels = []
@@ -814,6 +819,9 @@ class KineticsUnified(torch.utils.data.Dataset):
                     f'Unexpected type sample_dirs: {type(sample_dirs)}'
                 )
 
+        # Add empty column for labels given as feedback.
+        self.data['feedback'] = None
+
         logger.info(
             'Done KineticsUnified.__init__ of %s with annotation path = %s',
             type(self),
@@ -858,7 +866,7 @@ class KineticsUnified(torch.utils.data.Dataset):
             return sample['sample_index']
         if self.label_enc:
             labels = self.label_enc.encode(
-                [sample['labels']],
+                [sample[self.label_col]],
                 one_hot=self.one_hot,
             ).squeeze()
 
@@ -873,7 +881,7 @@ class KineticsUnified(torch.utils.data.Dataset):
                         self.label_enc.unknown_idx
 
             return torch.as_tensor(labels, dtype=self.dtype)
-        return sample['labels']
+        return sample[self.label_col]
 
 
 class KineticsUnifiedFeatures(KineticsUnified):
@@ -952,7 +960,7 @@ class KineticsUnifiedFeatures(KineticsUnified):
                 return feature_extract, sample['sample_index']
             if self.label_enc:
                 labels = self.label_enc.encode(
-                    [sample['labels']],
+                    [sample[self.label_col]],
                     one_hot=self.one_hot,
                 ).squeeze()
 
@@ -971,7 +979,7 @@ class KineticsUnifiedFeatures(KineticsUnified):
 
                 return feature_extract, \
                     torch.as_tensor(labels, dtype=self.dtype)
-            return feature_extract, sample['labels']
+            return feature_extract, sample[self.label_col]
         return feature_extract
 
 
@@ -1082,7 +1090,7 @@ class KineticsUnifiedVideos(KineticsUnified):
 
             video = torch.stack(video, 0)
         if get_label:
-            sample_label = sample['labels']
+            sample_label = sample[self.label_col]
         else:
             sample_label = sample['sample_index']
 
