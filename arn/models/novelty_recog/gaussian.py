@@ -189,6 +189,8 @@ class OWHARecognizer(OWHAPredictor):
             # TODO if recognized as known, most uncertain first
             # TODO if recognized as unknown, most certain first
             return
+        elif self.feedback_request_method == 'certain unknown uncertain known':
+            raise NotImplementedError()
 
         raise ValueError(
             'Unexpected feedback request method: '
