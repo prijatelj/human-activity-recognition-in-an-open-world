@@ -223,9 +223,6 @@ class OWHAPredictor(object):
     #   samples w/o a label before fitting and then restore after.
     def feedback_request(self, available_uids=None, amount=1.0):
         """The predictor's method of requesting feedback."""
-        raise NotImplementedError()
-        #return feedback_request_state
-
         if available_uids is None:
             raise NotImplementedError('available_uids is necessary for ANNs.')
         idx = np.arange(len(available_uids))
