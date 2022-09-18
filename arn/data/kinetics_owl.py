@@ -1219,13 +1219,14 @@ class KineticsOWL(object):
                 self.feedback_amount,
                 self.increment - 1,
             )
-            new_data_splits = self.environment.feedback(new_data_splits)
-
-            # TODO cut out ammount of feedback for requested uids and w/ max
-            # allowed feedback labels this increment.
-            if self.feedback_amount:
+            if self.increment == 1:
+                # Provide full feedback on initial inc
+                new_data_splits.train.data['feedback'] \
+                    = new_data_splits.train.data['labels']
+            elif self.feedback_amount:
                 # Provide the uids the predictor may request from and amount
                 feedback_uids = self.predictor.feedback_request(
+                    torch.stack(list(new_data_splits.train)),
                     new_data_splits.train.data['sample_index'].values,
                     self.feedback_amount,
                 )
@@ -1237,6 +1238,8 @@ class KineticsOWL(object):
                 )
                 new_data_splits.train.data[feedback_mask]['feedback'] \
                     = new_data_splits.train.data[feedback_mask]['labels']
+
+            new_data_splits = self.environment.feedback(new_data_splits)
 
             logger.info(
                 "Updating with feedback (%s: %f) for step %d's data.",
@@ -1585,7 +1588,8 @@ def kinetics_owl_evm(*args, **kwargs):
     ----
     environment : see KineticsOWL
     predictor : arn.models.owhar.EVMPredictor
-    feedback : see KineticsOWL
+    feedback_type : see KineticsOWL
+    feedback_amount : see KineticsOWL
     rng_state : see KineticsOWL
     eval_on_start : see KineticsOWL
     eval_config : see KineticsOWL
@@ -1608,7 +1612,8 @@ def kinetics_owl_annevm(*args, **kwargs):
     ----
     environment : see KineticsOWL
     predictor : arn.models.owhar.ANNEVM
-    feedback : see KineticsOWL
+    feedback_type : see KineticsOWL
+    feedback_amount : see KineticsOWL
     rng_state : see KineticsOWL
     eval_on_start : see KineticsOWL
     eval_config : see KineticsOWL
@@ -1631,7 +1636,8 @@ def kinetics_owl_naive_dpgmm(*args, **kwargs):
     ----
     environment : see KineticsOWL
     predictor : arn.models.novelty_recog.naive_dpgmm.NaiveDPGMM
-    feedback : see KineticsOWL
+    feedback_type : see KineticsOWL
+    feedback_amount : see KineticsOWL
     rng_state : see KineticsOWL
     eval_on_start : see KineticsOWL
     eval_config : see KineticsOWL
@@ -1654,7 +1660,8 @@ def kinetics_owl_gauss_finch(*args, **kwargs):
     ----
     environment : see KineticsOWL
     predictor : arn.models.novelty_recog.gauss_finch.GaussFINCH
-    feedback : see KineticsOWL
+    feedback_type : see KineticsOWL
+    feedback_amount : see KineticsOWL
     rng_state : see KineticsOWL
     eval_on_start : see KineticsOWL
     eval_config : see KineticsOWL
