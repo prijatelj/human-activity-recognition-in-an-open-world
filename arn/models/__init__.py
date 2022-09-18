@@ -5,7 +5,7 @@ __all__ = [
     'augmentation',
     'feature_extraction',
     'owhar',
-    'feedback',
+    #'interpret_feedback',
     'fine_tune',
     'fine_tune_lit',
     'novelty_recog',
