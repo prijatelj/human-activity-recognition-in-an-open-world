@@ -53,9 +53,11 @@ class OWHARecognizer(OWHAPredictor):
         When True, the default, store all feature points encountered in order
         they were encountered, regardless of their data split being train,
         validate, or test. If False (TODO), only store the training points.
-    feedback_request_method : str = 'uncertain first'
-        The method used to request feedback. Defaults to 'uncertain first',
+    feedback_request_method : str = 'uncertain_first'
+        The method used to request feedback. Defaults to 'uncertain_first',
         allows also 'random'.
+
+        Note, current docstr==0.0.3rc1  splits words on space within str.
     """
     def __init__(self, **kwargs):
         """Initialize the OWHARecognizer.
@@ -67,7 +69,7 @@ class OWHARecognizer(OWHAPredictor):
         """
         self.feedback_request_method = kwargs.pop(
             'feedback_request_method',
-            'uncertain first',
+            'uncertain_first',
         )
         super().__init__(**kwargs)
         self.experience = pd.DataFrame(
@@ -149,18 +151,20 @@ class OWHARecognizer(OWHAPredictor):
                 ).convert_dtypes([int, str, str, bool])
             )
 
-    def feedback_request(self, features, available_uids=None, amount=1.0):
+    def feedback_request(self, features, available_uids, amount=1.0):
         """The predictor's method of requesting feedback.
         Args
         ----
         features : torch.Tensor
-        available_uids : list = None
+        available_uids : list
             List of uids, integers unique to the smaples for this Kinetics
             OWL experiment.
         amount : float = 1.0
             The decimal amount of feedback to be expected to be given of the
             new data for this increment.
         """
+        if self.label_enc is None:
+            raise ValueError('label enc is None. This predictor is not fit.')
         if available_uids is None:
             available_uids = self.experience[
                 self.experience['oracle']
@@ -172,16 +176,16 @@ class OWHARecognizer(OWHAPredictor):
         # Recognize w/ all knowns and unknown hierarchical
         recogs = self.recognize(features)
 
-        if self.feedback_request_method == 'uncertain first':
+        if self.feedback_request_method == 'uncertain_first':
             # Get latest uncertainty scores for recog samples, sort by
             # descending uncertainty overall, regardless of most likely class
-            mins = recogs.min(1)
-            desc_mins = torch.sort(mins.values, descending=True)
+            maxes = recogs.max(1)
+            maxes_ascend = torch.sort(maxes.values)
             return available_uids[
-                mins.indices[desc_mins].detach().cpu().numpy()
+                maxes.indices[maxes_ascend.indices].detach().cpu().numpy()
             ]
 
-        if self.feedback_request_method == 'uncertain known certain unknown':
+        if self.feedback_request_method == 'uncertain_known_certain_unknown':
             # TODO prioritize most uncertain knowns and most certain knowns
             raise NotImplementedError()
             maxes = recogs.max(1)
