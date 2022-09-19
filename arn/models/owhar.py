@@ -3,6 +3,7 @@ from datetime import datetime
 from copy import deepcopy
 import os
 
+import numpy as np
 import torch
 
 from exputils.data.labels import NominalDataEncoder
@@ -226,7 +227,7 @@ class OWHAPredictor(object):
         if available_uids is None:
             raise NotImplementedError('available_uids is necessary for ANNs.')
         idx = np.arange(len(available_uids))
-        np.random.suffle(idx)
+        np.random.shuffle(idx)
 
         return available_uids[idx]
 
