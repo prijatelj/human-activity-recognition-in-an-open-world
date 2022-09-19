@@ -783,8 +783,8 @@ class FineTuneLit(object):
             and val_dataset is not None
         ):
             targets = np.concatenate([
-                dataset.dataset.data['labels'].values,
-                val_dataset.dataset.data['labels'].values,
+                dataset.dataset.data[dataset.dataset.label_col].values,
+                val_dataset.dataset.data[val_dataset.dataset.label_col].values,
             ]).squeeze()
             preds = torch.cat([
                 self.predict(dataset),
