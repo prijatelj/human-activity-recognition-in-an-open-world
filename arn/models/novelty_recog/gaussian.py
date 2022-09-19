@@ -602,11 +602,18 @@ class GaussianRecognizer(OWHARecognizer):
 
         # Fit a Gaussian per known class, starts at 1 to ignore unknown class.
         # TODO this causses an issue by forgetting the recognized unknowns
+        # TODO This could made efficient by skipping knowns w/o any data changes
         self._gaussians = []
         thresholds = []
         for label in list(self.label_enc.inv)[self.label_enc.unknown_idx + 1:]:
             mask = labels == torch.tensor(label)
             if not mask.any():
+                logger.warning(
+                    '%s has known class %s (idx %d) with no samples in fit()',
+                    type(self).__name__,
+                    self.label_enc.inv[label],
+                    label,
+                )
                 continue
 
             class_features = features[mask].to(device, self.dtype)
