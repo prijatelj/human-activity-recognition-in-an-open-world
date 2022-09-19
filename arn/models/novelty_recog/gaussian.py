@@ -553,12 +553,13 @@ class GaussianRecognizer(OWHARecognizer):
                 self.experience['uid'][mask]
             ]
 
-            # NOTE For each uniquely removed labeled recog sample,  check if
+            # NOTE For each uniquely removed labeled recog sample, check if
             # that recognized cluster still has enough samples, if yes keep
             # else set to all unknown. Rm recog labels set to unknowns.
             if self.recog_label_enc:
-                changed_recog_labels = set(self.recog_label_enc) \
-                    & exp_unique_labels
+                # The the recog labels changed:
+                changed_recog_labels = set(self.recog_label_enc) #\
+                    #& exp_unique_labels
                 for exp_label in changed_recog_labels:
                     mask = self.experience['labels'] == exp_label
                     if sum(mask) < self.min_samples:
@@ -724,7 +725,6 @@ class GaussianRecognizer(OWHARecognizer):
                 f'recog_chkpt-{type(self).__name__}',
                 f'{self.uid}-{self.increment}.h5',
             ))
-
 
         # TODO Should fit on the soft labels (output of recognize) for
         # unlabeled data. That way some semblence of info from the recog goes
