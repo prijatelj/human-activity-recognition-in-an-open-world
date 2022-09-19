@@ -563,6 +563,9 @@ class EvalDataSplitConfig(NamedTuple):
             label_enc = data_split.label_enc
         else:
             label_enc = deepcopy(predictor.label_enc)
+            # TODO If these are changing cuz new unknown_# from recognize_fit()
+            # then the state needs updated correctly after recognize_fit()! The
+            # unknown_# would be misaligned i believe.
             n_recogs_in_pred = preds.shape[-1] - predictor.n_known_labels
             n_recogs = predictor.n_recog_labels
             if n_recogs_in_pred < n_recogs:
