@@ -4,4 +4,4 @@ exputils>=0.1.4
 torchsummary>=1.5.1
 tqdm>=4.62.2
 h5py>=2.8.0
-pandas>=1.3.3
+pandas>=1.4.4
