@@ -567,12 +567,16 @@ class EvalDataSplitConfig(NamedTuple):
             n_recogs = predictor.n_recog_labels
             if n_recogs_in_pred < n_recogs:
                 logger.warning(
-                    'n_recogs_in_pred < n_recogs: %d < %d. When the predictor '
+                    'n_recogs_in_pred < n_recogs: %d < %d. '
+                    'preds.shape[-1] = %d ; predictor.n_known_labels = %d '
+                    'When the predictor '
                     'is given, then the label encoder used is the  '
                     "predictor's label encoder and this was not caught by the "
                     'predictor itself. Beware this may indicate an issue in '
                     'class alignment of preds.',
                     n_recogs_in_pred,
+                    n_recogs,
+                    preds.shape[-1],
                     predictor.n_known_labels
                 )
                 # Update end of preds
