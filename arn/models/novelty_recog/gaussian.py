@@ -551,7 +551,7 @@ class GaussianRecognizer(OWHARecognizer):
             self.experience.loc[mask, 'labels'] = \
                 dataset.data[dataset.label_col].loc[
                 self.experience['uid'][mask]
-            ]
+            ].convert_dtypes(str)
 
             # NOTE For each uniquely removed labeled recog sample, check if
             # that recognized cluster still has enough samples, if yes keep
