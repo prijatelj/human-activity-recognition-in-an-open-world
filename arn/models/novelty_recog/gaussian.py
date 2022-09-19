@@ -562,7 +562,10 @@ class GaussianRecognizer(OWHARecognizer):
                     #& exp_unique_labels
                 for exp_label in changed_recog_labels:
                     mask = self.experience['labels'] == exp_label
-                    if sum(mask) < self.min_samples:
+                    # TODO sum(mask) only errored out at end, so it was NEVER
+                    # called in the prior 19 steps for sims???? That has to be
+                    # part of the recog label amount discrepency error.
+                    if np.sum(mask) < self.min_samples:
                         self.experience.loc[mask, 'labels'] = \
                             self.label_enc.unknown_key
                         idx = self.recog_label_enc.pop(exp_label)
