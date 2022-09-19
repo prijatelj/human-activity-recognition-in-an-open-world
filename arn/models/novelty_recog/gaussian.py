@@ -142,7 +142,7 @@ class OWHARecognizer(OWHAPredictor):
                         [
                             dataset.data['sample_index'][unseen_mask],
                             dataset.data[unseen_mask]['sample_path'],
-                            dataset.data[unseen_mask]['labels'],
+                            dataset.data[unseen_mask][dataset.label_col],
                             [True] * len(unseen_mask),
                         ],
                         axis=1,
@@ -166,6 +166,7 @@ class OWHARecognizer(OWHAPredictor):
         if self.label_enc is None:
             raise ValueError('label enc is None. This predictor is not fit.')
         if available_uids is None:
+            raise ValueError('Must be given available_uids')
             available_uids = self.experience[
                 self.experience['oracle']
             ]['uid'].values
@@ -181,9 +182,7 @@ class OWHARecognizer(OWHAPredictor):
             # descending uncertainty overall, regardless of most likely class
             maxes = recogs.max(1)
             maxes_ascend = torch.sort(maxes.values)
-            return available_uids[
-                maxes.indices[maxes_ascend.indices].detach().cpu().numpy()
-            ]
+            return available_uids[maxes_ascend.indices.detach().cpu().numpy()]
 
         if self.feedback_request_method == 'uncertain_known_certain_unknown':
             # TODO prioritize most uncertain knowns and most certain knowns
@@ -193,7 +192,8 @@ class OWHARecognizer(OWHAPredictor):
             # TODO if recognized as known, most uncertain first
             # TODO if recognized as unknown, most certain first
             return
-        elif self.feedback_request_method == 'certain unknown uncertain known':
+
+        if self.feedback_request_method == 'certain_unknown_uncertain_known':
             raise NotImplementedError()
 
         raise ValueError(
@@ -545,10 +545,11 @@ class GaussianRecognizer(OWHARecognizer):
         if len(self.experience) > 0:
             # Given dataset, rm any samples in
             mask = self.experience['uid'].isin(dataset.data['sample_index'])
-            self.experience['oracle'][mask] = True
+            self.experience.loc[mask, 'oracle'] = True
             exp_unique_labels = set(self.experience[mask]['labels'].unique())
 
-            self.experience['labels'][mask] = dataset.data['labels'].loc[
+            self.experience.loc[mask, 'labels'] = \
+                dataset.data[dataset.label_col].loc[
                 self.experience['uid'][mask]
             ]
 
@@ -561,7 +562,7 @@ class GaussianRecognizer(OWHARecognizer):
                 for exp_label in changed_recog_labels:
                     mask = self.experience['labels'] == exp_label
                     if sum(mask) < self.min_samples:
-                        self.experience[mask]['labels'] = \
+                        self.experience.loc[mask, 'labels'] = \
                             self.label_enc.unknown_key
                         idx = self.recog_label_enc.pop(exp_label)
                         if isinstance(self._recog_weights, list):
