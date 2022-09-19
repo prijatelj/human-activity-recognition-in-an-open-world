@@ -1025,6 +1025,7 @@ class DataSplits:
         if not inplace:
             return DataSplits(*splits)
 
+
 class KineticsOWL(object):
     """Kinetics Open World Learning Pipeline for incremental recognition.
     This is the class that contains all other objects to run an experiment
@@ -1195,13 +1196,6 @@ class KineticsOWL(object):
                 #    else self.predictor.extract_predict,
                 f'{eval_prefix}_new-data_predict',
             )
-            """ TODO Novelty Detect
-            self.eval_config.eval(
-                new_data_splits,
-                self.predictor.novelty_detect,
-                f'step-{self.increment}_new-data_novelty-detect',
-            )
-            #"""
             # NOTE novelty detect task is based on the NominalDataEncoder for
             # the current time step as it knows when something is a known or
             # unknown class at the current time step.
@@ -1223,21 +1217,24 @@ class KineticsOWL(object):
                 # Provide full feedback on initial inc
                 new_data_splits.train.data['feedback'] \
                     = new_data_splits.train.data['labels']
-            elif self.feedback_amount:
+            elif self.feedback_amount > 0:
                 # Provide the uids the predictor may request from and amount
                 feedback_uids = self.predictor.feedback_request(
                     torch.stack(list(new_data_splits.train)),
                     new_data_splits.train.data['sample_index'].values,
                     self.feedback_amount,
                 )
+                logger.debug('feedback_uids = %s', feedback_uids)
                 feedback_mask = \
                     new_data_splits.train.data['sample_index'].isin(
                     feedback_uids[:int(np.floor(
                         self.feedback_amount * len(new_data_splits.train)
                     ))]
                 )
-                new_data_splits.train.data[feedback_mask]['feedback'] \
-                    = new_data_splits.train.data[feedback_mask]['labels']
+                new_data_splits.train.data.loc[feedback_mask, 'feedback'] \
+                    = new_data_splits.train.data.loc[feedback_mask, 'labels']
+                logger.info('sum(feedback_mask) = %d', sum(feedback_mask))
+                logger.debug('feedback_mask = %s', feedback_mask)
 
             new_data_splits = self.environment.feedback(new_data_splits)
 
@@ -1517,6 +1514,7 @@ class KineticsOWLExperiment(object):
                     known_label_enc,
                     seed=seed + i,
                     intro_freq_first=intro_freq_first,
+                    #label_col=step.label_col,
                 )
 
     @property
