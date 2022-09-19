@@ -121,8 +121,9 @@ class GaussFINCH(GaussianRecognizer):
         for i in range(n_clusters):
             cluster_mask = recog_labels == i
             logger.debug(
-                "%s's potential class has %d samples.",
+                "%s's %d-th potential class has %d samples.",
                 type(self).__name__,
+                i,
                 sum(cluster_mask),
             )
             if self.min_samples:
