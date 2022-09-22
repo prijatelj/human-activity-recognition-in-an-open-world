@@ -826,7 +826,7 @@ class EvalConfig:
     def __bool__(self):
         return self.train or self.validate or self.test
 
-    def eval(self, data_splits, predictor, prefix=None):
+    def eval(self, data_splits, predictor, prefix=None, experience=None):
         """Given the datasplits, performs the predictions and evaluations to
         be saved.
 
@@ -859,7 +859,10 @@ class EvalConfig:
                 reset_return_label = dsplit.return_label
                 if dsplit.return_label:
                     dsplit.return_label = False
-                preds = predictor.predict(dsplit)
+                if experience:
+                    preds = predictor.predict(dsplit, experience)
+                else:
+                    preds = predictor.predict(dsplit)
                 prefix_dir = os.path.join(prefix, name)
 
                 # Optionally obtain and save feature extractions of ANN
@@ -1204,6 +1207,7 @@ class KineticsOWL(object):
                 #    if not self.eval_config.save_features
                 #    else self.predictor.extract_predict,
                 f'{eval_prefix}_new-data_predict',
+                experience=self.experience,
             )
             # NOTE novelty detect task is based on the NominalDataEncoder for
             # the current time step as it knows when something is a known or
@@ -1279,7 +1283,7 @@ class KineticsOWL(object):
                 # This needs fixed!!!
 
 
-                if feedback_amount > 0:
+                if self.feedback_amount > 0:
                     # 4. Opt. Predictor Update/train on new data w/ feedback
                     label_col = self.experience.train.label_col
                     self.experience.train.label_col = 'feedback'
@@ -1310,6 +1314,7 @@ class KineticsOWL(object):
                 #    if not self.eval_config.save_features
                 #    else self.predictor.extract_predict,
                 f'{eval_prefix}_post-feedback_predict',
+                experience=self.experience,
             )
 
         # NOTE 6. Opt. Evaluate the updated predictor on entire experience
