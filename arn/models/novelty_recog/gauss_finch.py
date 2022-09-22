@@ -1,4 +1,6 @@
 """Naive DPGMM version of GaussianRecognizer."""
+from copy import deepcopy
+
 import numpy as np
 from sklearn.mixture import BayesianGaussianMixture
 import torch
@@ -53,8 +55,7 @@ class GaussFINCH(GaussianRecognizer):
             2 dimensional float tensor of shape (samples, feature_repr_dims)
             that are the features of points treated as outliers.
         **kwargs : dict
-            Key word arguments for the Dirichlet Process Gaussian Mixture Model
-            as implemented in scikit-learn as the BayesianGaussianMixture.
+            Key word arguments for FINCH for detecting clusters.
 
         Side Effects
         ------------
@@ -108,8 +109,8 @@ class GaussFINCH(GaussianRecognizer):
         if n_clusters <= 1 or n_clusters < self.min_samples:
             # No recognized unknown classes.
             return
-        if self.recog_label_enc is None:
-            self.recog_label_enc = NominalDataEncoder()
+        #if self.recog_label_enc is None:
+        self.recog_label_enc = NominalDataEncoder()
 
         # Numerical stability adjustment for the sample covariance's diagonal
         stability_adjust = self.cov_epsilon * torch.eye(
@@ -163,5 +164,10 @@ class GaussFINCH(GaussianRecognizer):
         # Save the normalized belief of the unknowns
         #self._recog_weights = dpgmm.weights_[argsorted_weights]
 
+        # TODO rm old unknown classes, replacing with current ones as this is
+        # always called to redo the unknown class-clusters on ALL currently
+        # unlabeled data deemed unknown.
+
         # Update label_enc to include the recog_label_enc at the end.
-        self.label_enc.append(self.recog_label_enc, ignore_dups=True)
+        self.label_enc = deepcopy(self.known_label_enc)
+        self.label_enc.append(self.recog_label_enc)
