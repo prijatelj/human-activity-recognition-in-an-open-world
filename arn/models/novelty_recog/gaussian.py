@@ -131,10 +131,6 @@ class OWHARecognizer(OWHAPredictor):
                 self.experience['uid']
             ).values
 
-        # TODO NOTE! you may run into the issue where val / test indices as
-        # uid's are encountered and are not unique to the train sample indices.
-        # Need to test this!
-
         if any(unseen_mask):
             self.experience = self.experience.append(
                 pd.DataFrame(
@@ -227,10 +223,6 @@ class OWHARecognizer(OWHAPredictor):
                 self.experience['uid']
             ).values
 
-        # TODO NOTE! you may run into the issue where val / test indices as
-        # uid's are encountered and are not unique to the train sample indices.
-        # Need to test this!
-
         # NOTE DPGMM fitting and clustering takes too long! Use detect to cull.
         if any(unseen_mask):
             features = torch.stack([
@@ -238,6 +230,11 @@ class OWHARecognizer(OWHAPredictor):
             ]).to(self.device)
             detects = self.detect(features)
             if detects.any() and detects.sum() >= self.min_samples:
+
+                # TODO use unseen_mask to add to predictor experience
+                # TODO use oracle == False to recognize_fit on the unlabeled
+                # data.
+
                 self.recognize_fit(features[detects])
 
         preds = F.pad(
