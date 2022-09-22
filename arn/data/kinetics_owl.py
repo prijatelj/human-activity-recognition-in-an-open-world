@@ -572,6 +572,7 @@ class EvalDataSplitConfig(NamedTuple):
                 logger.warning(
                     'n_recogs_in_pred < n_recogs: %d < %d. '
                     'preds.shape[-1] = %d ; predictor.n_known_labels = %d '
+                    'predictor.n_labels = %d '
                     'When the predictor '
                     'is given, then the label encoder used is the  '
                     "predictor's label encoder and this was not caught by the "
@@ -580,7 +581,8 @@ class EvalDataSplitConfig(NamedTuple):
                     n_recogs_in_pred,
                     n_recogs,
                     preds.shape[-1],
-                    predictor.n_known_labels
+                    predictor.n_known_labels,
+                    predictor.n_labels,
                 )
                 # Update end of preds
                 pad_widths = [(0, 0)] * len(preds.shape)
