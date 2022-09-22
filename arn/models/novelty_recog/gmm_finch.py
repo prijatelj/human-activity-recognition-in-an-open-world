@@ -7,11 +7,12 @@ weighted by their mixture probabilities.
 
 def recognize_fit(
     class_name,
-   features,
-   threshold_method='credible_ellipse',
-   allowed_error=1e-5,
-   max_likely_gmms=False,
-   **kwargs,
+    features,
+    counter=0,
+    threshold_method='credible_ellipse',
+    allowed_error=1e-5,
+    max_likely_gmms=False,
+    **kwargs,
 ):
     """For a single class' features, fit a Gaussian Mixture Model to it using
     the clusters found by FINCH.
@@ -44,5 +45,5 @@ def recognize_fit(
     raise NotImplementedError
 
 
-#class GMMFINCH():
+#class GMMFINCH(OWHARecognizer):
 #    """Gaussian Mixture Model per class using FINCH to find the components."""
