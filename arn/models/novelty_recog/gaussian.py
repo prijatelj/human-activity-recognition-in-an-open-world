@@ -272,6 +272,14 @@ class OWHARecognizer(OWHAPredictor):
                         features = torch.stack([features, exp_features])
                 self.recognize_fit(features)
 
+                # TODO must update internal experience given the change in
+                # unknowns
+                # TODO update internal experience with the new unknowns
+                # clusters.  self.recognize(features).argmax(1) align the
+                # features to their corresponding experience uid.  which you
+                # cannot here given that info is not available
+
+
         # Adds a zero for unknown general class at beginning.
         preds = F.pad(
             self.recognize(torch.stack(list(dataset)).to(self.device)),
@@ -711,7 +719,7 @@ class GaussianRecognizer(OWHARecognizer):
                 'Checking if to recognize in fit: '
                 'len(self.experience) = %d; len(self.recog_label_enc) = %d',
                 len(self.experience),
-                len(self.recog_label_enc),
+                self.n_recog_labels,
             )
 
             # Update all unknowns, refitting the DPGMM entirely.
@@ -719,6 +727,14 @@ class GaussianRecognizer(OWHARecognizer):
             detects = self.detect(features)
             if detects.any() and detects.sum() >= self.min_samples:
                 self.recognize_fit(features[detects])
+
+            # TODO update experience with detects as unknown otherwise w/ new
+            # recognized labels. Update to experience occurs in parent.fit(),
+            # but detects will NEVER be set, only recognized unknowns.
+            # Depending on desired functionality this may be fine, but if you
+            # expect to be recording outliers as unknown then this needs
+            # changed in parent fit or somehow informed by detects here.
+
         else:
             logger.debug('No recognize fit in fit()')
 
