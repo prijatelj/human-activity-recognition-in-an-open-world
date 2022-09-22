@@ -47,8 +47,9 @@ class OWHARecognizer(OWHAPredictor):
         if the label is provided from the oracle, otherwise is a float value
         between [0, 1] indicating the recognition probability for that class
         versus all other known classes.
+    known_label_enc : NominalDataEncoder = None
     recog_label_enc : NominalDataEncoder = None
-    label_enc : NominalDataEncoder
+    label_enc : NominalDataEncoder = None
     store_all : bool = True
         When True, the default, store all feature points encountered in order
         they were encountered, regardless of their data split being train,
@@ -77,16 +78,23 @@ class OWHARecognizer(OWHAPredictor):
             columns=['uid', 'sample_path', 'labels', 'oracle'],
         ).convert_dtypes([int, str, str, bool])
         self.recog_label_enc = None
+        self.known_label_enc = None
         self.label_enc = None
 
     @property
     def n_recog_labels(self):
+        """The number of labels in recog_label_enc."""
         return 0 if self.recog_label_enc is None else len(self.recog_label_enc)
 
     @property
     def n_known_labels(self):
-        all_labels = 0 if self.label_enc is None else len(self.label_enc)
-        return  all_labels - self.n_recog_labels
+        """The number of labels in known_label_enc."""
+        return 0 if self.known_label_enc is None else len(self.known_label_enc)
+
+    @property
+    def n_labels(self):
+        """The number of labels in label_enc."""
+        return 0 if self.label_enc is None else len(self.label_enc)
 
     def fit(self, dataset, val_dataset=None):
         """Inheritting classes must handle experience maintence."""
@@ -197,7 +205,7 @@ class OWHARecognizer(OWHAPredictor):
             f'{self.feedback_request_method}'
         )
 
-    def predict(self, dataset):
+    def predict(self, dataset, experience=None):
         if self.label_enc is None:
             raise ValueError('label enc is None. This predictor is not fit.')
         # TODO Consider fitting DPGMM on extracts in future, instead of frepr
@@ -228,15 +236,43 @@ class OWHARecognizer(OWHAPredictor):
             features = torch.stack([
                 dataset[i] for i, val in enumerate(unseen_mask) if val
             ]).to(self.device)
+
             detects = self.detect(features)
+
             if detects.any() and detects.sum() >= self.min_samples:
+                features = features[detects]
+                if experience:
+                    # Get the experience features of orcale == False and
+                    # unknown predictions to be added to the detected here as
+                    # all unknowns/unlabeled should be fit together
+                    unlabeled = self.experience[~self.experience['oracle']]
+                    unks = ['unknown']
+                    if self.recog_label_enc is not None:
+                        unks += list(self.recog_label_enc)
+                    unknowns = unlabeled[unlabeled['labels'].isin(unks)]
 
-                # TODO use unseen_mask to add to predictor experience
-                # TODO use oracle == False to recognize_fit on the unlabeled
-                # data.
+                    # Get the features for unknowns w/in given experience
+                    unk_mask = experience.train.data['sample_index'].isin(
+                        unknowns['uid'],
+                    )
 
-                self.recognize_fit(features[detects])
+                    if np.any(unk_mask):
+                        # Relies on sample_idx being the experience index.
+                        assert all(
+                            experience.train.data[unk_mask]['sample_index']
+                            == experience.train.data[unk_mask].index
+                        )
 
+                        exp_features = torch.stack([
+                            experience.train.data[i] for i
+                            in experience.train.data[unk_mask]['sample_index']
+                        ]).to(self.device)
+
+                        # Append the experienced unknowns to detected unknowns
+                        features = torch.stack([features, exp_features])
+                self.recognize_fit(features)
+
+        # Adds a zero for unknown general class at beginning.
         preds = F.pad(
             self.recognize(torch.stack(list(dataset)).to(self.device)),
             (1, 0),
@@ -268,47 +304,10 @@ class OWHARecognizer(OWHAPredictor):
         # samples.... though it can. and currently as written does.
         #   Fix is to ... uh. just pass a flag if eval XOR fit
 
-        return preds
-
-
-        detected_novelty = self.detect(features, preds=preds) \
-            == self.label_enc.unknown_idx
-
-        # If new recogs were added before a call to fit, which adds them into
-        # the predictor's output space, then append zeros to that space.
-        n_recogs_in_preds = preds.shape[-1] - self.n_known_labels
-        n_recogs = self.n_recog_labels
-        if n_recogs_in_preds < n_recogs:
-            preds = F.pad(
-                preds,
-                (0, n_recogs - n_recogs_in_preds),
-                'constant',
-                0,
-            )
-
-        total_detected = detected_novelty.sum()
-        logger.debug('Detected %d novel/unknown samples.', total_detected)
-
-        if detected_novelty.any() and total_detected > self.min_samples:
-            recogs = self.recognize(features[detected_novelty])
-
-            # Add new recognized class-clusters to output vector dim
-            if recogs is not None:
-                # Add general unknown class placeholder as zero
-                recogs = F.pad(recogs, (1, 0), 'constant', 0)
-
-                # Increase all of preds' vector sizes, filling with zeros
-                preds = F.pad(
-                    preds,
-                    (0, recogs.shape[-1] - preds.shape[-1]),
-                    'constant',
-                    0,
-                )
-
-                # Fill in the detected novelty with their respective prob vecs
-                # and weigh recogs by the prob of unknown, and set unknown to
-                # zero
-                preds[detected_novelty] = recogs.to(preds.device, preds.dtype)
+        #   NOTE If experience is never given w/ all train, val, and test, then
+        #   it only ever uses train, unless otherwise specified.  For example,
+        #   in fit() it only uses the train data. Keeping that trend w/in
+        #   predict as well for now.
 
         return preds
 
@@ -569,7 +568,14 @@ class GaussianRecognizer(OWHARecognizer):
                         if isinstance(self._recog_weights, list):
                             del self._recog_weights[idx]
 
+
+
+        # TODO the predictor is still given all labels in train even if it does
+        # not recieve samples for an unknown label in train!  This needs
+        # fixed!!!
+
         # Update the predictor's label encoder with new knowns
+        self.known_label_enc = deepcopy(dataset.label_enc)
         self.label_enc = deepcopy(dataset.label_enc)
         if self.recog_label_enc:
             # Keeping the recognized labels at the end.
@@ -837,6 +843,9 @@ class GaussianRecognizer(OWHARecognizer):
             h5.attrs[key] = val
 
         h5['label_enc'] = np.array(self.label_enc).astype(np.string_)
+        h5['known_label_enc'] = np.array(
+            self.known_label_enc
+        ).astype(np.string_)
         h5['recog_label_enc'] = np.array(
             self.recog_label_enc
         ).astype(np.string_)
@@ -887,6 +896,10 @@ class GaussianRecognizer(OWHARecognizer):
 
         loaded.label_enc = NominalDataEncoder(
             np.array(h5['label_enc'], dtype=str),
+            unknown_idx=0,
+        )
+        loaded.known_label_enc = NominalDataEncoder(
+            np.array(h5['known_label_enc'], dtype=str),
             unknown_idx=0,
         )
 
