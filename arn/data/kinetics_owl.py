@@ -1201,6 +1201,8 @@ class KineticsOWL(object):
                 "Eval for new data, no feedback, for step %d.",
                 self.increment - 1,
             )
+            if self.experience:
+                self.experience.train.return_label = False
             self.eval_config.eval(
                 new_data_splits,
                 self.predictor,
@@ -1209,6 +1211,8 @@ class KineticsOWL(object):
                 f'{eval_prefix}_new-data_predict',
                 experience=self.experience,
             )
+            if self.experience:
+                self.experience.train.return_label = True
             # NOTE novelty detect task is based on the NominalDataEncoder for
             # the current time step as it knows when something is a known or
             # unknown class at the current time step.
@@ -1277,21 +1281,24 @@ class KineticsOWL(object):
                         len(self.experience.test),
                 )
 
-
-                # TODO the predictor is still given all labels in train even if
+# TODO the predictor is still given all labels in train even if
                 # it does not recieve samples for an unknown label in train!
                 # This needs fixed!!!
 
 
                 if self.feedback_amount > 0:
                     # 4. Opt. Predictor Update/train on new data w/ feedback
-                    label_col = self.experience.train.label_col
+                    #label_col = self.experience.train.label_col
                     self.experience.train.label_col = 'feedback'
+                    if self.experience.validate is not None:
+                        self.experience.validate.label_col = 'feedback'
+                    if self.experience.test is not None:
+                        self.experience.validate.label_col = 'feedback'
                     self.predictor.fit(
                         self.experience.train,
                         self.experience.validate,
                     )
-                    self.experience.train.label_col = label_col
+                    #self.experience.train.label_col = label_col
             elif feedback_amount > 0:
                 label_col = new_data_splits.train.label_col
                 new_data_splits.train.label_col = 'feedback'
@@ -1307,6 +1314,8 @@ class KineticsOWL(object):
                 self.feedback_amount,
                 self.increment - 1,
             )
+            if self.experience:
+                self.experience.train.return_label = False
             # 5. Opt. Predictor eval post update
             self.post_feedback_eval_config.eval(
                 new_data_splits,
@@ -1316,6 +1325,8 @@ class KineticsOWL(object):
                 f'{eval_prefix}_post-feedback_predict',
                 experience=self.experience,
             )
+            if self.experience:
+                self.experience.train.return_label = True
 
         # NOTE 6. Opt. Evaluate the updated predictor on entire experience
 
