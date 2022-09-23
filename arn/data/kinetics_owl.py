@@ -1281,12 +1281,12 @@ class KineticsOWL(object):
                         len(self.experience.test),
                 )
 
-# TODO the predictor is still given all labels in train even if
+                # TODO the predictor is still given all labels in train even if
                 # it does not recieve samples for an unknown label in train!
                 # This needs fixed!!!
 
 
-                if self.feedback_amount > 0:
+                if self.increment == 1 or self.feedback_amount > 0:
                     # 4. Opt. Predictor Update/train on new data w/ feedback
                     #label_col = self.experience.train.label_col
                     self.experience.train.label_col = 'feedback'
@@ -1299,7 +1299,7 @@ class KineticsOWL(object):
                         self.experience.validate,
                     )
                     #self.experience.train.label_col = label_col
-            elif feedback_amount > 0:
+            elif self.increment == 1 or self.feedback_amount > 0:
                 label_col = new_data_splits.train.label_col
                 new_data_splits.train.label_col = 'feedback'
                 self.predictor.fit(
