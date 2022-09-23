@@ -114,8 +114,8 @@ class GaussFINCH(GaussianRecognizer):
         # always called to redo the unknown class-clusters on ALL currently
         # unlabeled data deemed unknown.
         #if self.recog_label_enc is None:
-        self._gaussians = self._gaussians[:self.n_known_labels]
-        self._thresholds = self._thresholds[:self.n_known_labels]
+        self._gaussians = self._gaussians[:self.n_known_labels - 1]
+        self._thresholds = self._thresholds[:self.n_known_labels - 1]
         self.recog_label_enc = NominalDataEncoder()
 
         # Numerical stability adjustment for the sample covariance's diagonal
