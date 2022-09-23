@@ -208,9 +208,8 @@ class OWHARecognizer(OWHAPredictor):
     def predict(self, dataset, experience=None):
         if self.label_enc is None:
             raise ValueError('label enc is None. This predictor is not fit.')
-        # TODO Consider fitting DPGMM on extracts in future, instead of frepr
+        # NOTE Consider fitting DPGMM on extracts in future, instead of frepr
         #preds, features = super().predict_extract(dataset)
-
 
         # 1. preds, features = predict_extract(dataset) (or not if frepr)
         # 2. recognize_fit(dataset) if any _new_ experienced data
@@ -231,6 +230,7 @@ class OWHARecognizer(OWHAPredictor):
 
         # NOTE DPGMM fitting and clustering takes too long! Use detect to cull.
         if any(unseen_mask):
+            # If any unseen, perform detection. If detets, then recognize_fit()
             features = torch.stack([
                 dataset[i] for i, val in enumerate(unseen_mask) if val
             ]).to(self.device)
@@ -271,6 +271,8 @@ class OWHARecognizer(OWHAPredictor):
                         # Append the experienced unknowns to detected unknowns
                         features = torch.stack([features, exp_features])
                 self.recognize_fit(features)
+        else:
+            update_detects = False
 
         # Adds a zero for unknown general class at beginning.
         #preds = F.pad(
@@ -285,73 +287,51 @@ class OWHARecognizer(OWHAPredictor):
         )
 
         if update_detects:
-            # TODO must update internal experience given the change in
-            # unknowns from call to self.recognize_fit()
-            # TODO update internal experience with the new unknowns
-            # clusters.  self.recognize(features).argmax(1) align the
-            # features to their corresponding experience uid.  which you
-            # cannot here given that info is not available
-            #self.experience
+            # Update internal experience with the change in unknowns clusters
+            # from call to self.recognize_fit().
+            # Align the features to their corresponding experience uid
 
-            pred_labels = self.known_label_enc.decode(preds.argmax(1))
-            uids = dataset.data[
-                pred_labels == self.known_label_enc.unknown_key
-            ]['sample_index']
+            # if _not_ oracle in self.experience, then update label.
+            not_oracle_mask = ~self.experience['oracle']
+            seen_no_oracle = self.experience[not_oracle_mask]
 
-            # if _not_ oracle, then update label.
-            # run on experience features, this would cover all seen & not
-            # oracle features in current dataset too.
-            seen_no_oracle = self.experience[~self.experience['oracle']]
-            exp_features = torch.stack(
-                [experience.train.data[i] for i in
-                    np.arange(len(experience.train))[
-                        experience.train.data['sample_index'].isin(
-                        seen_no_oracle['uid']
-                    )]
-                ],
-                dim=1,
-            )
+            # Get dataset indices to use, get the pre-calced preds from above
+            dset_idx = np.arange(len(dataset))[
+                dataset.data['sample_index'].isin(seen_no_oracle['uid'])
+            ]
+            if len(dset_idx) > 0: # seen and not oracle: so update from dset
+                dset_uids = dataset.data.iloc[dset_idx]['sample_index']
+                exp_mask = self.experience[not_oracle_mask].isin(dset_uids)
+                exp_loc = self.experience[exp_mask].index
+                self.experience.loc[exp_loc, 'labels'] = self.label_enc.decode(
+                    preds[dset_idx].argmax(1).detach().cpu().numpy()
+                )
+                # rm dset_uids from not_oracle_mask and seen_no_oracle
+                not_oracle_mask &= ~exp_mask
+                seen_no_oracle = self.experience[not_oracle_mask]
 
+            # Update the labels of seen and not oracle and not in dset
+            if any(not_oracle_mask):
+                exp_repred = []
+                # Go from exp features iloc to exp df loc
+                exp_features_map_exp_df = {}
+                for i, exp_row in experience.train.data.iterrows():
+                    if exp_row['sample_index'] in seen_no_oracle['uid']:
+                        exp_repred.append(experience.train.data[i])
+                        exp_features_map_exp_df[i] = seen_no_oracle.index
 
+                exp_repred = self.label_enc.decode(
+                    self.recognize(
+                        torch.stack(exp_repred, dim=1),
+                        detect=True,
+                    ).argmax(1).detach().cpu().numpy()
+                )
 
-            # TODO index only messes up when dataset expects iloc, not loc!
-            # Use nonzero to get the actual iloc index for the dataset.  You
-            # need to fix this elsewhere, cuz you definitely used sample_index
-            # or .index when you need to use np.nonzero.
+                for key, val in exp_features_map_exp_df.items():
+                    self.experience.loc[val, 'labels'] = exp_repred[key]
 
-
-
-
-            # Can rm those, then re-add them.
-
-            # For all uids in pred, update its label
-            seen_uids = dataset.data[~unseen_mask]['sample_index']
-            seen_no_oracle = self.experience['uid'].isin(seen_uids) \
-                & ~self.experience['oracle']
-            self.experience.drop(
-                index=self.experience[seen_no_oracle].index,
-                inplace=True,
-            )
-            seen_no_oracle = dataset.data['sample_index'].isin(seen_uids)
-            self.experience = self.experience.append(
-                pd.DataFrame(
-                    np.stack(
-                        [
-                            dataset.data['sample_index'][~unseen_mask],
-                            dataset.data[~unseen_mask]['sample_path'],
-                            self.label_enc.decode(
-                                preds[~unseen_mask].argmax(
-                                    1,
-                                ).detach().cpu().numpy()
-                            ),
-                            [False] * len(~unseen_mask),
-                        ],
-                        axis=1,
-                    ),
-                    columns=self.experience.columns,
-                ).convert_dtypes([int, str, str, bool])
-            )
         if any(unseen_mask):
+            # Add any unseen features in dataset to experience w/ predictions
             self.experience = self.experience.append(
                 pd.DataFrame(
                     np.stack(
@@ -374,8 +354,7 @@ class OWHARecognizer(OWHAPredictor):
         # TODO also, i suppose the predictor should not hold onto val/test
         # samples.... though it can. and currently as written does.
         #   Fix is to ... uh. just pass a flag if eval XOR fit
-
-        #   NOTE If experience is never given w/ all train, val, and test, then
+        # NOTE If experience is never given w/ all train, val, and test, then
         #   it only ever uses train, unless otherwise specified.  For example,
         #   in fit() it only uses the train data. Keeping that trend w/in
         #   predict as well for now.
@@ -387,7 +366,7 @@ class OWHARecognizer(OWHAPredictor):
         raise NotImplementedError('Inheriting class overrides this.')
 
     @abstractmethod
-    def recognize(self, features):
+    def recognize(self, features, *args, **kwargs):
         raise NotImplementedError('Inheriting class overrides this.')
 
     @abstractmethod
