@@ -288,6 +288,13 @@ class OWHARecognizer(OWHAPredictor):
             0,
         )
 
+
+        # TODO here, can do recognize w/ thresholds on ALL mvns to detect
+        # general unknown. Should be done in case there are any detected
+        # unknowns but no recog_label_enc, also then have unknowns in
+        # experience
+
+
         if any(unseen_mask):
             self.experience = self.experience.append(
                 pd.DataFrame(
