@@ -647,6 +647,9 @@ class GaussianRecognizer(OWHARecognizer):
             if new_known in unique_dset_feedback_labels:
                 new_knowns.append(new_known)
         # TODO Ensure OrderedConfusionMAtrices and CMs handle label alignment
+        # Ensure that all decoding of predictors' encodings uses predictor's
+        # label_enc, and the data uses the datasets label_enc, as written right
+        # now, they will have label misalignment with partial feedback.
 
         #self.known_label_enc = deepcopy(dataset.label_enc)
         self.known_label_enc.append(new_known)
@@ -686,6 +689,7 @@ class GaussianRecognizer(OWHARecognizer):
         # Fit the Gaussians and thresholds per class-cluster. in F.Repr. space
         features = []
         labels = []
+        # TODO This doesn't check for oracle feedback or not, won't handle None
         for feature_tensor, label in dataset:
             features.append(feature_tensor)
             labels.append(label)
@@ -804,6 +808,16 @@ class GaussianRecognizer(OWHARecognizer):
             for mvn in self._gaussians
         ]).min()
 
+
+        # TODO but the above includes the uknowns_# !!!, which is okay, but
+        # what is not fine is the equal prioritization (afaik) of oracle vs
+        # non-oracle labels in experience.
+        #   And in the end, probably should refit all unknowns again after
+        #   fitting only the knowns, doing detect, etc... because this carries
+        #   thru the changes to unknowns after knowns is updated. And avoids
+        #   recalculating the recog mvns and thresholds twice
+
+
         # Update the recog distirbs given changes to knowns for the recogs
         if len(self.experience) > 0 and self.recog_label_enc:
             logger.debug(
@@ -826,6 +840,8 @@ class GaussianRecognizer(OWHARecognizer):
             # expect to be recording outliers as unknown then this needs
             # changed in parent fit or somehow informed by detects here.
 
+            # TODO the non-oracle experience should be recalculated given
+            # changes to both known and unknown.
         else:
             logger.debug('No recognize fit in fit()')
 
