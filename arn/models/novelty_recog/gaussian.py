@@ -98,6 +98,8 @@ class OWHARecognizer(OWHAPredictor):
 
     def fit(self, dataset, val_dataset=None):
         """Inheritting classes must handle experience maintence."""
+        if self.skip_fit >= 0 and self._increment >= self.skip_fit:
+            return
         # NOTE This is an unideal hotfix, the predictor should not effect
         # evaluator data, but in this case we need to use recogs as labels, so
         # those recogs need added if missing to the provided experience
@@ -112,14 +114,13 @@ class OWHARecognizer(OWHAPredictor):
         original_data_len = len(dataset.data)
         original_label_enc = dataset.label_enc
 
-
-        # TODO need to check what is unseen before adding missing experience!
-        #   If dataset includes unseen, update experience
-        #   Then, if experience includes unlabeled inference, append to dataset
-
+        # NOTE need to check what is unseen before adding missing experience!
+        #   If dataset includes unseen, experience is assumed updated by
+        #   calling function / method.
 
         # Only add experience not in dataset.data
         if len(self.experience) > 0:
+            # TODO probably perform check that the UID is not in exp[uid]
             dataset.data = dataset.data.append(
                 self.experience[
                     ~self.experience['oracle'].convert_dtypes(bool)
@@ -654,9 +655,6 @@ class GaussianRecognizer(OWHARecognizer):
         #self.known_label_enc = deepcopy(dataset.label_enc)
         self.known_label_enc.append(new_known)
         self.label_enc = deepcopy(self.known_label_enc)
-        if self.recog_label_enc:
-            # Keeping the recognized labels at the end.
-            self.label_enc.append(self.recog_label_enc)
 
         # Add new experience data
         if len(self.experience) <= 0:
@@ -716,13 +714,15 @@ class GaussianRecognizer(OWHARecognizer):
         # TODO This could made efficient by skipping knowns w/o any data changes
         self._gaussians = []
         thresholds = []
-        for label in list(self.label_enc.inv)[self.label_enc.unknown_idx + 1:]:
+        for label in list(self.known_label_enc.inv)[
+            self.known_label_enc.unknown_idx + 1:
+        ]:
             mask = labels == torch.tensor(label)
             if not mask.any():
                 logger.warning(
                     '%s has known class %s (idx %d) with no samples in fit()',
                     type(self).__name__,
-                    self.label_enc.inv[label],
+                    self.known_label_enc.inv[label],
                     label,
                 )
                 continue
@@ -735,7 +735,7 @@ class GaussianRecognizer(OWHARecognizer):
                     logger.warning(
                         "Label %d: %s features' samples < min_samples.",
                         label,
-                        self.label_enc.inv[label]
+                        self.known_label_enc.inv[label]
                     )
             if class_features.shape[0] == 1:
                 loc = class_features.squeeze()
@@ -778,31 +778,32 @@ class GaussianRecognizer(OWHARecognizer):
             logger.debug(
                 'Label %d: "%s" num samples = %d',
                 label,
-                self.label_enc.inv[label],
+                self.known_label_enc.inv[label],
                 len(class_features),
             )
             logger.debug(
                 'Label %d: "%s" mean log_prob = %f',
                 label,
-                self.label_enc.inv[label],
+                self.known_label_enc.inv[label],
                 float(mvn.log_prob(class_features).mean().detach()),
             )
             logger.debug(
                 'Label %d: "%s" min log_prob = %f',
                 label,
-                self.label_enc.inv[label],
+                self.known_label_enc.inv[label],
                 min_log_prob,
             )
             logger.debug(
                 'Label %d: "%s" log_prob threshold = %f',
                 label,
-                self.label_enc.inv[label],
+                self.known_label_enc.inv[label],
                 float(thresholds[-1].detach()),
                 #    if isinstance(thresholds[-1], torch.Tensor)
                 #    else float(thresholds[-1]),
             )
         self._thresholds = thresholds
 
+        # NOTE This is a hack for single sample cases.
         self.min_cov_mag = np.stack([
             mvn.covariance_matrix.sum() / mvn.loc.shape[-1]
             for mvn in self._gaussians
@@ -817,9 +818,10 @@ class GaussianRecognizer(OWHARecognizer):
         #   thru the changes to unknowns after knowns is updated. And avoids
         #   recalculating the recog mvns and thresholds twice
 
+        dset_no_feedback_mask = ~dset_feedback_mask
 
         # Update the recog distirbs given changes to knowns for the recogs
-        if len(self.experience) > 0 and self.recog_label_enc:
+        if len(self.experience) > 0 and np.any(dset_no_feedback_mask):
             logger.debug(
                 'Checking if to recognize in fit: '
                 'len(self.experience) = %d; len(self.recog_label_enc) = %d',
@@ -827,24 +829,48 @@ class GaussianRecognizer(OWHARecognizer):
                 self.n_recog_labels,
             )
 
+            # Need to get the given data mapped to internal experience w/o
+            # oracle feedback. This gets recognized over and labels saved to
+            # exp.
+            recogs = self.recognize(
+                features[dset_no_feedback_mask],
+                detect=True,
+            ).argmax(1).detach().cpu().numpy()
+            self.experience.loc[dset_no_feedback_mask.index, 'labels'] = \
+                self.known_label_enc.decode(recogs)
+
+            detects = recogs == self.known_label_enc.unknown_key
+
             # Update all unknowns, refitting the DPGMM entirely.
             # Must check if any points deemed outside of knowns given threshs
-            detects = self.detect(features)
             if detects.any() and detects.sum() >= self.min_samples:
                 self.recognize_fit(features[detects])
 
-            # TODO update experience with detects as unknown otherwise w/ new
-            # recognized labels. Update to experience occurs in parent.fit(),
-            # but detects will NEVER be set, only recognized unknowns.
-            # Depending on desired functionality this may be fine, but if you
-            # expect to be recording outliers as unknown then this needs
-            # changed in parent fit or somehow informed by detects here.
+                # Update experience with detects as unknown otherwise w/
+                # new recognized labels. Update to experience occurs in
+                # parent.fit(), but detects will NEVER be set, only recognized
+                # unknowns.  Depending on desired functionality this may be
+                # fine, but if you expect to be recording outliers as unknown
+                # then this needs changed in parent fit or somehow informed by
+                # detects here.
 
-            # TODO the non-oracle experience should be recalculated given
-            # changes to both known and unknown.
+                # The non-oracle experience should be recalculated given
+                # changes to both known and unknown.
+
+                if self.recog_label_enc:
+                    # Keeping the recognized labels at the end.
+                    self.label_enc.append(self.recog_label_enc)
+
+                    self.experience.loc[
+                        dset_no_feedback_mask.index,
+                        'labels',
+                    ] = self.label_enc.decode(self.recognize(
+                        features[dset_no_feedback_mask],
+                        detect=True,
+                    ).argmax(1).detach().cpu().numpy())
         else:
-            logger.debug('No recognize fit in fit()')
-
+            logger.debug('No recognize fit in fit().')
+            self.recog_label_enc = None
 
         # If self.save_dir, save the state of this recognizer
         if self.save_dir:
