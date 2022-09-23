@@ -222,8 +222,6 @@ class OWHARecognizer(OWHAPredictor):
         #preds = super().predict(dataset)
 
         # If dataset contains uids unseen, add to predictor experience
-        #   TODO this breaks when predictor experience has past seen samples
-        #   now with oracle feedback removed.
         if len(self.experience) <= 0:
             unseen_mask = [True] * len(dataset.data)
         else:
@@ -238,8 +236,8 @@ class OWHARecognizer(OWHAPredictor):
             ]).to(self.device)
 
             detects = self.detect(features)
-
-            if detects.any() and detects.sum() >= self.min_samples:
+            update_detects = detects.any() and detects.sum() >=self.min_samples
+            if update_detects:
                 features = features[detects]
                 if experience:
                     # Get the experience features of orcale == False and
@@ -265,20 +263,14 @@ class OWHARecognizer(OWHAPredictor):
 
                         exp_features = torch.stack([
                             experience.train.data[i] for i
-                            in experience.train.data[unk_mask]['sample_index']
+                            in np.arange(len(experience.train))[unk_mask]
+                                #experience.train.data[unk_mask]['sample_index']
+                            #)]
                         ]).to(self.device)
 
                         # Append the experienced unknowns to detected unknowns
                         features = torch.stack([features, exp_features])
                 self.recognize_fit(features)
-
-                # TODO must update internal experience given the change in
-                # unknowns
-                # TODO update internal experience with the new unknowns
-                # clusters.  self.recognize(features).argmax(1) align the
-                # features to their corresponding experience uid.  which you
-                # cannot here given that info is not available
-
 
         # Adds a zero for unknown general class at beginning.
         #preds = F.pad(
@@ -292,13 +284,73 @@ class OWHARecognizer(OWHAPredictor):
             detect=True,
         )
 
+        if update_detects:
+            # TODO must update internal experience given the change in
+            # unknowns from call to self.recognize_fit()
+            # TODO update internal experience with the new unknowns
+            # clusters.  self.recognize(features).argmax(1) align the
+            # features to their corresponding experience uid.  which you
+            # cannot here given that info is not available
+            #self.experience
 
-        # TODO here, can do recognize w/ thresholds on ALL mvns to detect
-        # general unknown. Should be done in case there are any detected
-        # unknowns but no recog_label_enc, also then have unknowns in
-        # experience
+            pred_labels = self.known_label_enc.decode(preds.argmax(1))
+            uids = dataset.data[
+                pred_labels == self.known_label_enc.unknown_key
+            ]['sample_index']
+
+            # if _not_ oracle, then update label.
+            # run on experience features, this would cover all seen & not
+            # oracle features in current dataset too.
+            seen_no_oracle = self.experience[~self.experience['oracle']]
+            exp_features = torch.stack(
+                [experience.train.data[i] for i in
+                    np.arange(len(experience.train))[
+                        experience.train.data['sample_index'].isin(
+                        seen_no_oracle['uid']
+                    )]
+                ],
+                dim=1,
+            )
 
 
+
+            # TODO index only messes up when dataset expects iloc, not loc!
+            # Use nonzero to get the actual iloc index for the dataset.  You
+            # need to fix this elsewhere, cuz you definitely used sample_index
+            # or .index when you need to use np.nonzero.
+
+
+
+
+            # Can rm those, then re-add them.
+
+            # For all uids in pred, update its label
+            seen_uids = dataset.data[~unseen_mask]['sample_index']
+            seen_no_oracle = self.experience['uid'].isin(seen_uids) \
+                & ~self.experience['oracle']
+            self.experience.drop(
+                index=self.experience[seen_no_oracle].index,
+                inplace=True,
+            )
+            seen_no_oracle = dataset.data['sample_index'].isin(seen_uids)
+            self.experience = self.experience.append(
+                pd.DataFrame(
+                    np.stack(
+                        [
+                            dataset.data['sample_index'][~unseen_mask],
+                            dataset.data[~unseen_mask]['sample_path'],
+                            self.label_enc.decode(
+                                preds[~unseen_mask].argmax(
+                                    1,
+                                ).detach().cpu().numpy()
+                            ),
+                            [False] * len(~unseen_mask),
+                        ],
+                        axis=1,
+                    ),
+                    columns=self.experience.columns,
+                ).convert_dtypes([int, str, str, bool])
+            )
         if any(unseen_mask):
             self.experience = self.experience.append(
                 pd.DataFrame(
