@@ -279,7 +279,7 @@ class OWHARecognizer(OWHAPredictor):
                         ]).to(self.device)
 
                         # Append the experienced unknowns to detected unknowns
-                        features = torch.stack([features, exp_features])
+                        features = torch.cat([features, exp_features])
                 self.recognize_fit(features)
         else:
             update_detects = False
@@ -332,7 +332,7 @@ class OWHARecognizer(OWHAPredictor):
 
                 exp_repred = self.label_enc.decode(
                     self.recognize(
-                        torch.stack(exp_repred, dim=1),
+                        torch.stack(exp_repred),
                         detect=True,
                     ).argmax(1).detach().cpu().numpy()
                 )
@@ -613,35 +613,20 @@ class GaussianRecognizer(OWHARecognizer):
             exp_mask[~exp_feedback_mask] |= exp_no_feedback_mask
             del exp_no_feedback_mask
 
-            exp_feedback = exp_mask
-            self.experience[exp_mask].isin(
-                dataset.data[dset_feedback_mask]['feedback']
-            )
-
-            exp_feedback_mask = exp_mask.copy()
-            exp_feedback_mask[exp_mask] = exp_feedback
-            del exp_feedback
-
             # Update to True only for those whose label_col is not None
             self.experience.loc[exp_feedback_mask, 'oracle'] = True
 
-            exp_unique_labels = set(self.experience[exp_mask]['labels'].unique())
-
-            self.experience.loc[exp_mask, 'labels'] = \
-                dataset.data[dataset.label_col].loc[
-                self.experience['uid'][exp_mask]
-            ].convert_dtypes(str)
-
-            # TODO Where do you add the new, unseen data?
+            # Assign the feedback labels from dataset to experience.
+            self.experience.loc[exp_feedback_mask, 'labels'] = \
+                dataset.labels[dset_feedback_mask].loc[
+                    self.experience[exp_feedback_mask]['uid']
+                ].convert_dtypes(str)
 
             # NOTE For each uniquely removed labeled recog sample, check if
             # that recognized cluster still has enough samples, if yes keep
             # else set to all unknown. Rm recog labels set to unknowns.
             if self.recog_label_enc:
-                # The the recog labels changed:
-                changed_recog_labels = set(self.recog_label_enc) #\
-                    #& exp_unique_labels
-                for exp_label in changed_recog_labels:
+                for exp_label in self.recog_label_enc:
                     mask = self.experience['labels'] == exp_label
                     # TODO sum(mask) only errored out at end, so it was NEVER
                     # called in the prior 19 steps for sims???? That has to be
@@ -653,12 +638,18 @@ class GaussianRecognizer(OWHARecognizer):
                         if isinstance(self._recog_weights, list):
                             del self._recog_weights[idx]
 
-        # TODO the predictor is still given all labels in train even if it does
-        # not recieve samples for an unknown label in train!  This needs
-        # fixed!!!
-
         # Update the predictor's label encoder with new knowns
-        self.known_label_enc = deepcopy(dataset.label_enc)
+        unique_dset_feedback_labels = dataset.labels[
+            dset_feedback_mask
+        ].unique()
+        new_knowns = []
+        for new_known in np.array(dataset.label_enc)[self.n_known_labels:]:
+            if new_known in unique_dset_feedback_labels:
+                new_knowns.append(new_known)
+        # TODO Ensure OrderedConfusionMAtrices and CMs handle label alignment
+
+        #self.known_label_enc = deepcopy(dataset.label_enc)
+        self.known_label_enc.append(new_known)
         self.label_enc = deepcopy(self.known_label_enc)
         if self.recog_label_enc:
             # Keeping the recognized labels at the end.
@@ -666,7 +657,7 @@ class GaussianRecognizer(OWHARecognizer):
 
         # Add new experience data
         if len(self.experience) <= 0:
-            unseen_mask = [True] * len(dataset.data)
+            unseen_mask = np.array([True] * len(dataset.data))
         else:
             unseen_mask = ~dataset.data['sample_index'].isin(
                 self.experience['uid']
@@ -677,16 +668,17 @@ class GaussianRecognizer(OWHARecognizer):
                 pd.DataFrame(
                     np.stack(
                         [
-                            dataset.data['sample_index'][unseen_mask],
+                            dataset.data[unseen_mask]['sample_index'],
                             dataset.data[unseen_mask]['sample_path'],
-                            dataset.data[unseen_mask][dataset.label_col],
-                            [True] * len(unseen_mask),
+                            dataset.labels[unseen_mask],
+                            dset_feedback_mask[unseen_mask],
                         ],
                         axis=1,
                     ),
                     columns=self.experience.columns,
                 ).convert_dtypes([int, str, str, bool])
             )
+        # TODO need to update the None feedbacks w/ inference!
 
         # NOTE decide here if this is for fitting on frepr or the ANN.:
         #   Staying with fitting in frepr for now.
