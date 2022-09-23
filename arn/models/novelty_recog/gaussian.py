@@ -926,7 +926,8 @@ class GaussianRecognizer(OWHARecognizer):
             if detect_unknowns.any():
                 recogs[detect_unknowns, 0] = \
                     recogs[detect_unknowns].max(1).values
-                recogs[detect_unknowns, 1:] *= 1 - recogs[detect_unknowns, [0]]
+                recogs[detect_unknowns, 1:] *= 1 \
+                    - recogs[detect_unknowns, 0].reshape(-1, 1)
             return recogs
 
         return F.softmax(recogs, dim=1)
