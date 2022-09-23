@@ -103,13 +103,20 @@ class OWHARecognizer(OWHAPredictor):
         # those recogs need added if missing to the provided experience
         # (dataset).
 
+        # NOTE this fit() assumes that dataset is ALL prior experience.
         self._increment += 1
 
         # Ensure the new recogs are used in fitting.
-        #   Predictor experience is the unlabeld recogs, temporairly append it
-        #   and swap the label encoders.
+        #   Predictor experience includes the unlabeled recogs, temporairly
+        #   append it and swap the label encoders.
         original_data_len = len(dataset.data)
         original_label_enc = dataset.label_enc
+
+
+        # TODO need to check what is unseen before adding missing experience!
+        #   If dataset includes unseen, update experience
+        #   Then, if experience includes unlabeled inference, append to dataset
+
 
         # Only add experience not in dataset.data
         if len(self.experience) > 0:
@@ -130,7 +137,9 @@ class OWHARecognizer(OWHAPredictor):
 
         # NOTE if there are any unlabeled samples, then perform recognition.
         #   Currently not included in project's experiments.
+        #   And the gaussian recog is over frepr for now.
 
+        """
         # Add new experience data
         if len(self.experience) <= 0:
             unseen_mask = [True] * len(dataset.data)
@@ -154,6 +163,7 @@ class OWHARecognizer(OWHAPredictor):
                     columns=self.experience.columns,
                 ).convert_dtypes([int, str, str, bool])
             )
+        #"""
 
     def feedback_request(self, features, available_uids, amount=1.0):
         """The predictor's method of requesting feedback.
@@ -589,15 +599,40 @@ class GaussianRecognizer(OWHARecognizer):
         # Mask experience which oracle feedback was given (assumes experiment
         # is maintaining the predictor's experience)
         if len(self.experience) > 0:
-            # Given dataset, rm any samples in
-            mask = self.experience['uid'].isin(dataset.data['sample_index'])
-            self.experience.loc[mask, 'oracle'] = True
-            exp_unique_labels = set(self.experience[mask]['labels'].unique())
+            # Given dataset, mark any samples in experience as oracle & label
+            dset_feedback_mask = ~pd.isna(dataset.labels)
 
-            self.experience.loc[mask, 'labels'] = \
+            exp_feedback_mask = self.experience['uid'].isin(
+                dataset.data[dset_feedback_mask]['sample_index']
+            )
+            exp_no_feedback_mask = \
+                self.experience[~exp_feedback_mask]['uid'].isin(
+                    dataset.data[~dset_feedback_mask]['sample_index']
+                )
+            exp_mask = exp_feedback_mask.copy()
+            exp_mask[~exp_feedback_mask] |= exp_no_feedback_mask
+            del exp_no_feedback_mask
+
+            exp_feedback = exp_mask
+            self.experience[exp_mask].isin(
+                dataset.data[dset_feedback_mask]['feedback']
+            )
+
+            exp_feedback_mask = exp_mask.copy()
+            exp_feedback_mask[exp_mask] = exp_feedback
+            del exp_feedback
+
+            # Update to True only for those whose label_col is not None
+            self.experience.loc[exp_feedback_mask, 'oracle'] = True
+
+            exp_unique_labels = set(self.experience[exp_mask]['labels'].unique())
+
+            self.experience.loc[exp_mask, 'labels'] = \
                 dataset.data[dataset.label_col].loc[
-                self.experience['uid'][mask]
+                self.experience['uid'][exp_mask]
             ].convert_dtypes(str)
+
+            # TODO Where do you add the new, unseen data?
 
             # NOTE For each uniquely removed labeled recog sample, check if
             # that recognized cluster still has enough samples, if yes keep
@@ -618,18 +653,40 @@ class GaussianRecognizer(OWHARecognizer):
                         if isinstance(self._recog_weights, list):
                             del self._recog_weights[idx]
 
-
-
         # TODO the predictor is still given all labels in train even if it does
         # not recieve samples for an unknown label in train!  This needs
         # fixed!!!
 
         # Update the predictor's label encoder with new knowns
         self.known_label_enc = deepcopy(dataset.label_enc)
-        self.label_enc = deepcopy(dataset.label_enc)
+        self.label_enc = deepcopy(self.known_label_enc)
         if self.recog_label_enc:
             # Keeping the recognized labels at the end.
             self.label_enc.append(self.recog_label_enc)
+
+        # Add new experience data
+        if len(self.experience) <= 0:
+            unseen_mask = [True] * len(dataset.data)
+        else:
+            unseen_mask = ~dataset.data['sample_index'].isin(
+                self.experience['uid']
+            ).values
+
+        if any(unseen_mask):
+            self.experience = self.experience.append(
+                pd.DataFrame(
+                    np.stack(
+                        [
+                            dataset.data['sample_index'][unseen_mask],
+                            dataset.data[unseen_mask]['sample_path'],
+                            dataset.data[unseen_mask][dataset.label_col],
+                            [True] * len(unseen_mask),
+                        ],
+                        axis=1,
+                    ),
+                    columns=self.experience.columns,
+                ).convert_dtypes([int, str, str, bool])
+            )
 
         # NOTE decide here if this is for fitting on frepr or the ANN.:
         #   Staying with fitting in frepr for now.
