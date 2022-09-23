@@ -883,6 +883,10 @@ class KineticsUnified(torch.utils.data.Dataset):
             return torch.as_tensor(labels, dtype=self.dtype)
         return sample[self.label_col]
 
+    @property
+    def labels(self):
+        return self.data[self.label_col]
+
 
 class KineticsUnifiedFeatures(KineticsUnified):
     """The Feature Extracted sample for Kinetics 400, 600, and 700_2020.
