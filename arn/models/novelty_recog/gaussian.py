@@ -281,11 +281,15 @@ class OWHARecognizer(OWHAPredictor):
 
 
         # Adds a zero for unknown general class at beginning.
-        preds = F.pad(
-            self.recognize(torch.stack(list(dataset)).to(self.device)),
-            (1, 0),
-            'constant',
-            0,
+        #preds = F.pad(
+        #    self.recognize(torch.stack(list(dataset)).to(self.device)),
+        #    (1, 0),
+        #    'constant',
+        #    0,
+        #)
+        preds = self.recognize(
+            torch.stack(list(dataset)).to(self.device),
+            detect=True,
         )
 
 
@@ -755,7 +759,7 @@ class GaussianRecognizer(OWHARecognizer):
                 f'{self.uid}-{self.increment}.h5',
             ))
 
-        # TODO Should fit on the soft labels (output of recognize) for
+        # NOTE Should fit on the soft labels (output of recognize) for
         # unlabeled data. That way some semblence of info from the recog goes
         # into the predictor.
         #   Can consider fitting on known labels with a weighting that strongly
@@ -771,16 +775,30 @@ class GaussianRecognizer(OWHARecognizer):
     # Consider: def recognize_fit_mvns(self, argsorted_weights, recog_labels):
     #   For generic fitting of mvns from feature data w/ cluster mask
 
-    def recognize(self, features):
+    def recognize(self, features, detect=False):
         """Using the existing Gaussians per class-cluster, get log probs."""
         # Normalize the probability each feature belongs to a recognized class,
         # st the recognized classes are mutually exclusive to one another.
-        return F.softmax(torch.stack(
+        recogs = torch.stack(
             [mvn.log_prob(features) for mvn in self._gaussians],
             dim=1,
-        ), dim=1)
+        )
+        if detect:
+            thresholds = torch.Tensor(self._thresholds)
+            detect_unknowns = (recogs < thresholds).all(1)
 
-    def detect(self, features, n_expected_classes=None):
+            recogs = F.pad(F.softmax(recogs, dim=1), (1, 0), 'constant', 0)
+
+            # Sets unknown to max prob value, scales the rest by 1 - max
+            if detect_unknowns.any():
+                recogs[detect_unknowns, 0] = \
+                    recogs[detect_unknowns].max(1).values
+                recogs[detect_unknowns, 1:] *= 1 - recogs[detect_unknowns, [0]]
+            return recogs
+
+        return F.softmax(recogs, dim=1)
+
+    def detect(self, features, knowns_only=True):
         """Given data samples, detect novel samples to the known classes.
 
         fit/recog: If given unlabeled data, decide if any of those samples form
@@ -827,15 +845,12 @@ class GaussianRecognizer(OWHARecognizer):
         #   has a better chance of success over the increments than on just the
         #   frepr as the frepr currently is frozen over the increments.
 
-
-
-        # NOTE Checks if the feature points are deemed to belong to ANY known
-        detects = torch.tensor([True] * len(features)).to(features.device)
-        for i in range(self.n_known_labels - 1):
-            detects &= self._gaussians[i].log_prob(features) \
-                < self._thresholds[i]
-
-        return detects
+        num_labels = self.n_known_labels if knowns_only else self.n_labels
+        thresholds = torch.Tensor(self._thresholds)
+        return (torch.stack(
+            [mvn.log_prob(features) for mvn in self._gaussians[:num_labels]],
+            dim=1,
+        ) < thresholds).all(1)
 
     def save(self, h5, save_fine_tune=False, overwrite=False):
         """Save as an HDF5 file."""
