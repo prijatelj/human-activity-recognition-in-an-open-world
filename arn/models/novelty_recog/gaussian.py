@@ -328,8 +328,14 @@ class OWHARecognizer(OWHAPredictor):
                 exp_features_map_exp_df = {}
                 for i, exp_row in experience.train.data.iterrows():
                     if exp_row['sample_index'] in seen_no_oracle['uid']:
-                        exp_repred.append(experience.train.data[i])
-                        exp_features_map_exp_df[i] = seen_no_oracle.index
+                        exp_repred.append(experience.train[i])
+                        exp_features_map_exp_df[i] = exp_row['sample_index']
+                #exp_features_map_exp_df[i] = seen_no_oracle.index
+
+                # TODO I guess try vectorizing these for loops to go vroom?
+                #exp_repred = [experience.train[i] for i in
+                #    exp_row['sample_index'].isin(seen_no_oracle['uid'])
+                #]
 
                 exp_repred = self.label_enc.decode(
                     self.recognize(
@@ -347,7 +353,7 @@ class OWHARecognizer(OWHAPredictor):
                 pd.DataFrame(
                     np.stack(
                         [
-                            dataset.data['sample_index'][unseen_mask],
+                            dataset.data[unseen_mask]['sample_index'],
                             dataset.data[unseen_mask]['sample_path'],
                             self.label_enc.decode(
                                 preds[unseen_mask].argmax(
@@ -599,10 +605,10 @@ class GaussianRecognizer(OWHARecognizer):
         """
         # Mask experience which oracle feedback was given (assumes experiment
         # is maintaining the predictor's experience)
-        if len(self.experience) > 0:
-            # Given dataset, mark any samples in experience as oracle & label
-            dset_feedback_mask = ~pd.isna(dataset.labels)
+        # Given dataset, mark any samples in experience as oracle & label
+        dset_feedback_mask = ~pd.isna(dataset.labels)
 
+        if len(self.experience) > 0:
             exp_feedback_mask = self.experience['uid'].isin(
                 dataset.data[dset_feedback_mask]['sample_index']
             )
@@ -653,7 +659,13 @@ class GaussianRecognizer(OWHARecognizer):
         # now, they will have label misalignment with partial feedback.
 
         #self.known_label_enc = deepcopy(dataset.label_enc)
-        self.known_label_enc.append(new_known)
+        if self.known_label_enc is None:
+            self.known_label_enc = NominalDataEncoder(
+                new_knowns,
+                unknown_key='unknown',
+            )
+        else:
+            self.known_label_enc.append(new_knowns)
         self.label_enc = deepcopy(self.known_label_enc)
 
         # Add new experience data
@@ -679,7 +691,6 @@ class GaussianRecognizer(OWHARecognizer):
                     columns=self.experience.columns,
                 ).convert_dtypes([int, str, str, bool])
             )
-        # TODO need to update the None feedbacks w/ inference!
 
         # NOTE decide here if this is for fitting on frepr or the ANN.:
         #   Staying with fitting in frepr for now.
@@ -968,7 +979,7 @@ class GaussianRecognizer(OWHARecognizer):
         #   frepr as the frepr currently is frozen over the increments.
 
         num_labels = self.n_known_labels if knowns_only else self.n_labels
-        thresholds = torch.Tensor(self._thresholds)
+        thresholds = torch.Tensor(self._thresholds[:num_labels])
         return (torch.stack(
             [mvn.log_prob(features) for mvn in self._gaussians[:num_labels]],
             dim=1,
