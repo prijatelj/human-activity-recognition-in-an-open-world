@@ -273,7 +273,7 @@ class OWHARecognizer(OWHAPredictor):
                         )
 
                         exp_features = torch.stack([
-                            experience.train.data[i] for i
+                            experience.train[i] for i
                             in np.arange(len(experience.train))[unk_mask]
                                 #experience.train.data[unk_mask]['sample_index']
                             #)]
