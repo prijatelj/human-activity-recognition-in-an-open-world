@@ -109,6 +109,10 @@ class GaussFINCH(GaussianRecognizer):
         if n_clusters <= 1 or n_clusters < self.min_samples:
             # No recognized unknown classes.
             return
+
+        # TODO rm old unknown classes, replacing with current ones as this is
+        # always called to redo the unknown class-clusters on ALL currently
+        # unlabeled data deemed unknown.
         #if self.recog_label_enc is None:
         self.recog_label_enc = NominalDataEncoder()
 
@@ -163,10 +167,6 @@ class GaussFINCH(GaussianRecognizer):
 
         # Save the normalized belief of the unknowns
         #self._recog_weights = dpgmm.weights_[argsorted_weights]
-
-        # TODO rm old unknown classes, replacing with current ones as this is
-        # always called to redo the unknown class-clusters on ALL currently
-        # unlabeled data deemed unknown.
 
         # Update label_enc to include the recog_label_enc at the end.
         self.label_enc = deepcopy(self.known_label_enc)
