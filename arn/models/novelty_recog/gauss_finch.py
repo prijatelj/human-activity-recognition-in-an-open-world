@@ -169,6 +169,11 @@ class GaussFINCH(GaussianRecognizer):
 
         # Save the normalized belief of the unknowns
         #self._recog_weights = dpgmm.weights_[argsorted_weights]
+        logger.debug(
+            "%s found %d new classes.",
+            type(self).__name__,
+            self.n_recog_labels
+        )
 
         # Update label_enc to include the recog_label_enc at the end.
         self.label_enc = deepcopy(self.known_label_enc)
