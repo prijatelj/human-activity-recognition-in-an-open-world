@@ -345,6 +345,7 @@ class OWHARecognizer(OWHAPredictor):
                 )
 
                 for key, val in exp_features_map_exp_df.items():
+                    # TODO experience does not have index == uid
                     self.experience.loc[val, 'labels'] = exp_repred[key]
 
         if any(unseen_mask):
@@ -847,6 +848,8 @@ class GaussianRecognizer(OWHARecognizer):
                 features[dset_no_feedback_mask.values],
                 detect=True,
             ).argmax(1).detach().cpu().numpy()
+
+            # TODO experience does not have index == uid
             self.experience.loc[dset_no_feedback_mask.index, 'labels'] = \
                 self.known_label_enc.decode(recogs)
 
@@ -872,6 +875,7 @@ class GaussianRecognizer(OWHARecognizer):
                     # Keeping the recognized labels at the end.
                     self.label_enc.append(self.recog_label_enc)
 
+                    # TODO experience does not have index == uid
                     self.experience.loc[
                         dset_no_feedback_mask.index,
                         'labels',
