@@ -844,7 +844,7 @@ class GaussianRecognizer(OWHARecognizer):
             # oracle feedback. This gets recognized over and labels saved to
             # exp.
             recogs = self.recognize(
-                features[dset_no_feedback_mask],
+                features[dset_no_feedback_mask.values],
                 detect=True,
             ).argmax(1).detach().cpu().numpy()
             self.experience.loc[dset_no_feedback_mask.index, 'labels'] = \
@@ -876,7 +876,7 @@ class GaussianRecognizer(OWHARecognizer):
                         dset_no_feedback_mask.index,
                         'labels',
                     ] = self.label_enc.decode(self.recognize(
-                        features[dset_no_feedback_mask],
+                        features[dset_no_feedback_mask.values],
                         detect=True,
                     ).argmax(1).detach().cpu().numpy())
         else:
