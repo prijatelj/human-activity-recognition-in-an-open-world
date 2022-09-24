@@ -124,7 +124,7 @@ class GaussFINCH(GaussianRecognizer):
             device=self.device
         )
 
-
+        # TODO make this go brr in ray for parellization
         for i in range(n_clusters):
             cluster_mask = recog_labels == i
             logger.debug(
