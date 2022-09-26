@@ -303,7 +303,6 @@ class OWHARecognizer(OWHAPredictor):
                     seen_no_oracle['uid']
                 )
                 if repred_mask.any():
-                    repred_mask = repred_mask[repred_mask].index
                     exp_repred = self.label_enc.decode(
                         self.recognize(
                             torch.stack([
@@ -314,7 +313,10 @@ class OWHARecognizer(OWHAPredictor):
                         ).argmax(1).detach().cpu().numpy()
                     )
 
-                    self.experience.loc[repred_mask, 'labels'] = exp_repred
+                    self.experience.loc[
+                        repred_mask[repred_mask].index,
+                        'labels',
+                    ] = exp_repred
 
         if any(unseen_mask):
             # Add any unseen features in dataset to experience w/ predictions
