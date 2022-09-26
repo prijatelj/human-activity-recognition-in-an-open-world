@@ -276,12 +276,14 @@ class OWHARecognizer(OWHAPredictor):
                         exp_features = torch.stack([
                             experience.train[i] for i
                             in np.arange(len(experience.train))[unk_mask]
-                                #experience.train.data[unk_mask]['sample_index']
-                            #)]
                         ]).to(self.device)
 
                         # Append the experienced unknowns to detected unknowns
                         features = torch.cat([features, exp_features])
+                        logger.debug(
+                            'features shape post cat of experience: %s',
+                            features.shape,
+                        )
                 self.recognize_fit(features)
         else:
             update_detects = False
