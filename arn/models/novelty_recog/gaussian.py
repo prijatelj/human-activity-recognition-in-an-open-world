@@ -257,7 +257,7 @@ class OWHARecognizer(OWHAPredictor):
                     # all unknowns/unlabeled should be fit together
                     unlabeled = self.experience[~self.experience['oracle']]
                     unks = ['unknown']
-                    if self.recog_label_enc is not None:
+                    if self.recog_label_enc:
                         unks += list(self.recog_label_enc)
                     unknowns = unlabeled[unlabeled['labels'].isin(unks)]
 
@@ -642,9 +642,6 @@ class GaussianRecognizer(OWHARecognizer):
             if self.recog_label_enc:
                 for exp_label in self.recog_label_enc:
                     mask = self.experience['labels'] == exp_label
-                    # TODO sum(mask) only errored out at end, so it was NEVER
-                    # called in the prior 19 steps for sims???? That has to be
-                    # part of the recog label amount discrepency error.
                     if np.sum(mask) < self.min_samples:
                         self.experience.loc[mask, 'labels'] = \
                             self.label_enc.unknown_key
@@ -891,13 +888,15 @@ class GaussianRecognizer(OWHARecognizer):
                         detect=True,
                     ).argmax(1).detach().cpu().numpy())
                 else:
+                    logger.debug('No recognize fit in fit(). prior label enc.')
                     self.recog_label_enc = None
                     self.label_enc = deepcopy(self.known_label_enc)
             else:
+                logger.debug('No recognize fit in fit(). Not enough detects')
                 self.recog_label_enc = None
                 self.label_enc = deepcopy(self.known_label_enc)
         else:
-            logger.debug('No recognize fit in fit().')
+            logger.debug('No recognize fit in fit(). No experience w/o oracle')
             self.recog_label_enc = None
             self.label_enc = deepcopy(self.known_label_enc)
 
