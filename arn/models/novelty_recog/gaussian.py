@@ -154,7 +154,7 @@ class OWHARecognizer(OWHAPredictor):
                 pd.DataFrame(
                     np.stack(
                         [
-                            dataset.data['sample_index'][unseen_mask],
+                            dataset.data[unseen_mask]['sample_index'],
                             dataset.data[unseen_mask]['sample_path'],
                             dataset.data[unseen_mask][dataset.label_col],
                             [True] * len(unseen_mask),
@@ -162,6 +162,7 @@ class OWHARecognizer(OWHAPredictor):
                         axis=1,
                     ),
                     columns=self.experience.columns,
+                    index=dataset.data[unseen_mask]['sample_index'],
                 ).convert_dtypes([int, str, str, bool])
             )
         #"""
@@ -324,12 +325,16 @@ class OWHARecognizer(OWHAPredictor):
             # Update the labels of seen and not oracle and not in dset
             if any(not_oracle_mask):
                 exp_repred = []
+                exp_repred_sample_idx = []
                 # Go from exp features iloc to exp df loc
-                exp_features_map_exp_df = {}
-                for i, exp_row in experience.train.data.iterrows():
-                    if exp_row['sample_index'] in seen_no_oracle['uid']:
+                #exp_features_map_exp_df = {}
+                for i, (sample_idx, exp_row) in enumerate(
+                    experience.train.data.iterrows()
+                ):
+                    if sample_idx in seen_no_oracle['uid']:
                         exp_repred.append(experience.train[i])
-                        exp_features_map_exp_df[i] = exp_row['sample_index']
+                        #exp_features_map_exp_df[i] = sample_idx
+                        exp_repred_sample_idx.append(sample_idx)
                 #exp_features_map_exp_df[i] = seen_no_oracle.index
 
                 # TODO I guess try vectorizing these for loops to go vroom?
@@ -344,9 +349,9 @@ class OWHARecognizer(OWHAPredictor):
                     ).argmax(1).detach().cpu().numpy()
                 )
 
-                for key, val in exp_features_map_exp_df.items():
+                for i, val in enumerate(exp_repred_sample_idx):
                     # TODO experience does not have index == uid
-                    self.experience.loc[val, 'labels'] = exp_repred[key]
+                    self.experience.loc[val, 'labels'] = exp_repred[i]
 
         if any(unseen_mask):
             # Add any unseen features in dataset to experience w/ predictions
@@ -366,6 +371,7 @@ class OWHARecognizer(OWHAPredictor):
                         axis=1,
                     ),
                     columns=self.experience.columns,
+                    index=dataset.data[unseen_mask]['sample_index'],
                 ).convert_dtypes([int, str, str, bool])
             )
 
@@ -667,7 +673,6 @@ class GaussianRecognizer(OWHARecognizer):
             )
         else:
             self.known_label_enc.append(new_knowns)
-        self.label_enc = deepcopy(self.known_label_enc)
 
         # Add new experience data
         if len(self.experience) <= 0:
@@ -690,6 +695,7 @@ class GaussianRecognizer(OWHARecognizer):
                         axis=1,
                     ),
                     columns=self.experience.columns,
+                    index=dataset.data[unseen_mask]['sample_index'],
                 ).convert_dtypes([int, str, str, bool])
             )
 
@@ -850,15 +856,19 @@ class GaussianRecognizer(OWHARecognizer):
             ).argmax(1).detach().cpu().numpy()
 
             # TODO experience does not have index == uid
-            self.experience.loc[dset_no_feedback_mask.index, 'labels'] = \
-                self.known_label_enc.decode(recogs)
+            self.experience.loc[
+                dset_no_feedback_mask[dset_no_feedback_mask].index,
+                'labels',
+            ] = self.known_label_enc.decode(recogs)
 
-            detects = recogs == self.known_label_enc.unknown_key
+            detects = recogs == self.known_label_enc.unknown_idx
+            detects_mask = dset_no_feedback_mask.copy()
+            detects_mask[detects_mask] = detects
 
             # Update all unknowns, refitting the DPGMM entirely.
             # Must check if any points deemed outside of knowns given threshs
             if detects.any() and detects.sum() >= self.min_samples:
-                self.recognize_fit(features[detects])
+                self.recognize_fit(features[detects_mask.values])
 
                 # Update experience with detects as unknown otherwise w/
                 # new recognized labels. Update to experience occurs in
@@ -872,20 +882,24 @@ class GaussianRecognizer(OWHARecognizer):
                 # changes to both known and unknown.
 
                 if self.recog_label_enc:
-                    # Keeping the recognized labels at the end.
-                    self.label_enc.append(self.recog_label_enc)
-
                     # TODO experience does not have index == uid
                     self.experience.loc[
-                        dset_no_feedback_mask.index,
+                        dset_no_feedback_mask[dset_no_feedback_mask].index,
                         'labels',
                     ] = self.label_enc.decode(self.recognize(
                         features[dset_no_feedback_mask.values],
                         detect=True,
                     ).argmax(1).detach().cpu().numpy())
+                else:
+                    self.recog_label_enc = None
+                    self.label_enc = deepcopy(self.known_label_enc)
+            else:
+                self.recog_label_enc = None
+                self.label_enc = deepcopy(self.known_label_enc)
         else:
             logger.debug('No recognize fit in fit().')
             self.recog_label_enc = None
+            self.label_enc = deepcopy(self.known_label_enc)
 
         # If self.save_dir, save the state of this recognizer
         if self.save_dir:
