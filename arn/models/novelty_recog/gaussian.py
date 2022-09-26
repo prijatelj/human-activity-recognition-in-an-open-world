@@ -140,33 +140,6 @@ class OWHARecognizer(OWHAPredictor):
         #   Currently not included in project's experiments.
         #   And the gaussian recog is over frepr for now.
 
-        """
-        # Add new experience data
-        if len(self.experience) <= 0:
-            unseen_mask = [True] * len(dataset.data)
-        else:
-            unseen_mask = ~dataset.data['sample_index'].isin(
-                self.experience['uid']
-            ).values
-
-        if any(unseen_mask):
-            self.experience = self.experience.append(
-                pd.DataFrame(
-                    np.stack(
-                        [
-                            dataset.data[unseen_mask]['sample_index'],
-                            dataset.data[unseen_mask]['sample_path'],
-                            dataset.data[unseen_mask][dataset.label_col],
-                            [True] * len(unseen_mask),
-                        ],
-                        axis=1,
-                    ),
-                    columns=self.experience.columns,
-                    index=dataset.data[unseen_mask]['sample_index'],
-                ).convert_dtypes([int, str, str, bool])
-            )
-        #"""
-
     def feedback_request(self, features, available_uids, amount=1.0):
         """The predictor's method of requesting feedback.
         Args
@@ -356,7 +329,7 @@ class OWHARecognizer(OWHAPredictor):
                                     1,
                                 ).detach().cpu().numpy()
                             ),
-                            [False] * len(unseen_mask),
+                            [False] * sum(unseen_mask),
                         ],
                         axis=1,
                     ),
