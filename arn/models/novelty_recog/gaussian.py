@@ -369,7 +369,7 @@ class OWHARecognizer(OWHAPredictor):
         raise NotImplementedError('Inheriting class overrides this.')
 
 
-def get_log_prob_mvn_thresh(mvn, min_error_tol):
+def cred_hyperellipse_thresh(mvn, min_error_tol):
     """Calculates the log prob threshold for the Multivariate Normal given the
     minimum error tolerance (alpha). Thresholding below the resulting log prob
     excludes all samples that fall outside of the confidence interval for this
@@ -744,7 +744,7 @@ class GaussianRecognizer(OWHARecognizer):
                     )
             self._gaussians.append(mvn)
             min_log_prob = mvn.log_prob(class_features).min().detach()
-            err_lprob = get_log_prob_mvn_thresh(mvn, self.detect_error_tol)
+            err_lprob = cred_hyperellipse_thresh(mvn, self.detect_error_tol)
             if err_lprob <= min_log_prob:
                 thresholds.append(err_lprob)
             else:
