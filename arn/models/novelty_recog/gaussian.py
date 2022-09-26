@@ -307,7 +307,9 @@ class OWHARecognizer(OWHAPredictor):
                         self.recognize(
                             torch.stack([
                                 experience.train[i] for i in
-                                np.arange(len(experience.train))[repred_mask]
+                                np.arange(len(experience.train))[
+                                    repred_mask.values
+                                ]
                             ]),
                             detect=True,
                         ).argmax(1).detach().cpu().numpy()
