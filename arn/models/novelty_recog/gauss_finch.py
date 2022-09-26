@@ -98,19 +98,7 @@ class GaussFINCH(GaussianRecognizer):
         # TODO generalize this recognize_fit to apply to any set of pts and be
         # func called that returns all the class' GMM state
 
-        # Get all MVNs found to serve as new class-clusters, unless deemed
-        # unconfident its a new class based on critera (min samples and
-        # density)
-        logger.debug(
-            "%s found %d new unknown classes.",
-            type(self).__name__,
-            n_clusters,
-        )
-        if n_clusters <= 1 or n_clusters < self.min_samples:
-            # No recognized unknown classes.
-            return
-
-        # TODO rm old unknown classes, replacing with current ones as this is
+        # rm old unknown classes, replacing with current ones as this is
         # always called to redo the unknown class-clusters on ALL currently
         # unlabeled data deemed unknown.
         #if self.recog_label_enc is None:
@@ -128,6 +116,19 @@ class GaussFINCH(GaussianRecognizer):
                 self.known_label_enc.unknown_key
 
         self.recog_label_enc = NominalDataEncoder()
+        self.label_enc = deepcopy(self.known_label_enc)
+
+        # Get all MVNs found to serve as new class-clusters, unless deemed
+        # unconfident its a new class based on critera (min samples and
+        # density)
+        logger.debug(
+            "%s found %d new unknown classes.",
+            type(self).__name__,
+            n_clusters,
+        )
+        if n_clusters <= 1 or n_clusters < self.min_samples:
+            # No recognized unknown classes.
+            return
 
         # Numerical stability adjustment for the sample covariance's diagonal
         stability_adjust = self.cov_epsilon * torch.eye(
@@ -187,6 +188,5 @@ class GaussFINCH(GaussianRecognizer):
         )
 
         # Update label_enc to include the recog_label_enc at the end.
-        self.label_enc = deepcopy(self.known_label_enc)
         if self.recog_label_enc:
             self.label_enc.append(self.recog_label_enc)
