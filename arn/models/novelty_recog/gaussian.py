@@ -326,34 +326,22 @@ class OWHARecognizer(OWHAPredictor):
 
             # Update the labels of seen and not oracle and not in dset
             if any(not_oracle_mask):
-                exp_repred = []
-                exp_repred_sample_idx = []
-                # Go from exp features iloc to exp df loc
-                #exp_features_map_exp_df = {}
-                for i, (sample_idx, exp_row) in enumerate(
-                    experience.train.data.iterrows()
-                ):
-                    if sample_idx in seen_no_oracle['uid']:
-                        exp_repred.append(experience.train[i])
-                        #exp_features_map_exp_df[i] = sample_idx
-                        exp_repred_sample_idx.append(sample_idx)
-                #exp_features_map_exp_df[i] = seen_no_oracle.index
-
-                # TODO I guess try vectorizing these for loops to go vroom?
-                #exp_repred = [experience.train[i] for i in
-                #    exp_row['sample_index'].isin(seen_no_oracle['uid'])
-                #]
-
-                exp_repred = self.label_enc.decode(
-                    self.recognize(
-                        torch.stack(exp_repred),
-                        detect=True,
-                    ).argmax(1).detach().cpu().numpy()
+                repred_mask = experience.train.data['sample_index'].isin(
+                    seen_no_oracle['uid']
                 )
+                if repred_mask.any():
+                    repred_mask = repred_mask[repred_mask].index
+                    exp_repred = self.label_enc.decode(
+                        self.recognize(
+                            torch.stack([
+                                experience.train[i] for i in
+                                np.arange(len(experience.train))[repred_mask]
+                            ]),
+                            detect=True,
+                        ).argmax(1).detach().cpu().numpy()
+                    )
 
-                for i, val in enumerate(exp_repred_sample_idx):
-                    # TODO experience does not have index == uid
-                    self.experience.loc[val, 'labels'] = exp_repred[i]
+                    self.experience.loc[repred_mask, 'labels'] = exp_repred
 
         if any(unseen_mask):
             # Add any unseen features in dataset to experience w/ predictions
