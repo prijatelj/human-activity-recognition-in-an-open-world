@@ -116,6 +116,17 @@ class GaussFINCH(GaussianRecognizer):
         #if self.recog_label_enc is None:
         self._gaussians = self._gaussians[:self.n_known_labels - 1]
         self._thresholds = self._thresholds[:self.n_known_labels - 1]
+
+        # Must update experience everytime and handle prior unknowns if any
+        unks = ['unknown']
+        if self.recog_label_enc:
+            unks += list(self.recog_label_enc)
+        unlabeled = self.experience[~self.experience['oracle']]
+        unknowns = unlabeled['labels'].isin(unks)
+        if unknowns.any():
+            self.experience.loc[unknowns.index, 'labels'] = \
+                self.known_label_enc.unknown_key
+
         self.recog_label_enc = NominalDataEncoder()
 
         # Numerical stability adjustment for the sample covariance's diagonal
@@ -177,4 +188,5 @@ class GaussFINCH(GaussianRecognizer):
 
         # Update label_enc to include the recog_label_enc at the end.
         self.label_enc = deepcopy(self.known_label_enc)
-        self.label_enc.append(self.recog_label_enc)
+        if self.recog_label_enc:
+            self.label_enc.append(self.recog_label_enc)
