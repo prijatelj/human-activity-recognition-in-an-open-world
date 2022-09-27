@@ -21,6 +21,44 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def cred_hyperellipse_thresh(mvn, min_error_tol):
+    """Calculates the log prob threshold for the Multivariate Normal given the
+    minimum error tolerance (alpha). Thresholding below the resulting log prob
+    excludes all samples that fall outside of the confidence interval for this
+    multivariate normal given alpha is the minimum error tolerable.
+
+    Args
+    ----
+    mvn : torch.distributions.multivariate_normal.MultivariateNormal
+        The multivariate normal distirbution whose confidence hyperellipse is
+        to be found and used to determine the log prob threshold
+    min_error_tol : float
+
+    Returns
+    -------
+    float
+        The log prob threshold for the given multivariate normal that denotes
+        the samples when their log prob is less than this threshold and thus
+        outside of the confidence inteval given alpha.
+
+    Notes
+    -----
+    This relies on the symmetry of the normal distribution.
+    """
+    # Find a single dim's eigenvalue from the given covariance matrix
+    eigenvalues, eigenvectors = torch.linalg.eig(mvn.covariance_matrix)
+
+    # Find the magnitude given the desired min_error_tol
+    magnitude = torch.sqrt(
+        eigenvalues[0] * chi2.ppf(1.0 - min_error_tol, mvn.loc.shape[-1])
+    )
+
+    # Find the corresponding magnitude for that dim of the covariance matrix.
+    vector = (magnitude * eigenvectors[:, 0]).to(mvn.loc.dtype)
+
+    return mvn.log_prob(mvn.loc + vector)
+
+
 class OWHARecognizer(OWHAPredictor):
     """Abstract predictor with recognition functionality.
 
@@ -142,6 +180,7 @@ class OWHARecognizer(OWHAPredictor):
 
     def feedback_request(self, features, available_uids, amount=1.0):
         """The predictor's method of requesting feedback.
+
         Args
         ----
         features : torch.Tensor
@@ -190,21 +229,8 @@ class OWHARecognizer(OWHAPredictor):
             f'{self.feedback_request_method}'
         )
 
-    def predict(self, dataset, experience=None):
-        if self.label_enc is None:
-            raise ValueError('label enc is None. This predictor is not fit.')
-        # NOTE Consider fitting DPGMM on extracts in future, instead of frepr
-        #preds, features = super().predict_extract(dataset)
-
-        # 1. preds, features = predict_extract(dataset) (or not if frepr)
-        # 2. recognize_fit(dataset) if any _new_ experienced data
-        # 3. recogs = recognize(dataset)
-        # 4. optionally, weight average preds and recogs by some hyperparam
-        #   This weighting could be found during fit which maximizes mutual
-        #   info between the preds and ground truth. Perhaps set a min s.t.
-        #   recogs is not entirely ignored? Hmm...
-        #preds = super().predict(dataset)
-
+    def pre_predict(self, dataset, experience=None):
+        """Update the experience and predictor state prior to predictions."""
         # If dataset contains uids unseen, add to predictor experience
         if len(self.experience) <= 0:
             unseen_mask = [True] * len(dataset.data)
@@ -261,18 +287,16 @@ class OWHARecognizer(OWHAPredictor):
         else:
             update_detects = False
 
-        # Adds a zero for unknown general class at beginning.
-        #preds = F.pad(
-        #    self.recognize(torch.stack(list(dataset)).to(self.device)),
-        #    (1, 0),
-        #    'constant',
-        #    0,
-        #)
-        preds = self.recognize(
-            torch.stack(list(dataset)).to(self.device),
-            detect=True,
-        )
+        return unseen_mask, update_detects
 
+    def post_predict(
+        self,
+        dataset,
+        experience,
+        preds,
+        unseen_mask,
+        update_detects,
+    ):
         if update_detects:
             # Update internal experience with the change in unknowns clusters
             # from call to self.recognize_fit().
@@ -352,6 +376,34 @@ class OWHARecognizer(OWHAPredictor):
 
         return preds
 
+    def predict(self, dataset, experience=None):
+        if self.label_enc is None:
+            raise ValueError('label enc is None. This predictor is not fit.')
+        # NOTE Consider fitting DPGMM on extracts in future, instead of frepr
+        #preds, features = super().predict_extract(dataset)
+
+        # 1. preds, features = predict_extract(dataset) (or not if frepr)
+        # 2. recognize_fit(dataset) if any _new_ experienced data
+        # 3. recogs = recognize(dataset)
+        # 4. optionally, weight average preds and recogs by some hyperparam
+        #   This weighting could be found during fit which maximizes mutual
+        #   info between the preds and ground truth. Perhaps set a min s.t.
+        #   recogs is not entirely ignored? Hmm...
+        #preds = super().predict(dataset)
+
+        unseen_mask, update_detects = self.pre_predict(dataset, experience)
+        preds = self.recognize(
+            torch.stack(list(dataset)).to(self.device),
+            detect=True,
+        )
+        return self.post_predict(
+            dataset,
+            experience,
+            preds,
+            unseen_mask,
+            update_detects,
+        )
+
     @abstractmethod
     def recognize_fit(self, features):
         raise NotImplementedError('Inheriting class overrides this.')
@@ -367,44 +419,6 @@ class OWHARecognizer(OWHAPredictor):
         predict().
         """
         raise NotImplementedError('Inheriting class overrides this.')
-
-
-def cred_hyperellipse_thresh(mvn, min_error_tol):
-    """Calculates the log prob threshold for the Multivariate Normal given the
-    minimum error tolerance (alpha). Thresholding below the resulting log prob
-    excludes all samples that fall outside of the confidence interval for this
-    multivariate normal given alpha is the minimum error tolerable.
-
-    Args
-    ----
-    mvn : torch.distributions.multivariate_normal.MultivariateNormal
-        The multivariate normal distirbution whose confidence hyperellipse is
-        to be found and used to determine the log prob threshold
-    min_error_tol : float
-
-    Returns
-    -------
-    float
-        The log prob threshold for the given multivariate normal that denotes
-        the samples when their log prob is less than this threshold and thus
-        outside of the confidence inteval given alpha.
-
-    Notes
-    -----
-    This relies on the symmetry of the normal distribution.
-    """
-    # Find a single dim's eigenvalue from the given covariance matrix
-    eigenvalues, eigenvectors = torch.linalg.eig(mvn.covariance_matrix)
-
-    # Find the magnitude given the desired min_error_tol
-    magnitude = torch.sqrt(
-        eigenvalues[0] * chi2.ppf(1.0 - min_error_tol, mvn.loc.shape[-1])
-    )
-
-    # Find the corresponding magnitude for that dim of the covariance matrix.
-    vector = (magnitude * eigenvectors[:, 0]).to(mvn.loc.dtype)
-
-    return mvn.log_prob(mvn.loc + vector)
 
 
 class GaussianRecognizer(OWHARecognizer):
