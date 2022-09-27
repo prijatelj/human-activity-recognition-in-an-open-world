@@ -252,6 +252,8 @@ class GMMFINCH(OWHARecognizer):
         List of Gaussian Mixture Model objects per class, where classes consist
         of knowns and unknown.
     label_enc : NominalDataEncoder
+        The label encoder corresponding to the classes with GMMs. This follows
+        the order of unknown (index 0), then knowns.
     """
     def __init__(self, *kwargs):
         raise NotImplementedError
