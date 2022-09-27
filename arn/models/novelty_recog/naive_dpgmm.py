@@ -9,7 +9,7 @@ from exputils.data.labels import NominalDataEncoder
 
 from arn.models.novelty_recog.gaussian import (
     GaussianRecognizer,
-    get_log_prob_mvn_thresh,
+    cred_hyperellipse_thresh,
 )
 
 import logging
@@ -159,7 +159,7 @@ class NaiveDPGMM(GaussianRecognizer):
             )
 
             self._gaussians.append(mvn)
-            self._thresholds.append(get_log_prob_mvn_thresh(
+            self._thresholds.append(cred_hyperellipse_thresh(
                 mvn,
                 self.detect_error_tol,
             ))
