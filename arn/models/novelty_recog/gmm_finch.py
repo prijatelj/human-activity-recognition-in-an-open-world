@@ -4,6 +4,7 @@ weighted by their mixture probabilities.
 """
 from copy import deepcopy
 
+import h5py
 import numpy as np
 import torch
 F = torch.nn.functional
@@ -416,7 +417,22 @@ class GMM(object):
 
     @staticmethod
     def load(h5):
-        raise NotImplementedError('modular loading from h5 file?')
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(h5, 'r')
+        loaded = GMM(
+            NominalDataEncoder(
+                np.array(h5['label_enc'], dtype=str),
+                unknown_idx=0,
+            ),
+            torch.tensor(h5['locs']),
+            torch.tensor(h5['covariance_matrices']),
+            torch.tensor(h5['thresholds']),
+            np.array(h5['mixes']),
+        )
+        if close:
+            h5.close()
+        return loaded
 
 
 #class GMMFINCH(GaussianRecognizer):
