@@ -7,7 +7,11 @@ from copy import deepcopy
 import numpy as np
 import torch
 F = torch.nn.functional
-MultivariateNormal = torch.distributions.multivariate_normal.MultivariateNormal
+from torch.distributions import(
+    MultivariateNormal,
+    MixtureSameFamily,
+    Categorical,
+)
 
 from exputils.data.labels import NominalDataEncoder
 from vast.clusteringAlgos.FINCH.python.finch import FINCH
@@ -95,8 +99,6 @@ def fit_gmm(
     GMM
         A Gaussian Mixture Model object as fit to the features.
     """
-    raise NotImplementedError
-
     label_enc = NominalDataEncoder([], unknown_key=class_name)
 
     if isinstance(threshold_method, str):
@@ -139,6 +141,8 @@ def recognize_fit(
     allowed_error=1e-5,
     max_likely_gmm=False,
     level=-1,
+    #stability_adjust=None,
+    #cov_epsilon=1e-12,
     device='cpu',
     **kwargs,
 ):
@@ -170,8 +174,6 @@ def recognize_fit(
         MultivariateNormal distributions and a list of the components'
         thresholds.
     """
-    raise NotImplementedError
-
     #label_enc = NominalDataEncoder([class_name], unknown_key=class_name)
 
     if isinstance(features, torch.Tensor):
@@ -219,27 +221,80 @@ class GMM(object):
 
     Attributes
     ----------
-    mvns : list(GMM)
-        List of Gaussian Mixture Model objects per class, where classes consist
-        of knowns and unknown.
-    thresholds : list(float)
     label_enc : NominalDataEncoder
+    gmm : MixtureSameFamily
+        The list of MultivariateNormals per class (component) is at
+    thresholds : list(float)
     """
-    def __init__(self, class_name, *kwargs):
-        self.label_enc = NominalDataEncoder([], unknown_key='class_name')
-        raise NotImplementedError
+    def __init__(
+        self,
+        class_name,
+        locs=None,
+        covariance_matrices=None,
+        thresholds=None,
+        mix=None,
+    ):
+        if isinstance(class_name, NominalDataEncoder):
+            assert class_name.unknown_key is not None
+            self.label_enc = class_name
+        else:
+            self.label_enc = NominalDataEncoder([], unknown_key=class_name)
+
+        self.set_gmm(locs, covariance_matrices, mix)
+        self.thresholds = thresholds
 
     @property
     def class_name(self):
         return self.label_enc.unknown_key
 
+    def set_gmm(self, locs=None, covariance_matrices=None, mix=None):
+        """Sets the gmm with given locs, covariance matrices, and mix."""
+        if locs is None:
+            if covariance_matrices is not None:
+                raise ValueError(
+                    'No `locs` given when `covariance_matrices` given.'
+                )
+            self.gmm = None
+            return
+
+        if mix is None:
+            mix = Categorical(torch.tensor(
+                [1 / locs.shape[0]] * locs.shape[0],
+                dtype=locs.dtype,
+            ))
+
+        if isinstance(locs, MultivariateNormal):
+            self.gmm = MixtureSameFamily(mix, locs)
+            return
+        self.gmm = MixtureSameFamily(
+            mix,
+            MultivariateNormal(locs, covariance_matrices),
+        )
+
     def log_prob(self, features):
         """The logarithmic probability of the features belonging to this GMM"""
+        return self.gmm.log_prob(features)
+
+    def comp_log_prob(self, features):
+        """The log_prob of each component per sample."""
+        raise NotImplementedError
+        return
+
+    def recognize(self, features, detect=False):
+        """The logarithmic probabilities of the features per MVN component.
+
+
+        """
         raise NotImplementedError
 
-    def recognize(self, features):
-        """The logarithmic probabilities of the features per MVN component."""
+    def predict(self, features):
+        return self.recognize(features, detect=True)
+
+    def detect(self, features):
+        """Detects samples belong to the general class, or a single component.
+        """
         raise NotImplementedError
+        return self.recognize(features,)
 
 
 #class GMMFINCH(GaussianRecognizer):
