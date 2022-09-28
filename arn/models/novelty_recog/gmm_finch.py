@@ -275,12 +275,12 @@ class GMM(object):
         covariance_matrices=None,
         thresholds=None,
         mix=None,
-        #counter=0,
+        counter=0,
     ):
+        self.counter = counter
         self.set_label_enc(class_name)
         self.set_gmm(locs, covariance_matrices, mix)
         self.set_thresholds(thresholds)
-        #self.counter = counter
 
     @property
     def class_name(self):
@@ -290,8 +290,12 @@ class GMM(object):
         if isinstance(label_enc, NominalDataEncoder):
             assert label_enc.unknown_key is not None
             self.label_enc = label_enc
+            self.counter += len(label_enc) - 1
         else:
-            self.label_enc = NominalDataEncoder([], unknown_key=label_enc)
+            self.label_enc = NominalDataEncoder(
+                [label_enc],
+                unknown_key=label_enc,
+            )
 
     def set_gmm(self, locs=None, covariance_matrices=None, mix=None):
         """Sets the gmm with given locs, covariance matrices, and mix."""
