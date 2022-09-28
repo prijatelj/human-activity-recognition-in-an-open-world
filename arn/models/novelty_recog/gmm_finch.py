@@ -14,6 +14,7 @@ from torch.distributions import(
 )
 
 from exputils.data.labels import NominalDataEncoder
+from exputils.io import create_filepath
 from vast.clusteringAlgos.FINCH.python.finch import FINCH
 
 from arn.models.novelty_recog.gaussian import (
@@ -56,7 +57,6 @@ def fit_multivariate_normal(
     stability_adjust=None,
     cov_epsilon=1e-12,
     device='cpu',
-    return_params=False,
 ):
     """Construct a MultivariateNormal for a GMM. Handles stability errors in
     the covariance matrix to pass the PositiveDefinite check.
@@ -73,8 +73,6 @@ def fit_multivariate_normal(
         mvn = MultivariateNormal(loc, cov_mat)
     except:
         mvn = MultivariateNormal(loc, cov_mat + stability_adjust)
-    if return_params:
-        return mvn.loc, mvn.covariance_matrix
     return mvn
 
 
@@ -109,6 +107,13 @@ def fit_gmm(
     if isinstance(threshold_method, str):
         threshold_method = getattr(__name__, threshold_method)
 
+    if stability_adjust is None:
+        # Numerical stability adjustment for the sample covariance diagonal
+        stability_adjust = cov_epsilon * torch.eye(
+            features.shape[-1],
+            device=device,
+        )
+
     mvns = []
     thresholds = []
     for i in range(n_clusters):
@@ -123,8 +128,9 @@ def fit_gmm(
                 continue
 
         mvn = fit_multivariate_normal(
-            torch.tensor(features[cluster_mask], dtype=dtype, device=device),
+            features[cluster_mask].to(dtype=dtype, device=device),
             stability_adjust,
+            device=device,
         )
         mvns.append(mvn)
         if threshold_method == 'cred_hyperellipse_thresh':
@@ -136,7 +142,8 @@ def fit_gmm(
 
     if threshold_method == 'closest_other_marignal_thresholds':
         thresholds = closest_other_marignal_thresholds(mvns)
-    return GMM(label_enc, mvns, thresholds)
+
+    return GMM(label_enc, mvns, thresholds=thresholds)
 
 
 def recognize_fit(
@@ -147,8 +154,8 @@ def recognize_fit(
     allowed_error=1e-5,
     max_likely_gmm=False,
     level=-1,
-    #stability_adjust=None,
-    #cov_epsilon=1e-12,
+    stability_adjust=None,
+    cov_epsilon=1e-12,
     device='cpu',
     **kwargs,
 ):
@@ -204,6 +211,13 @@ def recognize_fit(
     )
     recog_labels, n_clusters, _ = FINCH(features, **default_kwargs)
 
+    if stability_adjust is None:
+        # Numerical stability adjustment for the sample covariance diagonal
+        stability_adjust = cov_epsilon * torch.eye(
+            features.shape[-1],
+            device=device,
+        )
+
     if max_likely_gmm:
         raise NotImplementedError('max_likely_gmm')
         # TODO MLE GMM: from lowest level to highest, fit GMM to class clusters
@@ -217,7 +231,10 @@ def recognize_fit(
             recog_labels[:, level],
             n_clusters[level],
             device=device,
+            dtype=dtype,
             threshold_method=threshold_method,
+            stability_adjust=stability_adjust,
+            cov_epsilon=cov_epsilon,
         )
     return gmm
 
@@ -376,6 +393,30 @@ class GMM(object):
         if self.gmm is None:
             raise ValueError('`self.gmm` is None, must set gmm!')
         return (self.comp_log_prob(features) < self.thresholds).all(1)
+
+    def save(self, h5, overwrite=False):
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
+
+        for key in ['label_enc', 'locs', 'covariance_matrices', 'thresholds']:
+            if key in  h5:
+                raise ValueError(f'{key} already in given h5 dataset!')
+
+        h5['label_enc'] = np.array(self.label_enc).astype(np.string_)
+        h5['locs'] = self.gmm.component_distribution.loc.detach().cpu().numpy()
+        h5['covariance_matrices'] = (
+            self.gmm.component_distribution.covariance_matrix
+        ).detach().cpu().numpy()
+        h5['thresholds'] = self.thresholds.detach().cpu().numpy()
+        h5['mix'] = self.gmm.mixture_distribution.probs.detach().cpu().numpy()
+
+        if close:
+            h5.close()
+
+    @staticmethod
+    def load(h5):
+        raise NotImplementedError('modular loading from h5 file?')
 
 
 #class GMMFINCH(GaussianRecognizer):
