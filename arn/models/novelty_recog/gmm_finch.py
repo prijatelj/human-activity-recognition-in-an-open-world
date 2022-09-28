@@ -218,13 +218,25 @@ def recognize_fit(
             features.shape[-1],
             device=device,
         )
-
-    if max_likely_gmm:
+    if len(n_clusters) == 1 and n_clusters[-1] == 1:
+        logger.debug(
+            'Resulting GMM for %s kept 0 / 1 potential clusters',
+            class_name,
+        )
+        gmm = GMM(label_enc)
+    elif max_likely_gmm:
         raise NotImplementedError('max_likely_gmm')
         # TODO MLE GMM: from lowest level to highest, fit GMM to class clusters
         #   Keep looking or most likely until next in level sequence is less
         #   likely by log_prob on the data.
     else:
+        logger.debug(
+            'FINCH for %s with level %d found %d potential clusters',
+            class_name,
+            level,
+            n_clusters[level],
+        )
+
         # Fit a GMM to the given class clusters using level
         gmm = fit_gmm(
             class_name,
@@ -236,6 +248,12 @@ def recognize_fit(
             threshold_method=threshold_method,
             stability_adjust=stability_adjust,
             cov_epsilon=cov_epsilon,
+        )
+        logger.debug(
+            'Resulting GMM for %s kept %d / %d potential clusters',
+            class_name,
+            len(gmm.label_enc) - 1, # -1 excludes the 1st catch-all class
+            n_clusters[level],
         )
     return gmm
 
