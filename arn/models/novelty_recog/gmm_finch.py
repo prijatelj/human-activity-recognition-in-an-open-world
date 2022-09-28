@@ -26,29 +26,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-#@ray
-def fit_multivariate_normal(
-    features,
-    stability_adjust=None,
-    cov_epsilon=1e-12,
-    device='cpu',
-):
-    """Construct a MultivariateNormal for a GMM."""
-    if stability_adjust is None:
-        # Numerical stability adjustment for the sample covariance diagonal
-        stability_adjust = cov_epsilon * torch.eye(
-            features.shape[-1],
-            device=device,
-        )
-    loc = features.mean(0)
-    cov_mat = features.T.cov()
-    try:
-        mvn = MultivariateNormal(loc, cov_mat)
-    except:
-        mvn = MultivariateNormal(loc, cov_mat + stability_adjust)
-    return mvn
-
-
 def closest_other_marignal_thresholds(mvns):
     """Given a GMM, for each gaussian component, find the pairwise closest
     other gaussian and set the hyper ellipse to the maximum margin between the
@@ -69,8 +46,36 @@ def closest_other_marignal_thresholds(mvns):
     list(float)
         The closest other marginal log_prob thershold per gaussian component.
     """
-    raise NotImplementedError
+    raise NotImplementedError('TODO')
     return
+
+
+#@ray
+def fit_multivariate_normal(
+    features,
+    stability_adjust=None,
+    cov_epsilon=1e-12,
+    device='cpu',
+    return_params=False,
+):
+    """Construct a MultivariateNormal for a GMM. Handles stability errors in
+    the covariance matrix to pass the PositiveDefinite check.
+    """
+    if stability_adjust is None:
+        # Numerical stability adjustment for the sample covariance diagonal
+        stability_adjust = cov_epsilon * torch.eye(
+            features.shape[-1],
+            device=device,
+        )
+    loc = features.mean(0)
+    cov_mat = features.T.cov()
+    try:
+        mvn = MultivariateNormal(loc, cov_mat)
+    except:
+        mvn = MultivariateNormal(loc, cov_mat + stability_adjust)
+    if return_params:
+        return mvn.loc, mvn.covariance_matrix
+    return mvn
 
 
 #@ray
@@ -119,6 +124,7 @@ def fit_gmm(
 
         mvn = fit_multivariate_normal(
             torch.tensor(features[cluster_mask], dtype=dtype, device=device),
+            stability_adjust,
         )
         mvns.append(mvn)
         if threshold_method == 'cred_hyperellipse_thresh':
@@ -233,10 +239,12 @@ class GMM(object):
         covariance_matrices=None,
         thresholds=None,
         mix=None,
+        #counter=0,
     ):
         self.set_label_enc(class_name)
         self.set_gmm(locs, covariance_matrices, mix)
         self.set_thresholds(thresholds)
+        #self.counter = counter
 
     @property
     def class_name(self):
@@ -268,6 +276,26 @@ class GMM(object):
         if isinstance(locs, MultivariateNormal):
             self.gmm = MixtureSameFamily(mix, locs)
             return
+        elif (
+            isinstance(locs, list)
+            and all([isinstance(x, MultivariateNormal) for x in locs])
+        ):
+            if covariance_matrices is not None:
+                raise ValueError(
+                    '`locs` is list of MultivariateNormal objects which '
+                    'typically have their loc and covariance_matrix '
+                    'parameters extracted, but `covariance_matrices` is not '
+                    'None!'
+                )
+            mvns = locs
+            locs = []
+            covariance_matrices = []
+            for mvn in locs:
+                locs.append(mvn.loc)
+                covariance_matrices.append(mvn.covariance_matrix)
+            locs = torch.stack(locs)
+            covariance_matrices = torch.stack(covariance_matrices)
+
         self.gmm = MixtureSameFamily(
             mix,
             MultivariateNormal(locs, covariance_matrices),
