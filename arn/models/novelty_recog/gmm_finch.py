@@ -234,18 +234,20 @@ class GMM(object):
         thresholds=None,
         mix=None,
     ):
-        if isinstance(class_name, NominalDataEncoder):
-            assert class_name.unknown_key is not None
-            self.label_enc = class_name
-        else:
-            self.label_enc = NominalDataEncoder([], unknown_key=class_name)
-
+        self.set_label_enc(class_name)
         self.set_gmm(locs, covariance_matrices, mix)
         self.thresholds = thresholds
 
     @property
     def class_name(self):
         return self.label_enc.unknown_key
+
+    def set_label_enc(self, label_enc):
+        if isinstance(class_name, NominalDataEncoder):
+            assert class_name.unknown_key is not None
+            self.label_enc = class_name
+        else:
+            self.label_enc = NominalDataEncoder([], unknown_key=class_name)
 
     def set_gmm(self, locs=None, covariance_matrices=None, mix=None):
         """Sets the gmm with given locs, covariance matrices, and mix."""
@@ -273,26 +275,41 @@ class GMM(object):
 
     def log_prob(self, features):
         """The logarithmic probability of the features belonging to this GMM"""
+        if self.gmm is None:
+            raise ValueError('`self.gmm` is None, must set gmm!')
         return self.gmm.log_prob(features)
 
     def comp_log_prob(self, features):
         """The log_prob of each component per sample."""
-        raise NotImplementedError
-        return
+        if self.gmm is None:
+            raise ValueError('`self.gmm` is None, must set gmm!')
+        return self.gmm.component_distribution.log_prob(
+            features.unsqueeze(1).expand(
+                -1,
+                self.gmm.component_distribution.batch_shape,
+                -1,
+            )
+        )
 
     def recognize(self, features, detect=False):
         """The logarithmic probabilities of the features per MVN component.
 
 
         """
+        if self.gmm is None:
+            raise ValueError('`self.gmm` is None, must set gmm!')
         raise NotImplementedError
 
     def predict(self, features):
+        if self.gmm is None:
+            raise ValueError('`self.gmm` is None, must set gmm!')
         return self.recognize(features, detect=True)
 
     def detect(self, features):
         """Detects samples belong to the general class, or a single component.
         """
+        if self.gmm is None:
+            raise ValueError('`self.gmm` is None, must set gmm!')
         raise NotImplementedError
         return self.recognize(features,)
 
