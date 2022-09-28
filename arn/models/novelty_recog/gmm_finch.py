@@ -236,18 +236,18 @@ class GMM(object):
     ):
         self.set_label_enc(class_name)
         self.set_gmm(locs, covariance_matrices, mix)
-        self.thresholds = thresholds
+        self.set_thresholds(thresholds)
 
     @property
     def class_name(self):
         return self.label_enc.unknown_key
 
     def set_label_enc(self, label_enc):
-        if isinstance(class_name, NominalDataEncoder):
-            assert class_name.unknown_key is not None
-            self.label_enc = class_name
+        if isinstance(label_enc, NominalDataEncoder):
+            assert label_enc.unknown_key is not None
+            self.label_enc = label_enc
         else:
-            self.label_enc = NominalDataEncoder([], unknown_key=class_name)
+            self.label_enc = NominalDataEncoder([], unknown_key=label_enc)
 
     def set_gmm(self, locs=None, covariance_matrices=None, mix=None):
         """Sets the gmm with given locs, covariance matrices, and mix."""
@@ -273,6 +273,19 @@ class GMM(object):
             MultivariateNormal(locs, covariance_matrices),
         )
 
+    def set_thresholds(self, thresholds):
+        if self.gmm is None:
+            raise ValueError('`self.gmm` is None, must set gmm!')
+        if not isinstance(thresholds, torch.Tensor):
+            thresholds = torch.tensor(thresholds)
+        thresholds = thresholds.reshape(-1)
+        if (
+            thresholds.shape[0]
+            != self.gmm.component_distribution.batch_shape
+         ):
+            raise ValueError('Thresholds flattened dims != number of mvns')
+        self.thresholds = thresholds
+
     def log_prob(self, features):
         """The logarithmic probability of the features belonging to this GMM"""
         if self.gmm is None:
@@ -291,27 +304,50 @@ class GMM(object):
             )
         )
 
-    def recognize(self, features, detect=False):
+    def recognize(self, features, detect=True):
         """The logarithmic probabilities of the features per MVN component.
 
+        Args
+        ----
+        features : torch.Tensor
+        detect : bool = True
+            If True, includes the detected
 
+        Returns
+        -------
+        torch.Tensor
+            The softmax normalized probability vectors of the component log
+            probs per sample (row). If detect is True, then the first index
+            (self.label_enc.unknown_idx) is included amongst the components by
+            detection through the thresholding over the invidual components'
+            log probs.
         """
         if self.gmm is None:
             raise ValueError('`self.gmm` is None, must set gmm!')
         raise NotImplementedError
 
-    def predict(self, features):
-        if self.gmm is None:
-            raise ValueError('`self.gmm` is None, must set gmm!')
-        return self.recognize(features, detect=True)
+        recogs = self.comp_log_prob(features)
+
+        if detect:
+            detect_unknowns = (recogs < self.thresholds).all(1)
+
+            recogs = F.pad(F.softmax(recogs, dim=1), (1, 0), 'constant', 0)
+
+            # Sets unknown to max prob value, scales the rest by 1 - max
+            if detect_unknowns.any():
+                recogs[detect_unknowns, 0] = \
+                    recogs[detect_unknowns].max(1).values
+                recogs[detect_unknowns, 1:] *= 1 \
+                    - recogs[detect_unknowns, 0].reshape(-1, 1)
+            return recogs
+        return F.softmax(recogs, dim=1)
 
     def detect(self, features):
         """Detects samples belong to the general class, or a single component.
         """
         if self.gmm is None:
             raise ValueError('`self.gmm` is None, must set gmm!')
-        raise NotImplementedError
-        return self.recognize(features,)
+        return (self.comp_log_prob(features) < self.thresholds).all(1)
 
 
 #class GMMFINCH(GaussianRecognizer):
