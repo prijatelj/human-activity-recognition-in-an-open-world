@@ -563,17 +563,26 @@ class EvalDataSplitConfig(NamedTuple):
             label_enc = data_split.label_enc
         else:
             label_enc = deepcopy(predictor.label_enc)
+            # TODO If these are changing cuz new unknown_# from recognize_fit()
+            # then the state needs updated correctly after recognize_fit()! The
+            # unknown_# would be misaligned i believe.
             n_recogs_in_pred = preds.shape[-1] - predictor.n_known_labels
             n_recogs = predictor.n_recog_labels
             if n_recogs_in_pred < n_recogs:
                 logger.warning(
-                    'n_recogs_in_pred < n_recogs: %d < %d. When the predictor '
+                    'n_recogs_in_pred < n_recogs: %d < %d. '
+                    'preds.shape[-1] = %d ; predictor.n_known_labels = %d '
+                    'predictor.n_labels = %d '
+                    'When the predictor '
                     'is given, then the label encoder used is the  '
                     "predictor's label encoder and this was not caught by the "
                     'predictor itself. Beware this may indicate an issue in '
                     'class alignment of preds.',
                     n_recogs_in_pred,
-                    predictor.n_known_labels
+                    n_recogs,
+                    preds.shape[-1],
+                    predictor.n_known_labels,
+                    predictor.n_labels,
                 )
                 # Update end of preds
                 pad_widths = [(0, 0)] * len(preds.shape)
@@ -817,7 +826,7 @@ class EvalConfig:
     def __bool__(self):
         return self.train or self.validate or self.test
 
-    def eval(self, data_splits, predictor, prefix=None):
+    def eval(self, data_splits, predictor, prefix=None, experience=None):
         """Given the datasplits, performs the predictions and evaluations to
         be saved.
 
@@ -850,7 +859,10 @@ class EvalConfig:
                 reset_return_label = dsplit.return_label
                 if dsplit.return_label:
                     dsplit.return_label = False
-                preds = predictor.predict(dsplit)
+                if experience:
+                    preds = predictor.predict(dsplit, experience)
+                else:
+                    preds = predictor.predict(dsplit)
                 prefix_dir = os.path.join(prefix, name)
 
                 # Optionally obtain and save feature extractions of ANN
@@ -1025,6 +1037,7 @@ class DataSplits:
         if not inplace:
             return DataSplits(*splits)
 
+
 class KineticsOWL(object):
     """Kinetics Open World Learning Pipeline for incremental recognition.
     This is the class that contains all other objects to run an experiment
@@ -1040,7 +1053,14 @@ class KineticsOWL(object):
         TODO docstr: support at least basic checking of multiple configurable
         types. Or maybe just parse all of them as options and support so in
         MultiType.
-    feedback : str = 'oracle'
+    feedback_type : str = 'oracle'
+        Originally intended to indicate different types of feedback, this is
+        intended to always have the value 'oracle' for now.
+        Different types of feedback is now a future feature.
+    feedback_amount : float = 1.0
+        The maximum percentage of feedback as ground truth labels given by an
+        oracle to provide to the predictor upon request. Valid values within
+        range [0, 1.0].
     rng_state : int = None
         Random seed.
     eval_on_start : bool = False
@@ -1080,7 +1100,8 @@ class KineticsOWL(object):
         environment,
         predictor,
         #augmentation=None # sensors
-        feedback='oracle',
+        feedback_type='oracle',
+        feedback_amount=1.0,
         rng_state=None,
         measures=None,
         eval_on_start=False,
@@ -1098,7 +1119,8 @@ class KineticsOWL(object):
         ----
         environment : see self
         predictor : see self
-        feedback : see self
+        feedback_type : see self
+        feedback_amount : see self
         rng_state : see self
         eval_on_start : see self
         eval_config : see self
@@ -1119,7 +1141,8 @@ class KineticsOWL(object):
 
         self.environment = environment
         self.predictor = predictor
-        self.feedback = feedback
+        self.feedback_type = feedback_type
+        self.feedback_amount = feedback_amount
         self.eval_on_start = eval_on_start
         self.eval_config = eval_config
         if post_feedback_eval_config is True:
@@ -1178,20 +1201,18 @@ class KineticsOWL(object):
                 "Eval for new data, no feedback, for step %d.",
                 self.increment - 1,
             )
+            if self.experience:
+                self.experience.train.return_label = False
             self.eval_config.eval(
                 new_data_splits,
                 self.predictor,
                 #    if not self.eval_config.save_features
                 #    else self.predictor.extract_predict,
                 f'{eval_prefix}_new-data_predict',
+                experience=self.experience,
             )
-            """ TODO Novelty Detect
-            self.eval_config.eval(
-                new_data_splits,
-                self.predictor.novelty_detect,
-                f'step-{self.increment}_new-data_novelty-detect',
-            )
-            #"""
+            if self.experience:
+                self.experience.train.return_label = True
             # NOTE novelty detect task is based on the NominalDataEncoder for
             # the current time step as it knows when something is a known or
             # unknown class at the current time step.
@@ -1201,18 +1222,43 @@ class KineticsOWL(object):
             #       - Difference to actual novelty occurrence (by sample idx)
             #           If early detection, negative, otherwise positive.
 
-        if self.feedback == 'oracle':
+        if self.feedback_type:
             # 3. Opt. Feedback on this step's new data
             logger.info(
-                "Requesting feedback (%s) for step %d's data.",
-                self.feedback,
+                "Requesting feedback (%s: %f) for step %d's data.",
+                self.feedback_type,
+                self.feedback_amount,
                 self.increment - 1,
             )
+            if self.increment == 1:
+                # Provide full feedback on initial inc
+                new_data_splits.train.data['feedback'] \
+                    = new_data_splits.train.data['labels']
+            elif self.feedback_amount > 0:
+                # Provide the uids the predictor may request from and amount
+                feedback_uids = self.predictor.feedback_request(
+                    torch.stack(list(new_data_splits.train)),
+                    new_data_splits.train.data['sample_index'].values,
+                    self.feedback_amount,
+                )
+                logger.debug('feedback_uids = %s', feedback_uids)
+                feedback_mask = \
+                    new_data_splits.train.data['sample_index'].isin(
+                    feedback_uids[:int(np.floor(
+                        self.feedback_amount * len(new_data_splits.train)
+                    ))]
+                )
+                new_data_splits.train.data.loc[feedback_mask, 'feedback'] \
+                    = new_data_splits.train.data.loc[feedback_mask, 'labels']
+                logger.info('sum(feedback_mask) = %d', sum(feedback_mask))
+                logger.debug('feedback_mask = %s', feedback_mask)
+
             new_data_splits = self.environment.feedback(new_data_splits)
 
             logger.info(
-                "Updating with feedback (%s) for step %d's data.",
-                self.feedback,
+                "Updating with feedback (%s: %f) for step %d's data.",
+                self.feedback_type,
+                self.feedback_amount,
                 self.increment - 1,
             )
             if self.experience:
@@ -1235,22 +1281,41 @@ class KineticsOWL(object):
                         len(self.experience.test),
                 )
 
-                # 4. Opt. Predictor Update/train on new data w/ feedback
-                self.predictor.fit(
-                    self.experience.train,
-                    self.experience.validate,
-                )
-            else:
+                # TODO the predictor is still given all labels in train even if
+                # it does not recieve samples for an unknown label in train!
+                # This needs fixed!!!
+
+
+                if self.increment == 1 or self.feedback_amount > 0:
+                    # 4. Opt. Predictor Update/train on new data w/ feedback
+                    #label_col = self.experience.train.label_col
+                    self.experience.train.label_col = 'feedback'
+                    if self.experience.validate is not None:
+                        self.experience.validate.label_col = 'feedback'
+                    if self.experience.test is not None:
+                        self.experience.validate.label_col = 'feedback'
+                    self.predictor.fit(
+                        self.experience.train,
+                        self.experience.validate,
+                    )
+                    #self.experience.train.label_col = label_col
+            elif self.increment == 1 or self.feedback_amount > 0:
+                label_col = new_data_splits.train.label_col
+                new_data_splits.train.label_col = 'feedback'
                 self.predictor.fit(
                     new_data_splits.train,
                     new_data_splits.validate,
                 )
+                new_data_splits.train.label_col = label_col
 
             logger.info(
-                "Post-feedback Eval (%s) for step %d.",
-                self.feedback,
+                "Post-feedback Eval (%s: %f) for step %d.",
+                self.feedback_type,
+                self.feedback_amount,
                 self.increment - 1,
             )
+            if self.experience:
+                self.experience.train.return_label = False
             # 5. Opt. Predictor eval post update
             self.post_feedback_eval_config.eval(
                 new_data_splits,
@@ -1258,16 +1323,10 @@ class KineticsOWL(object):
                 #    if not self.eval_config.save_features
                 #    else self.predictor.extract_predict,
                 f'{eval_prefix}_post-feedback_predict',
+                experience=self.experience,
             )
-            """ TODO Novelty Detect
-            self.post_feedback_eval_config.eval(
-                new_data_splits,
-                self.predictor.novelty_detect,
-                f'step-{self.increment}_post-feedback_novelty-detect',
-            )
-            #"""
-        # else  TODO add fit call when no feedback to allow predictor to change
-        # state.
+            if self.experience:
+                self.experience.train.return_label = True
 
         # NOTE 6. Opt. Evaluate the updated predictor on entire experience
 
@@ -1292,36 +1351,41 @@ class KineticsOWL(object):
         )
         for i in range(exclusive_end_step):
             # 1. Get new data (input samples only)
-            logger.info("Getting step %d's data.", self.increment)
+            logger.info(
+                "Fast forward: Getting step %d's data.",
+                self.increment,
+            )
             new_data_splits = self.environment.step()
 
             logger.debug(
-                'len(new_data_splits.train) = %d',
+                'Fast forward: len(new_data_splits.train) = %d',
                 0 if new_data_splits.train is None \
                     else len(new_data_splits.train),
             )
             logger.debug(
-                'len(new_data_splits.validate) = %d',
+                'Fast forward: len(new_data_splits.validate) = %d',
                 0 if new_data_splits.validate is None \
                     else len(new_data_splits.validate),
             )
             logger.debug(
-                'len(new_data_splits.test) = %d',
+                'Fast forward: len(new_data_splits.test) = %d',
                 0 if new_data_splits.test is None \
                     else len(new_data_splits.test),
             )
-            if self.feedback == 'oracle':
+            if self.feedback_type == 'oracle':
                 # 3. Opt. Feedback on this step's new data
                 logger.info(
+                    'Fast forward: '
                     "Requesting feedback (%s) for step %d's data.",
-                    self.feedback,
+                    self.feedback_type,
                     self.increment - 1,
                 )
                 new_data_splits = self.environment.feedback(new_data_splits)
 
                 logger.info(
+                    'Fast forward: '
                     "Updating with feedback (%s) for step %d's data.",
-                    self.feedback,
+                    self.feedback_type,
                     self.increment - 1,
                 )
                 if self.experience:
@@ -1329,17 +1393,17 @@ class KineticsOWL(object):
                     self.experience = self.experience.append(new_data_splits)
 
                     logger.debug(
-                        'len(self.experience.train) = %d',
+                        'Fast forward: len(self.experience.train) = %d',
                         0 if self.experience.train is None else \
                             len(self.experience.train),
                     )
                     logger.debug(
-                        'len(self.experience.validate) = %d',
+                        'Fast forward: len(self.experience.validate) = %d',
                         0 if self.experience.validate is None else \
                             len(self.experience.validate),
                     )
                     logger.debug(
-                        'len(self.experience.test) = %d',
+                        'Fast forward: len(self.experience.test) = %d',
                         0 if self.experience.test is None else \
                             len(self.experience.test),
                     )
@@ -1482,6 +1546,7 @@ class KineticsOWLExperiment(object):
                     known_label_enc,
                     seed=seed + i,
                     intro_freq_first=intro_freq_first,
+                    #label_col=step.label_col,
                 )
 
     @property
@@ -1553,7 +1618,8 @@ def kinetics_owl_evm(*args, **kwargs):
     ----
     environment : see KineticsOWL
     predictor : arn.models.owhar.EVMPredictor
-    feedback : see KineticsOWL
+    feedback_type : see KineticsOWL
+    feedback_amount : see KineticsOWL
     rng_state : see KineticsOWL
     eval_on_start : see KineticsOWL
     eval_config : see KineticsOWL
@@ -1576,7 +1642,8 @@ def kinetics_owl_annevm(*args, **kwargs):
     ----
     environment : see KineticsOWL
     predictor : arn.models.owhar.ANNEVM
-    feedback : see KineticsOWL
+    feedback_type : see KineticsOWL
+    feedback_amount : see KineticsOWL
     rng_state : see KineticsOWL
     eval_on_start : see KineticsOWL
     eval_config : see KineticsOWL
@@ -1599,7 +1666,8 @@ def kinetics_owl_naive_dpgmm(*args, **kwargs):
     ----
     environment : see KineticsOWL
     predictor : arn.models.novelty_recog.naive_dpgmm.NaiveDPGMM
-    feedback : see KineticsOWL
+    feedback_type : see KineticsOWL
+    feedback_amount : see KineticsOWL
     rng_state : see KineticsOWL
     eval_on_start : see KineticsOWL
     eval_config : see KineticsOWL
@@ -1622,7 +1690,8 @@ def kinetics_owl_gauss_finch(*args, **kwargs):
     ----
     environment : see KineticsOWL
     predictor : arn.models.novelty_recog.gauss_finch.GaussFINCH
-    feedback : see KineticsOWL
+    feedback_type : see KineticsOWL
+    feedback_amount : see KineticsOWL
     rng_state : see KineticsOWL
     eval_on_start : see KineticsOWL
     eval_config : see KineticsOWL

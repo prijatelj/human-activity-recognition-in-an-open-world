@@ -1,4 +1,6 @@
 """Naive DPGMM version of GaussianRecognizer."""
+from copy import deepcopy
+
 import numpy as np
 from sklearn.mixture import BayesianGaussianMixture
 import torch
@@ -10,7 +12,7 @@ from vast.clusteringAlgos.FINCH.python.finch import FINCH
 
 from arn.models.novelty_recog.gaussian import (
     GaussianRecognizer,
-    get_log_prob_mvn_thresh,
+    cred_hyperellipse_thresh,
 )
 
 import logging
@@ -53,8 +55,7 @@ class GaussFINCH(GaussianRecognizer):
             2 dimensional float tensor of shape (samples, feature_repr_dims)
             that are the features of points treated as outliers.
         **kwargs : dict
-            Key word arguments for the Dirichlet Process Gaussian Mixture Model
-            as implemented in scikit-learn as the BayesianGaussianMixture.
+            Key word arguments for FINCH for detecting clusters.
 
         Side Effects
         ------------
@@ -97,6 +98,26 @@ class GaussFINCH(GaussianRecognizer):
         # TODO generalize this recognize_fit to apply to any set of pts and be
         # func called that returns all the class' GMM state
 
+        # rm old unknown classes, replacing with current ones as this is
+        # always called to redo the unknown class-clusters on ALL currently
+        # unlabeled data deemed unknown.
+        #if self.recog_label_enc is None:
+        self._gaussians = self._gaussians[:self.n_known_labels - 1]
+        self._thresholds = self._thresholds[:self.n_known_labels - 1]
+
+        # Must update experience everytime and handle prior unknowns if any
+        unks = ['unknown']
+        if self.recog_label_enc:
+            unks += list(self.recog_label_enc)
+        unlabeled = self.experience[~self.experience['oracle']]
+        unknowns = unlabeled['labels'].isin(unks)
+        if unknowns.any():
+            self.experience.loc[unknowns.index, 'labels'] = \
+                self.known_label_enc.unknown_key
+
+        self.recog_label_enc = NominalDataEncoder()
+        self.label_enc = deepcopy(self.known_label_enc)
+
         # Get all MVNs found to serve as new class-clusters, unless deemed
         # unconfident its a new class based on critera (min samples and
         # density)
@@ -108,21 +129,20 @@ class GaussFINCH(GaussianRecognizer):
         if n_clusters <= 1 or n_clusters < self.min_samples:
             # No recognized unknown classes.
             return
-        if self.recog_label_enc is None:
-            self.recog_label_enc = NominalDataEncoder()
 
         # Numerical stability adjustment for the sample covariance's diagonal
         stability_adjust = self.cov_epsilon * torch.eye(
             features.shape[-1],
-            device=self.device
+            device=self.device,
         )
 
-
+        # TODO make this go brr in ray for parellization
         for i in range(n_clusters):
             cluster_mask = recog_labels == i
             logger.debug(
-                "%s's potential class has %d samples.",
+                "%s's %d-th potential class has %d samples.",
                 type(self).__name__,
+                i,
                 sum(cluster_mask),
             )
             if self.min_samples:
@@ -150,7 +170,7 @@ class GaussFINCH(GaussianRecognizer):
             )
 
             self._gaussians.append(mvn)
-            self._thresholds.append(get_log_prob_mvn_thresh(
+            self._thresholds.append(cred_hyperellipse_thresh(
                 mvn,
                 self.detect_error_tol,
             ))
@@ -161,6 +181,12 @@ class GaussFINCH(GaussianRecognizer):
 
         # Save the normalized belief of the unknowns
         #self._recog_weights = dpgmm.weights_[argsorted_weights]
+        logger.debug(
+            "%s found %d new classes.",
+            type(self).__name__,
+            self.n_recog_labels
+        )
 
         # Update label_enc to include the recog_label_enc at the end.
-        self.label_enc.append(self.recog_label_enc, ignore_dups=True)
+        if self.recog_label_enc:
+            self.label_enc.append(self.recog_label_enc)

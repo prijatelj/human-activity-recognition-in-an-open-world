@@ -3,6 +3,7 @@ from datetime import datetime
 from copy import deepcopy
 import os
 
+import numpy as np
 import torch
 
 from exputils.data.labels import NominalDataEncoder
@@ -216,6 +217,20 @@ class OWHAPredictor(object):
         if self._uid:
             return self._uid
         return self.fine_tune.trainer.log_dir.rpartition(os.path.sep)[-1]
+
+
+    # TODO feedback request for ANN batching fun times
+    #   If fitting a torch ANN w/ batching, will need to tmp rm all
+    #   samples w/o a label before fitting and then restore after.
+    def feedback_request(self, available_uids=None, amount=1.0):
+        """The predictor's method of requesting feedback."""
+        if available_uids is None:
+            raise NotImplementedError('available_uids is necessary for ANNs.')
+        idx = np.arange(len(available_uids))
+        np.random.shuffle(idx)
+
+        return available_uids[idx]
+
 
     def fit(self, dataset, val_dataset=None):
         """Incrementally fit the OWHAPredictor's parts. Update classes in
