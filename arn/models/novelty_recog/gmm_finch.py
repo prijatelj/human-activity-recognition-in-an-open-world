@@ -475,3 +475,10 @@ class GMMFINCH(OWHARecognizer):
 
     def predict(self, features):
         raise NotImplementedError
+
+    def save(self, h5):
+        raise NotImplementedError
+
+    @staticmethod
+    def load(h5):
+        raise NotImplementedError
