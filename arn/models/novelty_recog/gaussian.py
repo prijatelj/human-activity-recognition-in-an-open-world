@@ -374,8 +374,6 @@ class OWHARecognizer(OWHAPredictor):
         #   in fit() it only uses the train data. Keeping that trend w/in
         #   predict as well for now.
 
-        return preds
-
     def predict(self, dataset, experience=None):
         if self.label_enc is None:
             raise ValueError('label enc is None. This predictor is not fit.')
@@ -396,13 +394,14 @@ class OWHARecognizer(OWHAPredictor):
             torch.stack(list(dataset)).to(self.device),
             detect=True,
         )
-        return self.post_predict(
+        self.post_predict(
             dataset,
             experience,
             preds,
             unseen_mask,
             update_detects,
         )
+        return preds
 
     @abstractmethod
     def recognize_fit(self, features):
@@ -578,20 +577,47 @@ class GaussianRecognizer(OWHARecognizer):
         self.cov_epsilon = cov_epsilon
         self.min_cov_mag = 1.0
 
-    def fit(self, dataset, val_dataset=None):
-        """Fits a Gaussian to each class within feature space and a finds a
-        threshold over the logarithmic probability to each class' Gaussian that
-        includes all knowns within and excludes all unknowns.
-
-        Args
-        ----
-        features : torch.Tensor
-            2 dimensional float tensor of shape (samples, feature_repr_dims).
-        labels : torch.Tensor
-            1 dimensional integer tensor of shape (samples,). Contains the
-            index encoding of each label per features.
+    def pre_fit(self, dataset):
+        """Manage experience with new data and find masks for new and old data
         """
         # Mask experience which oracle feedback was given (assumes experiment
+        # is maintaining the predictor's experience)
+        # Given dataset, mark any samples in experience as oracle & label
+        dset_feedback_mask = ~pd.isna(dataset.labels)
+
+        if len(self.experience) > 0:
+            exp_feedback_mask = self.experience['uid'].isin(
+                dataset.data[dset_feedback_mask]['sample_index']
+            )
+            exp_no_feedback_mask = \
+                self.experience[~exp_feedback_mask]['uid'].isin(
+                    dataset.data[~dset_feedback_mask]['sample_index']
+                )
+            exp_mask = exp_feedback_mask.copy()
+            exp_mask[~exp_feedback_mask] |= exp_no_feedback_mask
+            del exp_no_feedback_mask
+
+            # Update to True only for those whose label_col is not None
+            self.experience.loc[exp_feedback_mask, 'oracle'] = True
+
+            # Assign the feedback labels from dataset to experience.
+            self.experience.loc[exp_feedback_mask, 'labels'] = \
+                dataset.labels[dset_feedback_mask].loc[
+                    self.experience[exp_feedback_mask]['uid']
+                ].convert_dtypes(str)
+
+            # NOTE For each uniquely removed labeled recog sample, check if
+            # that recognized cluster still has enough samples, if yes keep
+            # else set to all unknown. Rm recog labels set to unknowns.
+            if self.recog_label_enc:
+                for exp_label in self.recog_label_enc:
+                    mask = self.experience['labels'] == exp_label
+                    if np.sum(mask) < self.min_samples:
+                        self.experience.loc[mask, 'labels'] = \
+                            self.label_enc.unknown_key
+                        idx = self.recog_label_enc.pop(exp_label)
+                        if isinstance(self._recog_weights, list):
+                            del self._recog_weights[idx]
         # is maintaining the predictor's experience)
         # Given dataset, mark any samples in experience as oracle & label
         dset_feedback_mask = ~pd.isna(dataset.labels)
@@ -677,9 +703,6 @@ class GaussianRecognizer(OWHARecognizer):
                 ).convert_dtypes([int, str, str, bool])
             )
 
-        # NOTE decide here if this is for fitting on frepr or the ANN.:
-        #   Staying with fitting in frepr for now.
-
         # Fit the Gaussians and thresholds per class-cluster. in F.Repr. space
         features = []
         labels = []
@@ -691,6 +714,11 @@ class GaussianRecognizer(OWHARecognizer):
         features = torch.stack(features)
         labels = torch.stack(labels).argmax(1)
 
+        return dset_feedback_mask, features
+
+    def fit_knowns(self, features, val_dataset=None):
+        # NOTE decide here if this is for fitting on frepr or the ANN.:
+        #   Staying with fitting in frepr for now.
         if self.device is None:
             device = features.device
             self.device = device
@@ -804,15 +832,10 @@ class GaussianRecognizer(OWHARecognizer):
             for mvn in self._gaussians
         ]).min()
 
-
-        # TODO but the above includes the uknowns_# !!!, which is okay, but
-        # what is not fine is the equal prioritization (afaik) of oracle vs
-        # non-oracle labels in experience.
-        #   And in the end, probably should refit all unknowns again after
-        #   fitting only the knowns, doing detect, etc... because this carries
-        #   thru the changes to unknowns after knowns is updated. And avoids
-        #   recalculating the recog mvns and thresholds twice
-
+    def post_fit(self, dset_feedback_mask, features):
+        """Any experience or recognizer state management necessary after
+        fitting the knowns.
+        """
         dset_no_feedback_mask = ~dset_feedback_mask
 
         # Update the recog distirbs given changes to knowns for the recogs
@@ -888,6 +911,23 @@ class GaussianRecognizer(OWHARecognizer):
                 f'recog_chkpt-{type(self).__name__}',
                 f'{self.uid}-{self.increment}.h5',
             ))
+
+    def fit(self, dataset, val_dataset=None):
+        """Fits a Gaussian to each class within feature space and a finds a
+        threshold over the logarithmic probability to each class' Gaussian that
+        includes all knowns within and excludes all unknowns.
+
+        Args
+        ----
+        features : torch.Tensor
+            2 dimensional float tensor of shape (samples, feature_repr_dims).
+        labels : torch.Tensor
+            1 dimensional integer tensor of shape (samples,). Contains the
+            index encoding of each label per features.
+        """
+        dset_feedback_mask, features = self.pre_fit(dataset)
+        self.fit_knowns(features, val_dataset)
+        self.post_fit(dset_feedback_mask, features)
 
         # NOTE Should fit on the soft labels (output of recognize) for
         # unlabeled data. That way some semblence of info from the recog goes
