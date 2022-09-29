@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 class GaussFINCH(GaussianRecognizer):
-    """A GaussianRecognizer with FINCH for recognize_fit.
+    """A GaussianRecognizer with FINCH for recognize_fit. Gaussian per class,
+    Gaussian Mixture Model for unknowns based on detection thresholds of known
+    classes. Every recognize_fit() with new data the unknown GMM gets refit.
 
     Args
     ----
@@ -41,9 +43,29 @@ class GaussFINCH(GaussianRecognizer):
         self.level = level
         super().__init__(*args, **kwargs)
 
-    # TODO handle recog_label_enc mapping to the gmm.label_enc!
-    #   When and where is recog_label_enc state changed?
+        # TODO known gmm, gaussian per class
+        self.known_gmm = None
 
+        # TODO unknown gmm, as in recognize_fit.
+        self.unknown_gmm = None
+
+        # The combined gmms into one for predict()/recigonize(), detect()
+        self.gmm = None
+
+        # TODO recognize and predict using
+
+    @property
+    def label_enc(self):
+        if self.gmm is not None:
+            return self.gmm.label_enc
+
+    def fit_knowns(self, features, val_dataset=None):
+        # TODO update known label_enc using GMM.fit() or gmm_fit()
+        if self.known_gmm is None:
+            self.known_gmm = GMM(
+                min_samples=0,
+            )
+        self.known_gmm.fit(features, known_labels)
 
     def recognize_fit(
         self,
@@ -67,8 +89,8 @@ class GaussFINCH(GaussianRecognizer):
         Any new unknown classes are added to the self.recog_label_enc, and
         self._gaussians
         """
-        if not self._gaussians:
-            raise ValueError('Recognizer is not fit: self._gaussians is None.')
+        if not self.known_gmm:
+            raise ValueError('Recognizer is not fit: self.known_gmm is None.')
 
         # Must update experience everytime and handle prior unknowns if any
         unks = ['unknown']
@@ -80,15 +102,13 @@ class GaussFINCH(GaussianRecognizer):
             self.experience.loc[unknowns.index, 'labels'] = \
                 self.known_label_enc.unknown_key
 
-        self.label_enc = deepcopy(self.known_label_enc)
-
         # Update the unknown classes GMM
-        if self.gmm is None:
+        if self.unknown_gmm is None:
             counter = 0
         else:
-            counter = self.gmm.counter
+            counter = self.unknown_gmm.counter
 
-        gmm = recognize_fit(
+        self.unknown_gmm = recognize_fit(
             'unknown',
             features,
             counter,
@@ -99,16 +119,4 @@ class GaussFINCH(GaussianRecognizer):
             **kwargs,
         )
 
-
-        # rm old unknown classes, replacing with current ones as this is
-        # always called to redo the unknown class-clusters on ALL currently
-        # unlabeled data deemed unknown.
-        #if self.recog_label_enc is None:
-        # TODO Update the knowns GMM.
-        self._gaussians = self._gaussians[:self.n_known_labels - 1]
-        self._thresholds = self._thresholds[:self.n_known_labels - 1]
-
-
-        # Update label_enc to include the recog_label_enc at the end.
-        if self.recog_label_enc:
-            self.label_enc.append(self.recog_label_enc)
+        self.gmm = join_gmms(self.known_gmm, self.unknown_gmm)
