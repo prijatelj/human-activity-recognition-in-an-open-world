@@ -102,8 +102,9 @@ def join_gmms(left, right, use_right_key=True):
 def fit_multivariate_normal(
     features,
     stability_adjust=None,
-    cov_epsilon=1e-12,
+    cov_epsilon=1e-6,
     device='cpu',
+    cov_mat=None
 ):
     """Construct a MultivariateNormal for a GMM. Handles stability errors in
     the covariance matrix to pass the PositiveDefinite check.
@@ -115,7 +116,8 @@ def fit_multivariate_normal(
             device=device,
         )
     loc = features.mean(0)
-    cov_mat = features.T.cov()
+    if cov_mat is None:
+        cov_mat = features.T.cov()
     try:
         mvn = MultivariateNormal(loc, cov_mat)
     except:
@@ -131,7 +133,7 @@ def fit_gmm(
     n_clusters=None,
     counter=0,
     stability_adjust=None,
-    cov_epsilon=1e-12,
+    cov_epsilon=1e-6,
     device='cpu',
     dtype='float32',
     threshold_method='cred_hyperellipse_thresh',
@@ -199,10 +201,18 @@ def fit_gmm(
             if sum(cluster_mask) < min_samples:
                 continue
 
+        if min_samples <= 1 and len(cluster_mask) == 1:
+            # TODO this is probably an issue, was setting to overall min
+            # magnitude before, but screw it.
+            cov_mat = torch.eye(features.shape[-1]) * cov_epsilon
+        else:
+            cov_mat = None
+
         mvn = fit_multivariate_normal(
             features[cluster_mask].to(device, dtype),
             stability_adjust,
             device=device,
+            cov_mat=cov_mat,
         )
         mvns.append(mvn)
         if threshold_method == 'cred_hyperellipse_thresh':
@@ -240,7 +250,7 @@ def recognize_fit(
     max_likely_gmm=False,
     level=-1,
     stability_adjust=None,
-    cov_epsilon=1e-12,
+    cov_epsilon=1e-6,
     device='cpu',
     return_kwargs=False,
     **kwargs,
@@ -355,7 +365,7 @@ class GMM(object):
         The list of MultivariateNormals per class (component) is at
     thresholds : list(float)
     counter : int = 0
-    cov_epsilon: float = 1e-12
+    cov_epsilon: float = 1e-6
     device: str = 'cpu'
     dtype: str = 'float32'
     threshold_method: str = 'cred_hyperellipse_thresh'
@@ -370,7 +380,7 @@ class GMM(object):
         thresholds=None,
         mix=None,
         counter: int= 0,
-        cov_epsilon: float = 1e-12,
+        cov_epsilon: float = None,
         device: str = 'cpu',
         dtype: str = 'float32',
         threshold_method: str = 'cred_hyperellipse_thresh',
@@ -382,7 +392,11 @@ class GMM(object):
         self.set_gmm(locs, covariance_matrices, mix)
         self.set_thresholds(thresholds)
 
-        self.cov_epsilon = cov_epsilon
+        if cov_epsilon is None:
+            self.cov_epsilon = np.finfo(np.float32).eps * 10
+        else:
+            self.cov_epsilon = cov_epsilon
+
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
         self.threshold_method = threshold_method
