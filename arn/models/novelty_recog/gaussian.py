@@ -706,7 +706,6 @@ class GaussianRecognizer(OWHARecognizer):
         )
 
         # Fit a Gaussian per known class, starts at 1 to ignore unknown class.
-        # TODO this causses an issue by forgetting the recognized unknowns
         # TODO This could made efficient by skipping knowns w/o any data changes
         self._gaussians = []
         thresholds = []
