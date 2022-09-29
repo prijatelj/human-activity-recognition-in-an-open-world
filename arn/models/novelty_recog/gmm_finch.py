@@ -18,6 +18,7 @@ from exputils.data.labels import NominalDataEncoder
 from exputils.io import create_filepath
 from vast.clusteringAlgos.FINCH.python.finch import FINCH
 
+from arn.torch_utils import torch_dtype
 from arn.models.novelty_recog.gaussian import (
     OWHARecognizer,
     GaussianRecognizer, # TODO Ensure the parent handles all experience updates
@@ -52,7 +53,52 @@ def closest_other_marignal_thresholds(mvns):
     return
 
 
-#@ray
+def join_label_enc(left, right, use_right_key=True):
+    label_enc = deepcopy(main.label_enc)
+    key = right.unknown_key if use_right_key else left.unknown_key
+    other = iter(other)
+    next(other)
+    label_enc.append(other)
+    label_enc.inv[0] = key
+    return label_enc
+
+
+def join_gmms(left, right, use_right_key=True):
+    """Joins the right GMM into the left to form a new single GMM.
+
+    Args
+    ----
+    left : GMM
+    right : GMM
+    use_right_key : bool = True
+        The order of labels will always follow left then right, but the
+        unknown_key and other attributes used are specified by this flag,
+        defaulting to the right GMM's attributs unless use_right_key is False.
+    """
+    src = right if use_right_key else left
+    return GMM(
+        join_label_encs(left, right, use_right_key),
+        torch.stack([
+            left.gmm.component_distribution.loc,
+            right.gmm.component_distribution.loc,
+        ]),
+        torch.stack([
+            left.gmm.component_distribution.covariance_matrix,
+            right.gmm.component_distribution.covariance_matrix,
+        ]),
+        torch.cat([left.gmm.thresholds, right.gmm.thresholds]),
+        torch.cat([left.gmm.thresholds, right.gmm.thresholds]),
+        src.counter,
+        src.cov_epsilon,
+        src.device,
+        src.dtype,
+        src.threshold_method,
+        src.min_samples,
+        src.accepted_error,
+    )
+
+
+# TODO perhaps @ray?
 def fit_multivariate_normal(
     features,
     stability_adjust=None,
@@ -79,10 +125,10 @@ def fit_multivariate_normal(
 
 #@ray
 def fit_gmm(
-    class_name,
+    label_enc,
     features,
     recog_labels,
-    n_clusters,
+    n_clusters=None,
     counter=0,
     stability_adjust=None,
     cov_epsilon=1e-12,
@@ -91,19 +137,44 @@ def fit_gmm(
     threshold_method='cred_hyperellipse_thresh',
     min_samples=2,
     accepted_error=1e-5,
+    return_kwargs=True,
 ):
     """Construct a Gaussian Mixture Model as a component of larger mixture.
 
     Args
     ----
+    label_enc : str | NominalDataEncoder
     features : torch.Tensor
+    recog_labels : list(int)
+        The list of integers as found by FINCH to indicate the cluster each
+        sample belongs to, otherwise the label_enc index encoding without any
+        zeros as the catch-all class belongs to the zeroth index and does not
+        recieve a MultivariateNormal distribution.
+    n_clusters : int = None
 
     Returns
     -------
     GMM
         A Gaussian Mixture Model object as fit to the features.
     """
-    label_enc = NominalDataEncoder([], unknown_key=class_name)
+    update_label_enc = not isinstance(label_enc, NominalDataEncoder)
+    if update_label_enc:
+        if n_clusters is None:
+            raise ValueError(
+                '`n_clusters` is required when label_enc is not a '
+                'NominalDataEncoder'
+            )
+        label_enc = NominalDataEncoder([label_enc], unknown_key=label_enc)
+    else:
+        if n_clusters is not None:
+            raise ValueError(
+                '`n_clusters` given when label_enc is a NominalDataEncoder!'
+                'label_enc.inv is used inplace of range(n_clusters)'
+            )
+        n_clusters = iter(label_enc.inv)
+        if label_enc.unknown_idx is not None:
+            assert label_enc.unknown_idx == 0
+            next(n_clusters)
 
     if isinstance(threshold_method, str):
         threshold_method = getattr(__name__, threshold_method)
@@ -117,7 +188,7 @@ def fit_gmm(
 
     mvns = []
     thresholds = []
-    for i in range(n_clusters):
+    for i in range(n_clusters) if update_label_enc else n_clusters:
         cluster_mask = recog_labels == i
         logger.debug(
             "`fit_gmm()`'s %d-th potential class has %d samples.",
@@ -129,7 +200,7 @@ def fit_gmm(
                 continue
 
         mvn = fit_multivariate_normal(
-            features[cluster_mask].to(dtype=dtype, device=device),
+            features[cluster_mask].to(device, dtype),
             stability_adjust,
             device=device,
         )
@@ -138,13 +209,26 @@ def fit_gmm(
             thresholds.append(cred_hyperellipse_thresh(mvn, accepted_error))
 
         # Update the label encoder with new recognized class-clusters
-        label_enc.append(f'{class_name}_{counter}')
-        counter += 1
+        if update_label_enc:
+            label_enc.append(f'{label_enc.unknown_key}_{counter}')
+            counter += 1
 
     if threshold_method == 'closest_other_marignal_thresholds':
         thresholds = closest_other_marignal_thresholds(mvns)
 
-    return GMM(label_enc, mvns, thresholds=thresholds)
+    if return_kwargs:
+        return {'label_enc': label_enc, 'locs': mvns, 'thresholds': thresholds}
+    return GMM(
+        label_enc, mvns,
+        thresholds=thresholds,
+        counter=counter,
+        cov_epsilon=cov_epsilon,
+        device=device,
+        dtype=dtype,
+        threshold_method=threshold_method,
+        min_samples=min_samples,
+        accepted_error=accepted_error,
+    )
 
 
 def recognize_fit(
@@ -158,6 +242,7 @@ def recognize_fit(
     stability_adjust=None,
     cov_epsilon=1e-12,
     device='cpu',
+    return_kwargs=False,
     **kwargs,
 ):
     """For a single class' features, fit a Gaussian Mixture Model to it using
@@ -248,11 +333,13 @@ def recognize_fit(
             threshold_method=threshold_method,
             stability_adjust=stability_adjust,
             cov_epsilon=cov_epsilon,
+            return_kwargs=return_kwargs,
         )
+        # NOTE kept has len(label_enc)-1 to exclude the 1st catch-all class
         logger.debug(
             'Resulting GMM for %s kept %d / %d potential clusters',
             class_name,
-            len(gmm.label_enc) - 1, # -1 excludes the 1st catch-all class
+            len(gmm['label_enc'] if return_kwargs else gmm.label_enc) - 1,
             n_clusters[level],
         )
     return gmm
@@ -267,20 +354,40 @@ class GMM(object):
     gmm : MixtureSameFamily
         The list of MultivariateNormals per class (component) is at
     thresholds : list(float)
+    counter : int = 0
+    cov_epsilon: float = 1e-12
+    device: str = 'cpu'
+    dtype: str = 'float32'
+    threshold_method: str = 'cred_hyperellipse_thresh'
+    min_samples: int = 2
+    accepted_error: float = 1e-5
     """
     def __init__(
         self,
-        class_name,
+        label_enc,
         locs=None,
         covariance_matrices=None,
         thresholds=None,
         mix=None,
-        counter=0,
+        counter: int= 0,
+        cov_epsilon: float = 1e-12,
+        device: str = 'cpu',
+        dtype: str = 'float32',
+        threshold_method: str = 'cred_hyperellipse_thresh',
+        min_samples: int = 2,
+        accepted_error: float = 1e-5,
     ):
         self.counter = counter
-        self.set_label_enc(class_name)
+        self.set_label_enc(label_enc)
         self.set_gmm(locs, covariance_matrices, mix)
         self.set_thresholds(thresholds)
+
+        self.cov_epsilon = cov_epsilon
+        self.device = torch.device(device)
+        self.dtype = torch_dtype(dtype)
+        self.threshold_method = threshold_method
+        self.min_samples = min_samples
+        self.accepted_error = accepted_error
 
     @property
     def class_name(self):
@@ -288,9 +395,12 @@ class GMM(object):
 
     def set_label_enc(self, label_enc):
         if isinstance(label_enc, NominalDataEncoder):
-            assert label_enc.unknown_key is not None
             self.label_enc = label_enc
-            self.counter += len(label_enc) - 1
+            if label_enc.unknown_idx is None:
+                self.counter += len(label_enc) - 1
+            else:
+                assert label_enc.unknown_idx == 0
+                self.counter += len(label_enc) - 1
         else:
             self.label_enc = NominalDataEncoder(
                 [label_enc],
@@ -371,6 +481,24 @@ class GMM(object):
                 -1,
             )
         )
+
+    def fit(self, *args, **kwargs):
+        params = fit_gmm(
+            self.label_enc.unknown_key,
+            *args,
+            counter=self.counter,
+            return_kwargs=True,
+            cov_epsilon=self.cov_epsilon,
+            device=self.device,
+            dtype=self.dtype,
+            threshold_method=self.threshold_method,
+            min_samples=self.min_samples,
+            accepted_error=self.accepted_error,
+            **kwargs
+        )
+        self.set_label_enc(params['label_enc'])
+        self.set_gmm(params['locs'])
+        self.set_thresholds(params['thresholds'])
 
     def recognize(self, features, detect=True):
         """The logarithmic probabilities of the features per MVN component.
