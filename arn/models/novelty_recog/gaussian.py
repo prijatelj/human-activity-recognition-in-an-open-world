@@ -122,7 +122,7 @@ class OWHARecognizer(OWHAPredictor):
     @property
     def n_recog_labels(self):
         """The number of labels in recog_label_enc."""
-        return 0 if self.recog_label_enc is None else len(self.recog_label_enc)
+        return 0 if self.has_recogs else len(self.recog_label_enc)
 
     @property
     def n_known_labels(self):
@@ -133,6 +133,10 @@ class OWHARecognizer(OWHAPredictor):
     def n_labels(self):
         """The number of labels in label_enc."""
         return 0 if self.label_enc is None else len(self.label_enc)
+
+    @property
+    def has_recogs(self):
+        return bool(self.recog_label_enc)
 
     def fit(self, dataset, val_dataset=None):
         """Inheritting classes must handle experience maintence."""
@@ -256,7 +260,7 @@ class OWHARecognizer(OWHAPredictor):
                     # all unknowns/unlabeled should be fit together
                     unlabeled = self.experience[~self.experience['oracle']]
                     unks = ['unknown']
-                    if self.recog_label_enc:
+                    if self.has_recogs:
                         unks += list(self.recog_label_enc)
                     unknowns = unlabeled[unlabeled['labels'].isin(unks)]
 
@@ -609,44 +613,7 @@ class GaussianRecognizer(OWHARecognizer):
             # NOTE For each uniquely removed labeled recog sample, check if
             # that recognized cluster still has enough samples, if yes keep
             # else set to all unknown. Rm recog labels set to unknowns.
-            if self.recog_label_enc:
-                for exp_label in self.recog_label_enc:
-                    mask = self.experience['labels'] == exp_label
-                    if np.sum(mask) < self.min_samples:
-                        self.experience.loc[mask, 'labels'] = \
-                            self.label_enc.unknown_key
-                        idx = self.recog_label_enc.pop(exp_label)
-                        if isinstance(self._recog_weights, list):
-                            del self._recog_weights[idx]
-        # is maintaining the predictor's experience)
-        # Given dataset, mark any samples in experience as oracle & label
-        dset_feedback_mask = ~pd.isna(dataset.labels)
-
-        if len(self.experience) > 0:
-            exp_feedback_mask = self.experience['uid'].isin(
-                dataset.data[dset_feedback_mask]['sample_index']
-            )
-            exp_no_feedback_mask = \
-                self.experience[~exp_feedback_mask]['uid'].isin(
-                    dataset.data[~dset_feedback_mask]['sample_index']
-                )
-            exp_mask = exp_feedback_mask.copy()
-            exp_mask[~exp_feedback_mask] |= exp_no_feedback_mask
-            del exp_no_feedback_mask
-
-            # Update to True only for those whose label_col is not None
-            self.experience.loc[exp_feedback_mask, 'oracle'] = True
-
-            # Assign the feedback labels from dataset to experience.
-            self.experience.loc[exp_feedback_mask, 'labels'] = \
-                dataset.labels[dset_feedback_mask].loc[
-                    self.experience[exp_feedback_mask]['uid']
-                ].convert_dtypes(str)
-
-            # NOTE For each uniquely removed labeled recog sample, check if
-            # that recognized cluster still has enough samples, if yes keep
-            # else set to all unknown. Rm recog labels set to unknowns.
-            if self.recog_label_enc:
+            if self.has_recogs:
                 for exp_label in self.recog_label_enc:
                     mask = self.experience['labels'] == exp_label
                     if np.sum(mask) < self.min_samples:
@@ -881,7 +848,7 @@ class GaussianRecognizer(OWHARecognizer):
                 # The non-oracle experience should be recalculated given
                 # changes to both known and unknown.
 
-                if self.recog_label_enc:
+                if self.has_recogs:
                     # TODO experience does not have index == uid
                     self.experience.loc[
                         dset_no_feedback_mask[dset_no_feedback_mask].index,
