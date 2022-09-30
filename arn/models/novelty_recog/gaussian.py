@@ -621,6 +621,68 @@ class OWHARecognizer(OWHAPredictor):
         """
         raise NotImplementedError('Inheriting class overrides this.')
 
+    def save(self, h5, save_fine_tune=False, overwrite=False):
+        """Save as an HDF5 file."""
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
+
+        state = dict(
+            # OWHAPredictor
+            fine_tune=self.fine_tune if save_fine_tune else None,
+            uid=self.uid,
+            skip_fit=self.skip_fit,
+            save_dir=self.save_dir,
+            increment=self.increment,
+        )
+        for key, val in state.items():
+            if val is None:
+                continue
+            h5.attrs[key] = val
+
+        if len(self.experience) > 0:
+            h5_exp = h5.create_group('experience')
+            h5_exp['uid'] = self.experience['uid'].values.astype(int)
+            h5_exp['sample_path'] = \
+                self.experience['sample_path'].astype(np.string_)
+            h5_exp['labels'] = self.experience['labels'].astype(np.string_)
+            h5_exp['oracle'] = self.experience['oracle'].values.astype(bool)
+
+        if close:
+            h5.close()
+
+    @staticmethod
+    def load(h5):
+        """Load the HDF5 file."""
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(h5, 'r')
+
+        attrs = dict(h5.attrs.items())
+        increment = attrs.pop('increment', None)
+        if increment:
+            attrs['start_increment'] = increment
+
+        loaded = OWHARecognizer(fine_tune=None, **attrs)
+
+        if h5['experience']:
+            loaded.experience = pd.DataFrame(
+                np.stack(
+                    [
+                        np.array(h5['experience']['uid']).astype(int),
+                        np.array(h5['experience']['sample_path'], dtype=str),
+                        np.array(h5['experience']['labels'], dtype=str),
+                        np.array(h5['experience']['oracle'], dtype=bool),
+                    ],
+                    axis=1,
+                ),
+                columns=['uid', 'sample_path', 'labels', 'oracle'],
+            ).convert_dtypes([int, str, str, bool])
+
+        if close:
+            h5.close()
+        return loaded
+
 
 class GaussianRecognizer(OWHARecognizer):
     """Gaussian clustering per class to perform novel class recognition.
@@ -915,19 +977,13 @@ class GaussianRecognizer(OWHARecognizer):
         # Fit the FineTune ANN if it exists now that the labels are determined.
         super().fit(dataset, val_dataset)
 
-    def save(self, h5, save_fine_tune=False, overwrite=False):
+    def save(self, h5):
         """Save as an HDF5 file."""
         close = isinstance(h5, str)
         if close:
             h5 = h5py.File(create_filepath(h5, overwrite), 'w')
 
         state = dict(
-            # OWHAPredictor
-            fine_tune=self.fine_tune if save_fine_tune else None,
-            uid=self.uid,
-            skip_fit=self.skip_fit,
-            save_dir=self.save_dir,
-            increment=self.increment,
             # GaussianRecognizer
             min_error_tol=self.min_error_tol,
             detect_error_tol=self.detect_error_tol,
@@ -936,120 +992,12 @@ class GaussianRecognizer(OWHARecognizer):
             cov_epsilon=self.cov_epsilon,
             dtype=str(self.dtype)[6:],
             device=self.device.type,
-            _recog_counter=self._recog_counter,
         )
         for key, val in state.items():
             if val is None:
                 continue
             h5.attrs[key] = val
 
-        h5['label_enc'] = np.array(self.label_enc).astype(np.string_)
-        h5['known_label_enc'] = np.array(
-            self.known_label_enc
-        ).astype(np.string_)
-        h5['recog_label_enc'] = np.array(
-            self.recog_label_enc
-        ).astype(np.string_)
-        if self._recog_weights is not None:
-            h5['_recog_weights'] = self._recog_weights
-
-        if len(self.experience) > 0:
-            h5_exp = h5.create_group('experience')
-            h5_exp['uid'] = self.experience['uid'].values.astype(int)
-            h5_exp['sample_path'] = \
-                self.experience['sample_path'].astype(np.string_)
-            h5_exp['labels'] = self.experience['labels'].astype(np.string_)
-            h5_exp['oracle'] = self.experience['oracle'].values.astype(bool)
-
-        locs = []
-        cov_mats = []
-        thresholds = []
-        for i, gauss in enumerate(self._gaussians):
-            locs.append(gauss.loc)
-            cov_mats.append(gauss.covariance_matrix)
-            thresholds.append(float(self._thresholds[i]))
-        locs = torch.stack(locs).detach().cpu()
-        cov_mats = torch.stack(cov_mats).detach().cpu()
-
-        h5['_thresholds'] = thresholds
-
-        h5_gg = h5.create_group('_gaussians')
-        h5_gg['locs'] = locs
-        h5_gg['cov_mats'] = cov_mats
-
+        #supert()
         if close:
-            h5.close()
-
-    @staticmethod
-    def load(h5):
-        """Load the HDF5 file."""
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(h5, 'r')
-
-        attrs = dict(h5.attrs.items())
-        increment = attrs.pop('increment', None)
-        if increment:
-            attrs['start_increment'] = increment
-        _recog_counter = attrs.pop('_recog_counter', None)
-        loaded = GaussianRecognizer(fine_tune=None, **attrs)
-        loaded._recog_counter = _recog_counter
-
-        loaded.label_enc = NominalDataEncoder(
-            np.array(h5['label_enc'], dtype=str),
-            unknown_idx=0,
-        )
-        loaded.known_label_enc = NominalDataEncoder(
-            np.array(h5['known_label_enc'], dtype=str),
-            unknown_idx=0,
-        )
-
-        loaded.recog_label_enc = np.array(
-            h5['recog_label_enc'],
-            dtype=str,
-        ).reshape(-1)
-        if (
-            len(loaded.recog_label_enc) == 1
-            and loaded.recog_label_enc == 'None'
-        ):
-            loaded.recog_label_enc = None
-        else:
-            loaded.recog_label_enc = NominalDataEncoder(
-                loaded.recog_label_enc
-            )
-
-        loaded._recog_weights = h5.get('_recog_weights', None)
-        if loaded._recog_weights:
-            loaded._recog_weights = np.array(loaded._recog_weights)
-
-        loaded._thresholds = [
-            torch.tensor(t).to(loaded.device, loaded.dtype)
-            for t in h5['_thresholds']
-        ]
-
-        if h5['experience']:
-            loaded.experience = pd.DataFrame(
-                np.stack(
-                    [
-                        np.array(h5['experience']['uid']).astype(int),
-                        np.array(h5['experience']['sample_path'], dtype=str),
-                        np.array(h5['experience']['labels'], dtype=str),
-                        np.array(h5['experience']['oracle'], dtype=bool),
-                    ],
-                    axis=1,
-                ),
-                columns=['uid', 'sample_path', 'labels', 'oracle'],
-            ).convert_dtypes([int, str, str, bool])
-
-        loaded._gaussians = [
-            MultivariateNormal(torch.tensor(
-                    h5['_gaussians']['locs'][i]
-                ).to(loaded.device, loaded.dtype),
-                torch.tensor(cov_mat).to(loaded.device, loaded.dtype),
-            )
-            for i, cov_mat in enumerate(h5['_gaussians']['cov_mats'])
-        ]
-
-        if close:
-            h5.close()
-        return loaded
+            pass
