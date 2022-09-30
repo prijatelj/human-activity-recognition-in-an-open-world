@@ -115,9 +115,9 @@ class OWHARecognizer(OWHAPredictor):
             [],
             columns=['uid', 'sample_path', 'labels', 'oracle'],
         ).convert_dtypes([int, str, str, bool])
-        self.recog_label_enc = None
-        self.known_label_enc = None
-        self.label_enc = None
+        self._recog_label_enc = None
+        self._known_label_enc = None
+        self._label_enc = None
 
     @property
     def n_recog_labels(self):
@@ -135,8 +135,58 @@ class OWHARecognizer(OWHAPredictor):
         return 0 if self.label_enc is None else len(self.label_enc)
 
     @property
+    def known_label_enc(self):
+        """Interface and forces to set label enc w/o assignment `=`."""
+        return self._known_label_enc
+
+    @property
+    def recog_label_enc(self):
+        """Interface and forces to set label enc w/o assignment `=`."""
+        return self._recog_label_enc
+
+    @property
+    def label_enc(self):
+        """Interface and forces to set label enc w/o assignment `=`."""
+        return self._label_enc
+
+    @property
     def has_recogs(self):
         return bool(self.recog_label_enc)
+
+    def add_new_knowns(self, new_knowns):
+        if self.known_label_enc is None:
+            self.known_label_enc = NominalDataEncoder(
+                new_knowns,
+                unknown_key='unknown',
+            )
+        else:
+            self.known_label_enc.append(new_knowns)
+
+    def get_unseen_mask(self, dataset_df):
+        if len(self.experience) <= 0:
+            unseen_mask = [True] * len(dataset_df)
+        else:
+            unseen_mask = ~dataset_df['sample_index'].isin(
+                self.experience['uid']
+            ).values
+        return unseen_mask
+
+    def set_concat_exp(self, dataset_df, labels, oracle_feedback):
+        self.experience = self.experience.append(
+            pd.DataFrame(
+                np.stack(
+                    [
+                        dataset_df['sample_index'],
+                        dataset_df['sample_path'],
+                        labels,
+                        oracle_feedback,
+                    ],
+                    axis=1,
+                ),
+                columns=self.experience.columns,
+                index=dataset_df['sample_index'],
+            ).convert_dtypes([int, str, str, bool])
+        )
 
     def fit(self, dataset, val_dataset=None):
         """Inheritting classes must handle experience maintence."""
@@ -236,12 +286,7 @@ class OWHARecognizer(OWHAPredictor):
     def pre_predict(self, dataset, experience=None):
         """Update the experience and predictor state prior to predictions."""
         # If dataset contains uids unseen, add to predictor experience
-        if len(self.experience) <= 0:
-            unseen_mask = [True] * len(dataset.data)
-        else:
-            unseen_mask = ~dataset.data['sample_index'].isin(
-                self.experience['uid']
-            ).values
+        unseen_mask = self.get_unseen_mask(dataset.data)
 
         # NOTE DPGMM fitting and clustering takes too long! Use detect to cull.
         if any(unseen_mask):
@@ -350,24 +395,14 @@ class OWHARecognizer(OWHAPredictor):
 
         if any(unseen_mask):
             # Add any unseen features in dataset to experience w/ predictions
-            self.experience = self.experience.append(
-                pd.DataFrame(
-                    np.stack(
-                        [
-                            dataset.data[unseen_mask]['sample_index'],
-                            dataset.data[unseen_mask]['sample_path'],
-                            self.label_enc.decode(
-                                preds[unseen_mask].argmax(
-                                    1,
-                                ).detach().cpu().numpy()
-                            ),
-                            [False] * sum(unseen_mask),
-                        ],
-                        axis=1,
-                    ),
-                    columns=self.experience.columns,
-                    index=dataset.data[unseen_mask]['sample_index'],
-                ).convert_dtypes([int, str, str, bool])
+            self.set_concat_exp(
+                dataset.data[unseen_mask],
+                self.label_enc.decode(
+                    preds[unseen_mask].argmax(
+                        1,
+                    ).detach().cpu().numpy()
+                ),
+                [False] * sum(unseen_mask),
             )
 
         # TODO also, i suppose the predictor should not hold onto val/test
@@ -614,7 +649,10 @@ class GaussianRecognizer(OWHARecognizer):
             # that recognized cluster still has enough samples, if yes keep
             # else set to all unknown. Rm recog labels set to unknowns.
             if self.has_recogs:
-                for exp_label in self.recog_label_enc:
+                assert self.recog_label_enc.unknown_idx == 0
+                distinct_recogs = iter(self.recog_label_enc)
+                next(distinct_recogs)
+                for exp_label in distinct_recogs:
                     mask = self.experience['labels'] == exp_label
                     if np.sum(mask) < self.min_samples:
                         self.experience.loc[mask, 'labels'] = \
@@ -624,56 +662,34 @@ class GaussianRecognizer(OWHARecognizer):
                             del self._recog_weights[idx]
 
         # Update the predictor's label encoder with new knowns
-        unique_dset_feedback_labels = dataset.labels[
-            dset_feedback_mask
-        ].unique()
+        unique_dset_feedback = dataset.labels[dset_feedback_mask].unique()
         new_knowns = []
         for new_known in np.array(dataset.label_enc)[self.n_known_labels:]:
-            if new_known in unique_dset_feedback_labels:
+            if new_known in unique_dset_feedback:
                 new_knowns.append(new_known)
+
         # TODO Ensure OrderedConfusionMAtrices and CMs handle label alignment
         # Ensure that all decoding of predictors' encodings uses predictor's
         # label_enc, and the data uses the datasets label_enc, as written right
         # now, they will have label misalignment with partial feedback.
 
-        #self.known_label_enc = deepcopy(dataset.label_enc)
-        if self.known_label_enc is None:
-            self.known_label_enc = NominalDataEncoder(
-                new_knowns,
-                unknown_key='unknown',
-            )
-        else:
-            self.known_label_enc.append(new_knowns)
+        self.add_new_knowns(new_knowns)
 
         # Add new experience data
-        if len(self.experience) <= 0:
-            unseen_mask = np.array([True] * len(dataset.data))
-        else:
-            unseen_mask = ~dataset.data['sample_index'].isin(
-                self.experience['uid']
-            ).values
-
+        unseen_mask = self.get_unseen_mask(dataset.data)
         if any(unseen_mask):
-            self.experience = self.experience.append(
-                pd.DataFrame(
-                    np.stack(
-                        [
-                            dataset.data[unseen_mask]['sample_index'],
-                            dataset.data[unseen_mask]['sample_path'],
-                            dataset.labels[unseen_mask],
-                            dset_feedback_mask[unseen_mask],
-                        ],
-                        axis=1,
-                    ),
-                    columns=self.experience.columns,
-                    index=dataset.data[unseen_mask]['sample_index'],
-                ).convert_dtypes([int, str, str, bool])
+            # Add any unseen features in dataset to experience w/ feedback
+            self.set_concat_exp(
+                dataset.data[unseen_mask],
+                dataset.labels[unseen_mask],
+                dset_feedback_mask[unseen_mask],
             )
 
         # Fit the Gaussians and thresholds per class-cluster. in F.Repr. space
         features = []
         labels = []
-        # TODO This doesn't check for oracle feedback or not, won't handle None
+        # NOTE This doesn't check for oracle feedback or not, won't handle None
+        #   within this code itself.
         for feature_tensor, label in dataset:
             features.append(feature_tensor)
             labels.append(label)
