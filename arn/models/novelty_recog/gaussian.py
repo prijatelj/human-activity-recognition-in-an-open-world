@@ -59,7 +59,7 @@ def cred_hyperellipse_thresh(mvn, min_error_tol):
     return mvn.log_prob(mvn.loc + vector)
 
 
-def closest_other_marignal_thresholds(mvns):
+def closest_other_marignal_thresholds(mvns, min_thresholds):
     """Given a GMM, for each gaussian component, find the pairwise closest
     other gaussian and set the hyper ellipse to the maximum margin between the
     pair of gaussians. Use this hyper ellipse based on log_prob thresholding
@@ -69,6 +69,8 @@ def closest_other_marignal_thresholds(mvns):
     ----
     mvns : list(torch.distributions.multivariate_normal.MultivariateNormal)
         List of MultivariateNormal objects.
+    min_thresholds : list
+        A List of the empirical minum thresholds per mvn.
     accepted_error : float = 1e-5
         The accepted error (alpha) used to find the credible hyper ellipse as
         fallback or reference per gaussian component if a pairwise closest
