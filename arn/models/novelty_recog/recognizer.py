@@ -1,4 +1,6 @@
-"""Abstract Open World Human Activity Recognizer."""
+"""Abstract Open World Human Activity Recognizer with some generics or default
+properties and methods.
+"""
 from abc import abstractmethod
 from copy import deepcopy
 import os
@@ -12,9 +14,45 @@ from exputils.data.labels import NominalDataEncoder
 from exputils.io import create_filepath
 
 from arn.models.predictor import OWHAPredictor
+from arn.torch_utils import torch_dtype
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def load_owhar(h5, class_type=None):
+        """Load the class instance from the HDF5 file."""
+        if class_type is None:
+            class_type = OWHARecognizer
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(h5, 'r')
+
+        attrs = dict(h5.attrs.items())
+        increment = attrs.pop('increment', None)
+        if increment:
+            attrs['start_increment'] = increment
+
+        # NOTE Does not load the fine_tune objects yet.
+        loaded = class_type(fine_tune=None, **attrs)
+
+        if h5['experience']:
+            loaded.experience = pd.DataFrame(
+                np.stack(
+                    [
+                        np.array(h5['experience']['uid']).astype(int),
+                        np.array(h5['experience']['sample_path'], dtype=str),
+                        np.array(h5['experience']['labels'], dtype=str),
+                        np.array(h5['experience']['oracle'], dtype=bool),
+                    ],
+                    axis=1,
+                ),
+                columns=['uid', 'sample_path', 'labels', 'oracle'],
+            ).convert_dtypes([int, str, str, bool])
+
+        if close:
+            h5.close()
+        return loaded
 
 
 class OWHARecognizer(OWHAPredictor):
@@ -55,19 +93,53 @@ class OWHARecognizer(OWHAPredictor):
         allows also 'random'.
 
         Note, current docstr==0.0.3rc1  splits words on space within str.
+    min_samples : int = 2
+        The minimum number of samples within a class cluster. Will raise an
+        error if there are not enough samples within a given known classes
+        based on labels in fit().
+
+        Minimum number of samples for a cluster of outlier points to be
+        considered a new class cluster.
+    dtype : str = 'float64'
+        The dtype to use for the MultivariateNormal calculations based on the
+        class features. Sets each class_features per known class to this dtype
+        prior to finding the torch.tensor.mean() or torch.tensor.cov().
+    device : str = None
+        The device on which the internal tensors are stored and calculations
+        are performed. When None, default, it is inferred upon fitting.
     """
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        feedback_request_method: str = 'uncertain_first',
+        min_samples: int = 2,
+        dtype: str = 'float64',
+        device: str = None,
+        **kwargs,
+    ):
         """Initialize the OWHARecognizer.
 
         Args
         ----
         see OWHAPredictor.__init__
         feedback_request_method : see self
+        min_samples: see self
+        dtype : see self
+        device : see self
         """
-        self.feedback_request_method = kwargs.pop(
-            'feedback_request_method',
-            'uncertain_first',
-        )
+        self.feedback_request_method = feedback_request_method
+        if min_samples:
+            if min_samples < 0:
+                raise ValueError(
+                    'min_samples must be greater than 0.'
+                )
+        self.min_samples = min_samples
+
+        self.dtype = torch_dtype(dtype)
+        if device is not None:
+            self.device = torch.device(device)
+        else:
+            self.device = device
+
         super().__init__(**kwargs)
         self.experience = pd.DataFrame(
             [],
@@ -109,20 +181,35 @@ class OWHARecognizer(OWHAPredictor):
 
     @property
     def has_recogs(self):
+        """Checks if there are any recognized labels."""
         return bool(self.recog_label_enc)
 
     def add_new_knowns(self, new_knowns):
+        """Adds the given class labels as new knowns to the known label encoder
+        """
         if self.known_label_enc is None:
-            self.known_label_enc = NominalDataEncoder(
+            self._known_label_enc = NominalDataEncoder(
                 new_knowns,
                 unknown_key='unknown',
             )
         else:
-            self.known_label_enc.append(new_knowns)
+            self._known_label_enc.append(new_knowns)
 
     def get_unseen_mask(self, dataset_df):
+        """Compares given DataFrame to experience to find unseen samples.
+        Args
+        ----
+        dataset_df : pd.DataFrame
+
+        Returns
+        -------
+        np.array
+            Numpy array of bools along the rows of the given dataframe to mark
+            samples as True when they were not experienced in the current
+            experience, othewise False for they were experienced.
+        """
         if len(self.experience) <= 0:
-            unseen_mask = [True] * len(dataset_df)
+            unseen_mask = np.array([True] * len(dataset_df))
         else:
             unseen_mask = ~dataset_df['sample_index'].isin(
                 self.experience['uid']
@@ -130,6 +217,7 @@ class OWHARecognizer(OWHAPredictor):
         return unseen_mask
 
     def set_concat_exp(self, dataset_df, labels, oracle_feedback):
+        """Updates the experience dataframe with the given data."""
         self.experience = self.experience.append(
             pd.DataFrame(
                 np.stack(
@@ -145,50 +233,6 @@ class OWHARecognizer(OWHAPredictor):
                 index=dataset_df['sample_index'],
             ).convert_dtypes([int, str, str, bool])
         )
-
-    def fit(self, dataset, val_dataset=None):
-        """Inheritting classes must handle experience maintence."""
-        if self.skip_fit >= 0 and self._increment >= self.skip_fit:
-            return
-        # NOTE This is an unideal hotfix, the predictor should not effect
-        # evaluator data, but in this case we need to use recogs as labels, so
-        # those recogs need added if missing to the provided experience
-        # (dataset).
-
-        # NOTE this fit() assumes that dataset is ALL prior experience.
-        self._increment += 1
-
-        # Ensure the new recogs are used in fitting.
-        #   Predictor experience includes the unlabeled recogs, temporairly
-        #   append it and swap the label encoders.
-        original_data_len = len(dataset.data)
-        original_label_enc = dataset.label_enc
-
-        # NOTE need to check what is unseen before adding missing experience!
-        #   If dataset includes unseen, experience is assumed updated by
-        #   calling function / method.
-
-        # Only add experience not in dataset.data
-        if len(self.experience) > 0:
-            # TODO probably perform check that the UID is not in exp[uid]
-            dataset.data = dataset.data.append(
-                self.experience[
-                    ~self.experience['oracle'].convert_dtypes(bool)
-                ]
-            )
-            dataset.label_enc = self.label_enc
-
-        # NOTE need todo val_datset management... if ever using it
-        super().fit(dataset, val_dataset=None)
-
-        # Now rm the experience from the dataframe and restore the label enc
-        if len(self.experience) > 0:
-            dataset.data = dataset.data.iloc[:original_data_len]
-            dataset.label_enc = original_label_enc
-
-        # NOTE if there are any unlabeled samples, then perform recognition.
-        #   Currently not included in project's experiments.
-        #   And the gaussian recog is over frepr for now.
 
     def feedback_request(self, features, available_uids, amount=1.0):
         """The predictor's method of requesting feedback.
@@ -442,8 +486,6 @@ class OWHARecognizer(OWHAPredictor):
                         self.experience.loc[mask, 'labels'] = \
                             self.label_enc.unknown_key
                         idx = self.recog_label_enc.pop(exp_label)
-                        if isinstance(self._recog_weights, list):
-                            del self._recog_weights[idx]
 
         # Update the predictor's label encoder with new knowns
         unique_dset_feedback = dataset.labels[dset_feedback_mask].unique()
@@ -469,7 +511,6 @@ class OWHARecognizer(OWHAPredictor):
                 dset_feedback_mask[unseen_mask],
             )
 
-        # Fit the Gaussians and thresholds per class-cluster. in F.Repr. space
         features = []
         labels = []
         # NOTE This doesn't check for oracle feedback or not, won't handle None
@@ -477,11 +518,11 @@ class OWHARecognizer(OWHAPredictor):
         for feature_tensor, label in dataset:
             features.append(feature_tensor)
             labels.append(label)
-        del feature_tensor
+        del feature_tensor, label
         features = torch.stack(features)
         labels = torch.stack(labels).argmax(1)
 
-        return dset_feedback_mask, features
+        return dset_feedback_mask, features, labels
 
     def post_fit(self, dset_feedback_mask, features):
         """Any experience or recognizer state management necessary after
@@ -564,6 +605,67 @@ class OWHARecognizer(OWHAPredictor):
             ))
 
     @abstractmethod
+    def fit_knowns(self, dataset, val_dataset=None):
+        """Inheritting classes must handle experience maintence."""
+        if self.skip_fit >= 0 and self._increment >= self.skip_fit:
+            return
+        # NOTE This is an unideal hotfix, the predictor should not effect
+        # evaluator data, but in this case we need to use recogs as labels, so
+        # those recogs need added if missing to the provided experience
+        # (dataset).
+
+        # NOTE this fit() assumes that dataset is ALL prior experience.
+        self._increment += 1
+
+        # Ensure the new recogs are used in fitting.
+        #   Predictor experience includes the unlabeled recogs, temporairly
+        #   append it and swap the label encoders.
+        original_data_len = len(dataset.data)
+        original_label_enc = dataset.label_enc
+
+        # NOTE need to check what is unseen before adding missing experience!
+        #   If dataset includes unseen, experience is assumed updated by
+        #   calling function / method.
+
+        # Only add experience not in dataset.data
+        if len(self.experience) > 0:
+            # TODO probably perform check that the UID is not in exp[uid]
+            dataset.data = dataset.data.append(
+                self.experience[
+                    ~self.experience['oracle'].convert_dtypes(bool)
+                ]
+            )
+            dataset.label_enc = self.label_enc
+
+        # NOTE need todo val_datset management... if ever using it
+        super().fit(dataset, val_dataset=None)
+
+        # Now rm the experience from the dataframe and restore the label enc
+        if len(self.experience) > 0:
+            dataset.data = dataset.data.iloc[:original_data_len]
+            dataset.label_enc = original_label_enc
+
+        # NOTE if there are any unlabeled samples, then perform recognition.
+        #   Currently not included in project's experiments.
+        #   And the gaussian recog is over frepr for now.
+
+    def fit(self, dataset, val_dataset=None):
+        """The interface for partial supervised fitting the recognizer.  This
+        fit method exemplifies the calling of pre_fit, fit_knowns, and post_fit
+        to show the intended pattern of functionality: do anything prior to
+        fitting the knowns such as updating this predictor's experience, then
+        fit the knowns, and then anything afterwards, such as updating
+        experience now that the knowns have been fit.
+
+        These methods are separated for the convenience of reusing the methods
+        when writing custom fit_knowns() or overriding any other of these
+        methods in children classes.
+        """
+        dset_feedback_mask, features, labels = self.pre_fit(dataset)
+        self.fit_knowns(dataset, val_dataset=val_dataset)
+        self.post_fit(dset_feedback_mask, features)
+
+    @abstractmethod
     def recognize_fit(self, features):
         raise NotImplementedError('Inheriting class overrides this.')
 
@@ -615,32 +717,4 @@ class OWHARecognizer(OWHAPredictor):
 
     @staticmethod
     def load(h5):
-        """Load the HDF5 file."""
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(h5, 'r')
-
-        attrs = dict(h5.attrs.items())
-        increment = attrs.pop('increment', None)
-        if increment:
-            attrs['start_increment'] = increment
-
-        loaded = OWHARecognizer(fine_tune=None, **attrs)
-
-        if h5['experience']:
-            loaded.experience = pd.DataFrame(
-                np.stack(
-                    [
-                        np.array(h5['experience']['uid']).astype(int),
-                        np.array(h5['experience']['sample_path'], dtype=str),
-                        np.array(h5['experience']['labels'], dtype=str),
-                        np.array(h5['experience']['oracle'], dtype=bool),
-                    ],
-                    axis=1,
-                ),
-                columns=['uid', 'sample_path', 'labels', 'oracle'],
-            ).convert_dtypes([int, str, str, bool])
-
-        if close:
-            h5.close()
-        return loaded
+        return load_owhar(h5, OWHARecognizer)

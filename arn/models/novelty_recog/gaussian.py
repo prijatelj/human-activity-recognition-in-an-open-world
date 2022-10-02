@@ -1,4 +1,6 @@
-"""Novelty Recognition baseline using a Gaussian per class in feature space."""
+"""Novelty Recognition abstract/generic class using a Gaussian distributions to
+model the class' density in feature space.
+"""
 from copy import deepcopy
 import os
 
@@ -13,8 +15,7 @@ MultivariateNormal = torch.distributions.multivariate_normal.MultivariateNormal
 from exputils.data.labels import NominalDataEncoder
 from exputils.io import create_filepath
 
-from arn.models.novelty_recog.recognizer import OWHARecognizer
-from arn.torch_utils import torch_dtype
+from arn.models.novelty_recog.recognizer import OWHARecognizer, load_owhar
 
 import logging
 logger = logging.getLogger(__name__)
@@ -110,13 +111,6 @@ class GaussianRecognizer(OWHARecognizer):
 
     Attributes
     ----------
-    min_samples : int = 2
-        The minimum number of samples within a class cluster. Will raise an
-        error if there are not enough samples within a given known classes
-        based on labels in fit().
-
-        Minimum number of samples for a cluster of outlier points to be
-        considered a new class cluster.
     min_density : float = None
         The minimum normalized density (probability) for a cluster of unknowns
         to be considered a new class cluster. This is a value within [0, 1].
@@ -145,36 +139,17 @@ class GaussianRecognizer(OWHARecognizer):
         If this is not None, then it is used to determine outliers for each
         class-cluter's multivariate normal. This is the alpha for determining
         the confidence hyperellipse per multivariate normal.
-    dtype : str = 'float64'
-        The dtype to use for the MultivariateNormal calculations based on the
-        class features. Sets each class_features per known class to this dtype
-        prior to finding the torch.tensor.mean() or torch.tensor.cov().
-    device : str = None
-        The device on which the internal tensors are stored and calculations
-        are performed. When None, default, it is inferred upon fitting.
     cov_epsilon : float = 1e-12
         The torch.tensor.cov() is numerically unstable and so a small value
         will need adde to the diagonal of the resulting covariance matrix to
         avoid being treated as not a positive semi-definite matrix.
-    _gaussians : list = None
-        List of `torch.distributions.multivariate_normal.MultivariateNormal`
-        per known class, based on this recognizer's predictor's label encoder.
-    _thresholds : list = None
-        A list of floats that are the thresholds over the log probabilities of
-        the Gaussians of each class.
-    _recog_weights : np.array = None
-        The recognized class weights as determined by the component weights
-        from the Dirichlet Process Gaussian Mixture Model.
     see OWHARecognizer
     """
     def __init__(
         self,
         min_error_tol=5e-3,
         detect_error_tol=None,
-        min_samples=2,
         min_density=None,
-        dtype='float64',
-        device=None,
         cov_epsilon=1e-12,
         **kwargs,
     ):
@@ -184,10 +159,7 @@ class GaussianRecognizer(OWHARecognizer):
         ----
         min_error_tol : see self
         detect_error_tol : see self
-        min_samples : see self
         min_density : see self
-        dtype : see self
-        device : see self
         cov_epsilon : see self
         see OWHARecognizer.__init__
         """
@@ -198,7 +170,6 @@ class GaussianRecognizer(OWHARecognizer):
             )
         self.min_error_tol = min_error_tol
 
-        # TODO is this used? if not, rm
         if detect_error_tol is None:
             self.detect_error_tol = self.min_error_tol
         elif detect_error_tol < 0 or detect_error_tol > 1:
@@ -208,13 +179,6 @@ class GaussianRecognizer(OWHARecognizer):
         else:
             self.detect_error_tol = detect_error_tol
 
-        if min_samples:
-            if min_samples < 0:
-                raise ValueError(
-                    'min_samples must be greater than 0.'
-                )
-        self.min_samples = min_samples
-
         if min_density:
             raise NotImplementedError('min_density when not None.')
             if min_density < 0 or min_density > 1:
@@ -223,18 +187,20 @@ class GaussianRecognizer(OWHARecognizer):
                 )
         self.min_density = min_density
 
-        self.dtype = torch_dtype(dtype)
-        if device is not None:
-            self.device = torch.device(device)
-        else:
-            self.device = device
-
         self.cov_epsilon = cov_epsilon
         self.min_cov_mag = 1.0
 
-    def fit_knowns(self, features, val_dataset=None):
+    def fit_knowns(self, features, labels, val_dataset=None):
+        # Fit the Gaussians and thresholds per class-cluster. in F.Repr. space
+
         # NOTE decide here if this is for fitting on frepr or the ANN.:
         #   Staying with fitting in frepr for now.
+
+        raise NotImplementedError(
+            'This no longer funtions due to refactor. The inheritting class '
+            'should override this method.'
+        )
+
         if self.device is None:
             device = features.device
             self.device = device
@@ -361,8 +327,8 @@ class GaussianRecognizer(OWHARecognizer):
             1 dimensional integer tensor of shape (samples,). Contains the
             index encoding of each label per features.
         """
-        dset_feedback_mask, features = self.pre_fit(dataset)
-        self.fit_knowns(features, val_dataset)
+        dset_feedback_mask, features, labels = self.pre_fit(dataset)
+        self.fit_knowns(features, labels, val_dataset)
         self.post_fit(dset_feedback_mask, features)
 
         # NOTE Should fit on the soft labels (output of recognize) for
@@ -373,7 +339,7 @@ class GaussianRecognizer(OWHARecognizer):
         #   proportional, albeit scaled down, to the recognize output.
 
         # Fit the FineTune ANN if it exists now that the labels are determined.
-        super().fit(dataset, val_dataset)
+        super().fit_knowns(dataset, val_dataset)
 
     def save(self, h5, overwrite=False):
         """Save as an HDF5 file."""
@@ -399,3 +365,7 @@ class GaussianRecognizer(OWHARecognizer):
         super().save(h5)
         if close:
             h5.close()
+
+    @staticmethod
+    def load(h5):
+        return load_owhar(h5, GaussianRecognizer)
