@@ -87,13 +87,12 @@ class GaussFINCH(GaussianRecognizer):
             self.known_gmm.label_enc.append(new_knowns)
 
     def fit_knowns(self, features, labels, val_dataset=None):
-        # TODO update known label_enc using GMM.fit() or gmm_fit()
-        if self.known_gmm is None:
-            self.known_gmm = GMM(
-                NominalDataEncoder(np.unique(labels)), # TODO ???
-                min_samples=0,
-            )
-        self.known_gmm.fit(features, known_labels)
+        self.known_gmm.fit(
+            features,
+            labels,
+            accepted_error=self.detect_error_tol,
+            min_samples=0,
+        )
 
     def recognize_fit(
         self,
