@@ -4,7 +4,7 @@ __all__ = [
     'generics',
     'augmentation',
     'feature_extraction',
-    'owhar',
+    'predictor',
     #'interpret_feedback',
     'fine_tune',
     'fine_tune_lit',
