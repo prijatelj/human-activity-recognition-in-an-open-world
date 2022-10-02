@@ -16,7 +16,7 @@ from arn.models.novelty_recog.gaussian import (
     cred_hyperellipse_thresh,
     closest_other_marignal_thresholds,
 )
-from arn.models.novelty_recog.gmm_finch import recognize_fit
+from arn.models.novelty_recog.gmm_finch import recognize_fit, GMM
 
 import logging
 logger = logging.getLogger(__name__)
@@ -57,15 +57,40 @@ class GaussFINCH(GaussianRecognizer):
         # TODO recognize and predict using
 
     @property
+    def known_label_enc(self):
+        if self.known_gmm is not None:
+            return self.known_gmm.label_enc
+
+    @property
+    def recog_label_enc(self):
+        if self.unknown_gmm is not None:
+            return self.unknown_gmm.label_enc
+
+    @property
     def label_enc(self):
         if self.gmm is not None:
             return self.gmm.label_enc
+
+    def add_new_knowns(self, new_knowns):
+        """Adds the given class labels as new knowns to the known label encoder
+        """
+        if self.known_gmm is None:
+            if isinstance(new_knowns, NominalDataEncoder):
+                self.known_gmm = GMM(new_knowns)
+            else:
+                self.known_gmm = GMM(NominalDataEncoder(
+                new_knowns,
+                unknown_key='unknown', # TODO need to decide how to handle
+                # this. Perhaps, both known and unknown have 'unknown' catchall
+            ))
+        else:
+            self.known_gmm.label_enc.append(new_knowns)
 
     def fit_knowns(self, features, labels, val_dataset=None):
         # TODO update known label_enc using GMM.fit() or gmm_fit()
         if self.known_gmm is None:
             self.known_gmm = GMM(
-                NominalDataEncoder(np.unique(dataset.labels)), # TODO ???
+                NominalDataEncoder(np.unique(labels)), # TODO ???
                 min_samples=0,
             )
         self.known_gmm.fit(features, known_labels)
