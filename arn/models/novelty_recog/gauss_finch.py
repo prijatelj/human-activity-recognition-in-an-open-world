@@ -63,7 +63,7 @@ class GaussFINCH(GaussianRecognizer):
         # TODO update known label_enc using GMM.fit() or gmm_fit()
         if self.known_gmm is None:
             self.known_gmm = GMM(
-                NominalDataEncoder(np.unique(dataset.labels)) # TODO ???
+                NominalDataEncoder(np.unique(dataset.labels)), # TODO ???
                 min_samples=0,
             )
         self.known_gmm.fit(features, known_labels)
