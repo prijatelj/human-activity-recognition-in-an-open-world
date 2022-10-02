@@ -1,8 +1,9 @@
-"""Naive DPGMM version of GaussianRecognizer."""
+"""Recognizer with a Gaussian per known class, GMM for unknowns using FINCH to
+find unknown class clustes.
+"""
 from copy import deepcopy
 
 import numpy as np
-from sklearn.mixture import BayesianGaussianMixture
 import torch
 F = torch.nn.functional
 MultivariateNormal = torch.distributions.multivariate_normal.MultivariateNormal
@@ -13,6 +14,7 @@ from vast.clusteringAlgos.FINCH.python.finch import FINCH
 from arn.models.novelty_recog.gaussian import (
     GaussianRecognizer,
     cred_hyperellipse_thresh,
+    closest_other_marignal_thresholds,
 )
 from arn.models.novelty_recog.gmm_finch import recognize_fit
 

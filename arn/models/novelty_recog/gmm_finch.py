@@ -20,9 +20,9 @@ from vast.clusteringAlgos.FINCH.python.finch import FINCH
 
 from arn.torch_utils import torch_dtype
 from arn.models.novelty_recog.gaussian import (
-    OWHARecognizer,
     GaussianRecognizer, # TODO Ensure the parent handles all experience updates
     cred_hyperellipse_thresh,
+    closest_other_marignal_thresholds,
 )
 
 import logging
@@ -599,8 +599,7 @@ class GMM(object):
         return loaded
 
 
-#class GMMFINCH(GaussianRecognizer):
-class GMMFINCH(OWHARecognizer):
+class GMMFINCH(GaussianRecognizer):
     """Gaussian Mixture Model per class using FINCH to find the components.
 
     Attributes
