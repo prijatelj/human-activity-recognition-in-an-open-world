@@ -621,8 +621,12 @@ class OWHARecognizer(OWHAPredictor):
         """
         raise NotImplementedError('Inheriting class overrides this.')
 
-    def save(self, h5, save_fine_tune=False, overwrite=False):
+    def save(self, h5, overwrite=False, save_fine_tune=False):
         """Save as an HDF5 file."""
+        if save_fine_tune:
+            raise NotImplementedError(
+                f'{type(self).__name__}.save(save_fine_tune=True)'
+            )
         close = isinstance(h5, str)
         if close:
             h5 = h5py.File(create_filepath(h5, overwrite), 'w')
@@ -977,7 +981,7 @@ class GaussianRecognizer(OWHARecognizer):
         # Fit the FineTune ANN if it exists now that the labels are determined.
         super().fit(dataset, val_dataset)
 
-    def save(self, h5):
+    def save(self, h5, overwrite=False):
         """Save as an HDF5 file."""
         close = isinstance(h5, str)
         if close:
@@ -998,6 +1002,6 @@ class GaussianRecognizer(OWHARecognizer):
                 continue
             h5.attrs[key] = val
 
-        #supert()
+        super().save(h5)
         if close:
-            pass
+            h5.close()
