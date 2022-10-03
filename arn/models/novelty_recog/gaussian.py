@@ -238,12 +238,11 @@ class GaussianRecognizer(OWHARecognizer):
             # GaussianRecognizer
             min_error_tol=self.min_error_tol,
             detect_error_tol=self.detect_error_tol,
-            min_samples=self.min_samples,
             min_density=self.min_density,
             cov_epsilon=self.cov_epsilon,
-            dtype=str(self.dtype)[6:],
-            device=self.device.type,
-            # TODO threshold_fun str or if callable, __name__
+            threshold_func=self.threshold_func
+                if isinstance(self.threshold_func, str)
+                else str(self.threshold_func),
         )
         for key, val in state.items():
             if val is None:

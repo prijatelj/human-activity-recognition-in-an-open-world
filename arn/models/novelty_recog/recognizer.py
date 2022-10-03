@@ -84,10 +84,6 @@ class OWHARecognizer(OWHAPredictor):
     known_label_enc : NominalDataEncoder = None
     recog_label_enc : NominalDataEncoder = None
     label_enc : NominalDataEncoder = None
-    store_all : bool = True
-        When True, the default, store all feature points encountered in order
-        they were encountered, regardless of their data split being train,
-        validate, or test. If False (TODO), only store the training points.
     feedback_request_method : str = 'uncertain_first'
         The method used to request feedback. Defaults to 'uncertain_first',
         allows also 'random'.
@@ -709,6 +705,10 @@ class OWHARecognizer(OWHAPredictor):
             skip_fit=self.skip_fit,
             save_dir=self.save_dir,
             increment=self.increment,
+            min_samples=self.min_samples,
+            dtype=str(self.dtype)[6:],
+            device=self.device.type,
+            feedback_request_method=self.feedback_request_method,
         )
         for key, val in state.items():
             if val is None:
