@@ -109,34 +109,48 @@ class GMMFINCH(GMMRecognizer):
 
     def recognize(self, features, detect=False):
         # Loop through all known gmms + unknown_recogs getting log_probs.
-        recogs = [gmm.log_prob(features) for gmm in self.known_gmms]
+        if self.thresholds is not None:
+            recogs = [gmm.log_prob(features) for gmm in self.known_gmms]
+
+            if self.has_recogs:
+                unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
+                recogs += [unknown_log_probs]
+            recogs = torch.stack(recogs, dim=1)
+
+            if detect:
+                detect_unknowns = (recogs < self.thresholds).all(1)
+
+                recogs = F.pad(F.softmax(recogs, dim=1), (1, 0), 'constant', 0)
+
+                # Sets unknown to max prob value, scales the rest by 1 - max
+                if detect_unknowns.any():
+                    recogs[detect_unknowns, 0] = \
+                        recogs[detect_unknowns].max(1).values
+                    recogs[detect_unknowns, 1:] *= 1 \
+                        - recogs[detect_unknowns, 0].reshape(-1, 1)
+                return recogs
+            return F.softmax(recogs, dim=1)
+
+        # TODO Must use gmms' thresholds instead.
+        recogs = [gmm.detect(features) for gmm in self.known_gmms]
 
         if self.has_recogs:
             unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
             recogs = torch.cat([recogs, unknown_log_probs], dim=1)
+        recogs = torch.stack(recogs, dim=1).all(1)
 
-        if detect:
-            detect_unknowns = (recogs < self.thresholds).all(1)
-
-            recogs = F.pad(F.softmax(recogs, dim=1), (1, 0), 'constant', 0)
-
-            # Sets unknown to max prob value, scales the rest by 1 - max
-            if detect_unknowns.any():
-                recogs[detect_unknowns, 0] = \
-                    recogs[detect_unknowns].max(1).values
-                recogs[detect_unknowns, 1:] *= 1 \
-                    - recogs[detect_unknowns, 0].reshape(-1, 1)
-            return recogs
-        return F.softmax(recogs, dim=1)
 
     def detect(self, features, known_only=True):
-        recogs = [gmm.log_prob(features) for gmm in self.known_gmms]
+        if self.thresholds is not None:
+            recogs = [gmm.log_prob(features) for gmm in self.known_gmms]
 
-        if self.has_recogs and not known_only:
-            unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
-            recogs = torch.cat([recogs, unknown_log_probs], dim=1)
+            if self.has_recogs and not known_only:
+                unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
+                recogs = torch.cat([recogs, unknown_log_probs], dim=1)
 
-        return (recogs < self.thresholds).all(1)
+            return (recogs < self.thresholds).all(1)
+
+        # TODO Use the gmms' thresholds
 
     def save(self, h5, overwrite=False):
         close = isinstance(h5, str)
