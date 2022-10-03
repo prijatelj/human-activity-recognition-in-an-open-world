@@ -243,6 +243,7 @@ class GaussianRecognizer(OWHARecognizer):
             cov_epsilon=self.cov_epsilon,
             dtype=str(self.dtype)[6:],
             device=self.device.type,
+            # TODO threshold_fun str or if callable, __name__
         )
         for key, val in state.items():
             if val is None:
