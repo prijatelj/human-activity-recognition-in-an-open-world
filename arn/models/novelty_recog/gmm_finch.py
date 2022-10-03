@@ -78,18 +78,23 @@ def join_gmms(left, right, use_right_key=True):
     if right.gmm is None:
         return left
     src = right if use_right_key else left
+    label_enc = join_label_encs(left.label_enc, right.label_enc, use_right_key)
+    mix = len(label_enc) - 1
+    mix = torch.Tensor([1 / mix] * mix)
+    # NOTE creates uniform mixture, not combining them and normalizing
+    #torch.cat([left.mix, right.mix]),
     return GMM(
-        join_label_encs(left.label_enc, right.label_enc, use_right_key),
-        torch.stack([
+        label_enc,
+        torch.cat([
             left.gmm.component_distribution.loc,
             right.gmm.component_distribution.loc,
         ]),
-        torch.stack([
+        torch.cat([
             left.gmm.component_distribution.covariance_matrix,
             right.gmm.component_distribution.covariance_matrix,
         ]),
-        torch.cat([left.gmm.thresholds, right.gmm.thresholds]),
-        torch.cat([left.gmm.thresholds, right.gmm.thresholds]),
+        torch.cat([left.thresholds, right.thresholds]),
+        mix,
         src.counter,
         src.cov_epsilon,
         src.device,
@@ -305,9 +310,11 @@ def recognize_fit(
 
     if isinstance(features, torch.Tensor):
         dtype = features.dtype
-        features = features.detach().cpu().numpy()
+        finch_features = features.detach().cpu().numpy()
     else:
         dtype = getattr(torch, str(features.dtype))
+        finch_features = features
+        features = torch.tensor(features, dtyp=dtype)
 
     default_kwargs = {'verbose': False}
     default_kwargs.update(kwargs)
@@ -323,7 +330,8 @@ def recognize_fit(
         max_likely_gmm,
         level,
     )
-    recog_labels, n_clusters, _ = FINCH(features, **default_kwargs)
+    recog_labels, n_clusters, _ = FINCH(finch_features, **default_kwargs)
+    del finch_features
 
     if stability_adjust is None:
         # Numerical stability adjustment for the sample covariance diagonal
@@ -407,9 +415,6 @@ class GMM(object):
     ):
         self.counter = counter
         self.set_label_enc(label_enc)
-        self.set_gmm(locs, covariance_matrices, mix)
-        self.set_thresholds(thresholds)
-
         if cov_epsilon is None:
             self.cov_epsilon = np.finfo(np.float32).eps * 10
         else:
@@ -420,6 +425,9 @@ class GMM(object):
         self.threshold_func = threshold_func
         self.min_samples = min_samples
         self.accepted_error = accepted_error
+
+        self.set_gmm(locs, covariance_matrices, mix)
+        self.set_thresholds(thresholds)
 
     @property
     def class_name(self):
@@ -454,6 +462,8 @@ class GMM(object):
                 [1 / len(locs)] * len(locs),
                 dtype=self.dtype,
             ))
+        elif isinstance(mix, torch.Tensor):
+            mix = Categorical(mix)
 
         if isinstance(locs, MultivariateNormal):
             self.gmm = MixtureSameFamily(mix, locs)

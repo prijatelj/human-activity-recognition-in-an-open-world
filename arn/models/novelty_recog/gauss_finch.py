@@ -63,6 +63,11 @@ class GaussFINCH(GaussianRecognizer):
         self.gmm = None
 
     @property
+    def n_recog_labels(self):
+        """The number of labels in recog_label_enc."""
+        return 0 if not self.has_recogs else len(self.recog_label_enc) - 1
+
+    @property
     def known_label_enc(self):
         if self.known_gmm is not None:
             return self.known_gmm.label_enc
@@ -76,6 +81,11 @@ class GaussFINCH(GaussianRecognizer):
     def label_enc(self):
         if self.gmm is not None:
             return self.gmm.label_enc
+
+    @property
+    def has_recogs(self):
+        """Checks if there are any recognized labels."""
+        return bool(self.recog_label_enc) and len(self.recog_label_enc) > 1
 
     def add_new_knowns(self, new_knowns):
         """Adds the given class labels as new knowns to the known label encoder
