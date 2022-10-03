@@ -3,12 +3,14 @@ find unknown class clustes.
 """
 from copy import deepcopy
 
+import h5py
 import numpy as np
 import torch
 F = torch.nn.functional
 MultivariateNormal = torch.distributions.multivariate_normal.MultivariateNormal
 
 from exputils.data.labels import NominalDataEncoder
+from exputils.io import create_filepath
 
 from arn.models.novelty_recog.gaussian import (
     GaussianRecognizer,
@@ -30,12 +32,15 @@ class GaussFINCH(GaussianRecognizer):
     Gaussian Mixture Model for unknowns based on detection thresholds of known
     classes. Every recognize_fit() with new data the unknown GMM gets refit.
 
-    Args
-    ----
+    Attributes
+    ----------
     level : int = -1
         The level of cluster partitions to use during recognition_fit. FINCH
         returns three levels of clustering. Defaults to the final level with
         maximum clusters.
+    known_gmm : GMM = None
+    unknown_gmm : GMM = None
+    gmm : GMM = None
     see GaussianRecognizer
     """
     def __init__(self, level=-1, *args, **kwargs):
@@ -218,11 +223,24 @@ class GaussFINCH(GaussianRecognizer):
         return self.gmm.detect(features)
 
     def save(self, h5, overwrite=False):
-        raise NotImplementedError
-        # TODO save super().save(h5)
-        # TODO Save the attrs unique to this object
-        # TODO save known_gmm, unknown_gmm, NOT gmm, as it is joined by the 2.
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
+
+        # Save the attrs unique to this object
+        h5.attrs['level'] = self.level
+
+        # Save known_gmm, unknown_gmm, but NOT gmm, as it is joined by the 2.
+        self.known_gmm.save(h5.create_group('known_gmm'))
+        self.unknown_gmm.save(h5.create_group('unknown_gmm'))
+
+        super().save(h5)
+        if close:
+            h5.close()
 
     @staticmethod
     def load(h5):
         raise NotImplementedError
+
+        # TODO self.gmm = join_gmms(...
+        # self.gmm = join_gmms(self.known_gmm, self.unknown_gmm)
