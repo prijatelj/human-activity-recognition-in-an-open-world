@@ -220,6 +220,7 @@ class GaussFINCH(GaussianRecognizer):
     def save(self, h5, overwrite=False):
         raise NotImplementedError
         # TODO save super().save(h5)
+        # TODO Save the attrs unique to this object
         # TODO save known_gmm, unknown_gmm, NOT gmm, as it is joined by the 2.
 
     @staticmethod
