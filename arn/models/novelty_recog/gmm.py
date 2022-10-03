@@ -637,8 +637,19 @@ class GMM(object):
 class GMMRecognizer(GaussianRecognizer):
     """GMM Recognizer generic methods. This is not intended to be initialized
     itself, but rather inheritted as it defines the GMM part for the unknowns.
+
+    Attributes
+    ----------
+    unknown_gmm : GMM = None
+    see GaussianRecognizer
     """
     def __init__(self, *args, **kwargs):
+        """Initialize the recognizer
+
+        Args
+        ----
+        see GaussianRecognizer.__init__
+        """
         super().__init__(*args, **kwargs)
 
         # unknown gmm, as in recognize_fit.

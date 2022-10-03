@@ -41,16 +41,16 @@ class GaussFINCH(GMMRecognizer):
     known_gmm : GMM = None
         Gaussian per known class. The label encoder is the known classes with
         unknown as the catch-all class.
-    unknown_gmm : GMM = None
     gmm : GMM = None
-    see GaussianRecognizer
+    see GMMRecognizer
     """
     def __init__(self, level=-1, *args, **kwargs):
-        """
+        """Initialize the GaussFINCH.
+
         Args
         ----
         level : see self
-        see GaussianRecognizer.__init__
+        see GMMRecognizer.__init__
         """
         super().__init__(*args, **kwargs)
 
