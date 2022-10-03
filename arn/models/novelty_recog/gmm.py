@@ -18,6 +18,7 @@ from vast.clusteringAlgos.FINCH.python.finch import FINCH
 
 from arn.torch_utils import torch_dtype
 from arn.models.novelty_recog.gaussian import (
+    GaussianRecognizer,
     cred_hyperellipse_thresh,
     closest_other_marignal_thresholds,
 )
@@ -185,6 +186,10 @@ def fit_gmm(
             i,
             sum(cluster_mask),
         )
+        #if not cluster_mask.any():
+        #    # TODO How does such a case even occur? Is the label enc being
+        #    # given labels it should not be given during parital feedback?
+        #    continue
         if min_samples:
             if sum(cluster_mask) < min_samples:
                 continue
@@ -627,3 +632,46 @@ class GMM(object):
         if close:
             h5.close()
         return loaded
+
+
+class GMMRecognizer(GaussianRecognizer):
+    """GMM Recognizer generic methods. This is not intended to be initialized
+    itself, but rather inheritted as it defines the GMM part for the unknowns.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # unknown gmm, as in recognize_fit.
+        self.unknown_gmm = None
+
+    @property
+    def n_recog_labels(self):
+        """The number of labels in recog_label_enc."""
+        return 0 if not self.has_recogs else len(self.recog_label_enc) - 1
+
+    @property
+    def recog_label_enc(self):
+        if self.unknown_gmm is not None:
+            return self.unknown_gmm.label_enc
+
+    @property
+    def has_recogs(self):
+        """Checks if there are any recognized labels."""
+        return bool(self.recog_label_enc) and len(self.recog_label_enc) > 1
+
+    def reset_recogs(self):
+        """Resets the recognized unknown class-clusters, and label_enc"""
+        self.unknown_gmm = None
+
+    def save(self, h5, overwrite=False):
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
+
+        # Save unknown_gmm
+        if self.unknown_gmm:
+            self.unknown_gmm.save(h5.create_group('unknown_gmm'))
+
+        super().save(h5)
+        if close:
+            h5.close()

@@ -13,12 +13,12 @@ from exputils.data.labels import NominalDataEncoder
 from exputils.io import create_filepath
 
 from arn.models.novelty_recog.gaussian import (
-    GaussianRecognizer,
     cred_hyperellipse_thresh,
     closest_other_marignal_thresholds,
 )
 from arn.models.novelty_recog.gmm import (
     GMM,
+    GMMRecognizer,
     join_gmms,
     recognize_fit,
 )
@@ -27,7 +27,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class GaussFINCH(GaussianRecognizer):
+class GaussFINCH(GMMRecognizer):
     """A GaussianRecognizer with FINCH for recognize_fit. Gaussian per class,
     Gaussian Mixture Model for unknowns based on detection thresholds of known
     classes. Every recognize_fit() with new data the unknown GMM gets refit.
@@ -39,6 +39,8 @@ class GaussFINCH(GaussianRecognizer):
         returns three levels of clustering. Defaults to the final level with
         maximum clusters.
     known_gmm : GMM = None
+        Gaussian per known class. The label encoder is the known classes with
+        unknown as the catch-all class.
     unknown_gmm : GMM = None
     gmm : GMM = None
     see GaussianRecognizer
@@ -50,22 +52,13 @@ class GaussFINCH(GaussianRecognizer):
         level : see self
         see GaussianRecognizer.__init__
         """
-        self.level = level
         super().__init__(*args, **kwargs)
 
-        # known gmm, gaussian per class
+        self.level = level
         self.known_gmm = None
-
-        # unknown gmm, as in recognize_fit.
-        self.unknown_gmm = None
 
         # The combined gmms into one for predict()/recigonize(), detect()
         self.gmm = None
-
-    @property
-    def n_recog_labels(self):
-        """The number of labels in recog_label_enc."""
-        return 0 if not self.has_recogs else len(self.recog_label_enc) - 1
 
     @property
     def known_label_enc(self):
@@ -73,19 +66,9 @@ class GaussFINCH(GaussianRecognizer):
             return self.known_gmm.label_enc
 
     @property
-    def recog_label_enc(self):
-        if self.unknown_gmm is not None:
-            return self.unknown_gmm.label_enc
-
-    @property
     def label_enc(self):
         if self.gmm is not None:
             return self.gmm.label_enc
-
-    @property
-    def has_recogs(self):
-        """Checks if there are any recognized labels."""
-        return bool(self.recog_label_enc) and len(self.recog_label_enc) > 1
 
     def add_new_knowns(self, new_knowns):
         """Adds the given class labels as new knowns to the known label encoder
@@ -121,7 +104,7 @@ class GaussFINCH(GaussianRecognizer):
 
     def reset_recogs(self):
         """Resets the recognized unknown class-clusters, and label_enc"""
-        self.unknown_gmm = None
+        super().reset_recogs()
         self.gmm = self.known_gmm
 
     def fit_knowns(self, features, labels, val_dataset=None):
@@ -254,8 +237,6 @@ class GaussFINCH(GaussianRecognizer):
         # Save known_gmm, unknown_gmm, but NOT gmm, as it is joined by the 2.
         if self.known_gmm:
             self.known_gmm.save(h5.create_group('known_gmm'))
-        if self.unknown_gmm:
-            self.unknown_gmm.save(h5.create_group('unknown_gmm'))
 
         super().save(h5)
         if close:
