@@ -491,8 +491,11 @@ class OWHARecognizer(OWHAPredictor):
         # Update the predictor's label encoder with new knowns
         unique_dset_feedback = dataset.labels[dset_feedback_mask].unique()
         new_knowns = []
-        for new_known in np.array(dataset.label_enc)[self.n_known_labels:]:
-            if new_known in unique_dset_feedback:
+        for new_known in np.array(dataset.label_enc):
+            if (
+                new_known in unique_dset_feedback
+                and new_known not in self.known_label_enc
+            ):
                 new_knowns.append(new_known)
 
         # TODO Ensure OrderedConfusionMAtrices and CMs handle label alignment
