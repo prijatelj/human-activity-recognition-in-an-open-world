@@ -9,14 +9,17 @@ F = torch.nn.functional
 MultivariateNormal = torch.distributions.multivariate_normal.MultivariateNormal
 
 from exputils.data.labels import NominalDataEncoder
-from vast.clusteringAlgos.FINCH.python.finch import FINCH
 
 from arn.models.novelty_recog.gaussian import (
     GaussianRecognizer,
     cred_hyperellipse_thresh,
     closest_other_marignal_thresholds,
 )
-from arn.models.novelty_recog.gmm_finch import recognize_fit, GMM
+from arn.models.novelty_recog.gmm_finch import (
+    GMM,
+    join_gmms,
+    recognize_fit,
+)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -45,16 +48,14 @@ class GaussFINCH(GaussianRecognizer):
         self.level = level
         super().__init__(*args, **kwargs)
 
-        # TODO known gmm, gaussian per class
+        # known gmm, gaussian per class
         self.known_gmm = None
 
-        # TODO unknown gmm, as in recognize_fit.
+        # unknown gmm, as in recognize_fit.
         self.unknown_gmm = None
 
         # The combined gmms into one for predict()/recigonize(), detect()
         self.gmm = None
-
-        # TODO recognize and predict using
 
     @property
     def known_label_enc(self):
@@ -73,16 +74,33 @@ class GaussFINCH(GaussianRecognizer):
 
     def add_new_knowns(self, new_knowns):
         """Adds the given class labels as new knowns to the known label encoder
+
+        Both known and unknown gmm label encoders have 'unknown' catchall!
         """
         if self.known_gmm is None:
             if isinstance(new_knowns, NominalDataEncoder):
-                self.known_gmm = GMM(new_knowns)
+                self.known_gmm = GMM(
+                    new_knowns,
+                    cov_epsilon=self.cov_epsilon,
+                    device=self.device,
+                    dtype=self.dtype,
+                    threshold_func=self.threshold_func,
+                    min_samples=0,
+                    accepted_error=self.detect_error_tol,
+                )
             else:
-                self.known_gmm = GMM(NominalDataEncoder(
-                new_knowns,
-                unknown_key='unknown', # TODO need to decide how to handle
-                # this. Perhaps, both known and unknown have 'unknown' catchall
-            ))
+                self.known_gmm = GMM(
+                    NominalDataEncoder(
+                        new_knowns,
+                        unknown_key='unknown',
+                    ),
+                    cov_epsilon=self.cov_epsilon,
+                    device=self.device,
+                    dtype=self.dtype,
+                    threshold_func=self.threshold_func,
+                    min_samples=0,
+                    accepted_error=self.detect_error_tol,
+                )
         else:
             self.known_gmm.label_enc.append(new_knowns)
 
@@ -90,8 +108,6 @@ class GaussFINCH(GaussianRecognizer):
         self.known_gmm.fit(
             features,
             labels,
-            accepted_error=self.detect_error_tol,
-            min_samples=0,
         )
 
     def recognize_fit(
@@ -119,15 +135,7 @@ class GaussFINCH(GaussianRecognizer):
         if not self.known_gmm:
             raise ValueError('Recognizer is not fit: self.known_gmm is None.')
 
-        # Must update experience everytime and handle prior unknowns if any
-        unks = ['unknown']
-        if self.recog_label_enc:
-            unks += list(self.recog_label_enc)
-        unlabeled = self.experience[~self.experience['oracle']]
-        unknowns = unlabeled['labels'].isin(unks)
-        if unknowns.any():
-            self.experience.loc[unknowns.index, 'labels'] = \
-                self.known_label_enc.unknown_key
+        self.pre_recognize_fit()
 
         # Update the unknown classes GMM
         if self.unknown_gmm is None:
@@ -139,7 +147,8 @@ class GaussFINCH(GaussianRecognizer):
             'unknown',
             features,
             counter,
-            allowed_error=self.min_error_tol,
+            self.threshold_func,
+            self.min_error_tol,
             level=self.level,
             cov_epsilon=self.cov_epsilon,
             device=self.device,
@@ -149,28 +158,11 @@ class GaussFINCH(GaussianRecognizer):
         self.gmm = join_gmms(self.known_gmm, self.unknown_gmm)
 
     def recognize(self, features, detect=False):
-        """Using the existing Gaussians per class-cluster, get log probs."""
-        # Normalize the probability each feature belongs to a recognized class,
-        # st the recognized classes are mutually exclusive to one another.
-        recogs = torch.stack(
-            [mvn.log_prob(features) for mvn in self._gaussians],
-            dim=1,
-        )
-        if detect:
-            thresholds = torch.Tensor(self._thresholds)
-            detect_unknowns = (recogs < thresholds).all(1)
-
-            recogs = F.pad(F.softmax(recogs, dim=1), (1, 0), 'constant', 0)
-
-            # Sets unknown to max prob value, scales the rest by 1 - max
-            if detect_unknowns.any():
-                recogs[detect_unknowns, 0] = \
-                    recogs[detect_unknowns].max(1).values
-                recogs[detect_unknowns, 1:] *= 1 \
-                    - recogs[detect_unknowns, 0].reshape(-1, 1)
-            return recogs
-
-        return F.softmax(recogs, dim=1)
+        """Using the existing Gaussians per class-cluster, get log probs.
+         Normalize the probability each feature belongs to a recognized class,
+         st the recognized classes are mutually exclusive to one another.
+        """
+        return self.gmm.recognize(features, detect)
 
     def detect(self, features, knowns_only=True):
         """Given data samples, detect novel samples to the known classes.
@@ -202,26 +194,34 @@ class GaussFINCH(GaussianRecognizer):
         -------
         torch.Tensor
             The predicted class label whose values are within label_enc.
+
+        Notes
+        -----
+        NOTE IDEAL elsewhere: Detect is an inference time only task, and
+        inherently binary classificicaiton of known vs unknown.
+          0. new data is already assumed to have been used to fit ANN / recog
+          1. call `class_log_probs = recognize(features)`
+          2. reduce unknowns.
+          3. return sum of probs of unknowns, that is detection given recog.
+        NOTE in this method, there is disjoint between ANN and recog.
+          with this approach, perhaps should compare just DPGMM on frepr to
+          DPGMM on ANN of frepr.
+        Given never letting go of all experienced data, the DPGMM on ANN
+          has a better chance of success over the increments than on just the
+          frepr as the frepr currently is frozen over the increments.
         """
-        if not self._gaussians:
-            raise ValueError('Recognizer is not fit: self._gaussians is None.')
+        if not self.known_gmm:
+            raise ValueError('Recognizer is not fit: self.known_gmm is None.')
 
-        # NOTE IDEAL elsewhere: Detect is an inference time only task, and
-        # inherently binary classificicaiton of known vs unknown.
-        #   0. new data is already assumed to have been used to fit ANN / recog
-        #   1. call `class_log_probs = recognize(features)`
-        #   2. reduce unknowns.
-        #   3. return sum of probs of unknowns, that is detection given recog.
-        # NOTE in this method, there is disjoint between ANN and recog.
-        #   with this approach, perhaps should compare just DPGMM on frepr to
-        #   DPGMM on ANN of frepr.
-        # Given never letting go of all experienced data, the DPGMM on ANN
-        #   has a better chance of success over the increments than on just the
-        #   frepr as the frepr currently is frozen over the increments.
+        if knowns_only:
+            return self.known_gmm.detect(features)
+        return self.gmm.detect(features)
 
-        num_labels = self.n_known_labels if knowns_only else self.n_labels
-        thresholds = torch.Tensor(self._thresholds[:num_labels])
-        return (torch.stack(
-            [mvn.log_prob(features) for mvn in self._gaussians[:num_labels]],
-            dim=1,
-        ) < thresholds).all(1)
+    def save(self, h5, overwrite=False):
+        raise NotImplementedError
+        # TODO save super().save(h5)
+        # TODO save known_gmm, unknown_gmm, NOT gmm, as it is joined by the 2.
+
+    @staticmethod
+    def load(h5):
+        raise NotImplementedError
