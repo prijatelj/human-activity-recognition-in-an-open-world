@@ -665,6 +665,17 @@ class OWHARecognizer(OWHAPredictor):
         self.fit_knowns(dataset, val_dataset=val_dataset)
         self.post_fit(dset_feedback_mask, features)
 
+    def pre_recognize_fit(self):
+        """Must update experience everytime and handle prior unknowns if any"""
+        unks = ['unknown']
+        if self.recog_label_enc:
+            unks += list(self.recog_label_enc)
+        unlabeled = self.experience[~self.experience['oracle']]
+        unknowns = unlabeled['labels'].isin(unks)
+        if unknowns.any():
+            self.experience.loc[unknowns.index, 'labels'] = \
+                self.known_label_enc.unknown_key
+
     @abstractmethod
     def recognize_fit(self, features):
         raise NotImplementedError('Inheriting class overrides this.')
