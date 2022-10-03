@@ -682,6 +682,33 @@ class GMMRecognizer(GaussianRecognizer):
         """Resets the recognized unknown class-clusters, and label_enc"""
         self.unknown_gmm = None
 
+    def recognize_fit(
+        self,
+        features,
+        n_expected_classes=None,
+        **kwargs,
+    ):
+        self.pre_recognize_fit()
+
+        # Update the unknown classes GMM
+        if self.unknown_gmm is None:
+            counter = 0
+        else:
+            counter = self.unknown_gmm.counter
+
+        self.unknown_gmm = recognize_fit(
+            'unknown',
+            features,
+            counter,
+            self.threshold_func,
+            self.min_error_tol,
+            level=self.level,
+            cov_epsilon=self.cov_epsilon,
+            device=self.device,
+            dtype=self.dtype,
+            **kwargs,
+        )
+
     def save(self, h5, overwrite=False):
         close = isinstance(h5, str)
         if close:

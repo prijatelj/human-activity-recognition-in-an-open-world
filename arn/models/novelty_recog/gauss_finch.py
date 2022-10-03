@@ -137,26 +137,7 @@ class GaussFINCH(GMMRecognizer):
         if not self.known_gmm:
             raise ValueError('Recognizer is not fit: self.known_gmm is None.')
 
-        self.pre_recognize_fit()
-
-        # Update the unknown classes GMM
-        if self.unknown_gmm is None:
-            counter = 0
-        else:
-            counter = self.unknown_gmm.counter
-
-        self.unknown_gmm = recognize_fit(
-            'unknown',
-            features,
-            counter,
-            self.threshold_func,
-            self.min_error_tol,
-            level=self.level,
-            cov_epsilon=self.cov_epsilon,
-            device=self.device,
-            dtype=self.dtype,
-            **kwargs,
-        )
+        super().recognize_fit(features, n_expected_classes, **kwargs)
 
         self.gmm = join_gmms(self.known_gmm, self.unknown_gmm)
 
