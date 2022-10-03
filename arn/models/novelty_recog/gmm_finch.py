@@ -109,7 +109,7 @@ def join_gmms(left, right, use_right_key=True):
 def fit_multivariate_normal(
     features,
     stability_adjust=None,
-    cov_epsilon=1e-6,
+    cov_epsilon=None,
     device='cpu',
     cov_mat=None
 ):
@@ -117,6 +117,8 @@ def fit_multivariate_normal(
     the covariance matrix to pass the PositiveDefinite check.
     """
     if stability_adjust is None:
+        if cov_epsilon is None:
+            cov_epsilon = torch.finfo(features.dtype).eps * 10
         # Numerical stability adjustment for the sample covariance diagonal
         stability_adjust = cov_epsilon * torch.eye(
             features.shape[-1],
@@ -140,7 +142,7 @@ def fit_gmm(
     n_clusters=None,
     counter=0,
     stability_adjust=None,
-    cov_epsilon=1e-6,
+    cov_epsilon=None,
     device='cpu',
     dtype='float32',
     threshold_func='cred_hyperellipse_thresh',
@@ -192,6 +194,8 @@ def fit_gmm(
     if isinstance(threshold_func, str):
         threshold_func = globals()[threshold_func]
 
+    if cov_epsilon is None:
+        cov_epsilon = torch.finfo(features.dtype).eps * 10
     if stability_adjust is None:
         # Numerical stability adjustment for the sample covariance diagonal
         stability_adjust = cov_epsilon * torch.eye(
@@ -273,7 +277,7 @@ def recognize_fit(
     max_likely_gmm=False,
     level=-1,
     stability_adjust=None,
-    cov_epsilon=1e-6,
+    cov_epsilon=None,
     device='cpu',
     return_kwargs=False,
     **kwargs,
@@ -333,6 +337,8 @@ def recognize_fit(
     recog_labels, n_clusters, _ = FINCH(finch_features, **default_kwargs)
     del finch_features
 
+    if cov_epsilon is None:
+        cov_epsilon = torch.finfo(features.dtype).eps * 10
     if stability_adjust is None:
         # Numerical stability adjustment for the sample covariance diagonal
         stability_adjust = cov_epsilon * torch.eye(
@@ -344,7 +350,14 @@ def recognize_fit(
             'Resulting GMM for %s kept 0 / 1 potential clusters',
             class_name,
         )
-        gmm = GMM(class_name)
+        gmm = GMM(
+            class_name,
+            cov_epsilon=cov_epsilon,
+            device=device,
+            dtype=dtype,
+            threshold_func=threshold_func,
+            # min samples, accepted error
+        )
     elif max_likely_gmm:
         raise NotImplementedError('max_likely_gmm')
         # TODO MLE GMM: from lowest level to highest, fit GMM to class clusters
@@ -391,7 +404,7 @@ class GMM(object):
         The list of MultivariateNormals per class (component) is at
     thresholds : list(float)
     counter : int = 0
-    cov_epsilon: float = 1e-6
+    cov_epsilon: float = None
     device: str = 'cpu'
     dtype: str = 'float32'
     threshold_func: str = 'cred_hyperellipse_thresh'
@@ -415,13 +428,13 @@ class GMM(object):
     ):
         self.counter = counter
         self.set_label_enc(label_enc)
+        self.dtype = torch_dtype(dtype)
         if cov_epsilon is None:
-            self.cov_epsilon = np.finfo(np.float32).eps * 10
+            self.cov_epsilon = torch.finfo(self.dtype).eps * 10
         else:
             self.cov_epsilon = cov_epsilon
 
         self.device = torch.device(device)
-        self.dtype = torch_dtype(dtype)
         self.threshold_func = threshold_func
         self.min_samples = min_samples
         self.accepted_error = accepted_error
@@ -633,6 +646,7 @@ class GMM(object):
             torch.tensor(h5['covariance_matrices']),
             torch.tensor(h5['thresholds']),
             np.array(h5['mixes']),
+            # TODO everything else!
         )
         if close:
             h5.close()

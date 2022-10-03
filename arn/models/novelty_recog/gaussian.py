@@ -142,7 +142,7 @@ class GaussianRecognizer(OWHARecognizer):
         If this is not None, then it is used to determine outliers for each
         class-cluter's multivariate normal. This is the alpha for determining
         the confidence hyperellipse per multivariate normal.
-    cov_epsilon : float = 1e-12
+    cov_epsilon : float = None
         The torch.tensor.cov() is numerically unstable and so a small value
         will need adde to the diagonal of the resulting covariance matrix to
         avoid being treated as not a positive semi-definite matrix.
@@ -155,7 +155,7 @@ class GaussianRecognizer(OWHARecognizer):
         min_error_tol=5e-3,
         detect_error_tol=None,
         min_density=None,
-        cov_epsilon=1e-12,
+        cov_epsilon=None,
         threshold_func='cred_hyperellipse_thresh',
         **kwargs,
     ):
@@ -194,6 +194,11 @@ class GaussianRecognizer(OWHARecognizer):
         self.min_density = min_density
 
         self.cov_epsilon = cov_epsilon
+        if cov_epsilon is None:
+            self.cov_epsilon = torch.finfo(self.dtype).eps * 10
+        else:
+            self.cov_epsilon = cov_epsilon
+
         self.min_cov_mag = 1.0
         self.threshold_func = threshold_func
 

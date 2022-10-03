@@ -72,6 +72,7 @@ kinetics_owl_gauss_finch: # Pipeline for the Open World Learning Data process
   predictor:
     GaussFINCH: # the Open World Agent
       #min_samples: 2
+      cov_epsilon: 1e-6
       detect_error_tol: 1e-5
       device: cpu
       skip_fit: 0 # Does not use the FineTune ANN at all.
