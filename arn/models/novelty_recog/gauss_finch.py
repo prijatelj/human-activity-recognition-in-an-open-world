@@ -109,11 +109,21 @@ class GaussFINCH(GaussianRecognizer):
         else:
             self.known_gmm.label_enc.append(new_knowns)
 
+    def reset_recogs(self):
+        """Resets the recognized unknown class-clusters, and label_enc"""
+        self.unknown_gmm = None
+        self.gmm = self.known_gmm
+
     def fit_knowns(self, features, labels, val_dataset=None):
         self.known_gmm.fit(
             features,
             labels,
+            use_label_enc=True,
         )
+        if self.unknown_gmm is not None:
+            self.gmm = join_gmms(self.known_gmm, self.unknown_gmm)
+        else:
+            self.gmm = self.known_gmm
 
     def recognize_fit(
         self,
@@ -231,8 +241,10 @@ class GaussFINCH(GaussianRecognizer):
         h5.attrs['level'] = self.level
 
         # Save known_gmm, unknown_gmm, but NOT gmm, as it is joined by the 2.
-        self.known_gmm.save(h5.create_group('known_gmm'))
-        self.unknown_gmm.save(h5.create_group('unknown_gmm'))
+        if self.known_gmm:
+            self.known_gmm.save(h5.create_group('known_gmm'))
+        if self.unknown_gmm:
+            self.unknown_gmm.save(h5.create_group('unknown_gmm'))
 
         super().save(h5)
         if close:

@@ -53,12 +53,12 @@ def closest_other_marignal_thresholds(mvns):
     return
 
 
-def join_label_enc(left, right, use_right_key=True):
-    label_enc = deepcopy(main.label_enc)
+def join_label_encs(left, right, use_right_key=True):
+    label_enc = deepcopy(left)
     key = right.unknown_key if use_right_key else left.unknown_key
-    other = iter(other)
-    next(other)
-    label_enc.append(other)
+    right = iter(right)
+    next(right)
+    label_enc.append(list(right))
     label_enc.inv[0] = key
     return label_enc
 
@@ -75,9 +75,11 @@ def join_gmms(left, right, use_right_key=True):
         unknown_key and other attributes used are specified by this flag,
         defaulting to the right GMM's attributs unless use_right_key is False.
     """
+    if right.gmm is None:
+        return left
     src = right if use_right_key else left
     return GMM(
-        join_label_encs(left, right, use_right_key),
+        join_label_encs(left.label_enc, right.label_enc, use_right_key),
         torch.stack([
             left.gmm.component_distribution.loc,
             right.gmm.component_distribution.loc,
@@ -183,7 +185,7 @@ def fit_gmm(
             next(n_clusters)
 
     if isinstance(threshold_func, str):
-        threshold_func = getattr(__name__, threshold_func)
+        threshold_func = globals()[threshold_func]
 
     if stability_adjust is None:
         # Numerical stability adjustment for the sample covariance diagonal
@@ -449,8 +451,8 @@ class GMM(object):
 
         if mix is None:
             mix = Categorical(torch.tensor(
-                [1 / locs.shape[0]] * locs.shape[0],
-                dtype=locs.dtype,
+                [1 / len(locs)] * len(locs),
+                dtype=self.dtype,
             ))
 
         if isinstance(locs, MultivariateNormal):
@@ -470,7 +472,7 @@ class GMM(object):
             mvns = locs
             locs = []
             covariance_matrices = []
-            for mvn in locs:
+            for mvn in mvns:
                 locs.append(mvn.loc)
                 covariance_matrices.append(mvn.covariance_matrix)
             locs = torch.stack(locs)
@@ -483,12 +485,16 @@ class GMM(object):
 
     def set_thresholds(self, thresholds):
         if self.gmm is None:
-            raise ValueError('`self.gmm` is None, must set gmm!')
+            if thresholds is None:
+                self.thresholds = None
+                return
+            else:
+                raise ValueError('`self.gmm` is None, must set gmm!')
         if not isinstance(thresholds, torch.Tensor):
             thresholds = torch.tensor(thresholds)
         thresholds = thresholds.reshape(-1)
         if (
-            thresholds.shape[0]
+            thresholds.shape
             != self.gmm.component_distribution.batch_shape
          ):
             raise ValueError('Thresholds flattened dims != number of mvns')
@@ -507,14 +513,23 @@ class GMM(object):
         return self.gmm.component_distribution.log_prob(
             features.unsqueeze(1).expand(
                 -1,
-                self.gmm.component_distribution.batch_shape,
+                self.gmm.component_distribution.batch_shape[0],
                 -1,
             )
         )
 
-    def fit(self, *args, **kwargs):
+    def fit(self, *args, use_label_enc=False, **kwargs):
+        """Fit the existing GMM with the given features and labels.
+        Args
+        ----
+        use_label_enc : bool = False
+            If use_label_enc is True, then the current GMM's label enc is used
+            as the known labels that all have their own respective
+            gaussian. Otherwise, creates a new label encoder with the same
+            unknown_key based on the given labels.
+        """
         params = fit_gmm(
-            self.label_enc.unknown_key,
+            self.label_enc if use_label_enc else self.label_enc.unknown_key,
             *args,
             counter=self.counter,
             return_kwargs=True,
@@ -550,7 +565,6 @@ class GMM(object):
         """
         if self.gmm is None:
             raise ValueError('`self.gmm` is None, must set gmm!')
-        raise NotImplementedError
 
         recogs = self.comp_log_prob(features)
 

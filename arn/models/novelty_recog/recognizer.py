@@ -81,9 +81,9 @@ class OWHARecognizer(OWHAPredictor):
         if the label is provided from the oracle, otherwise is a float value
         between [0, 1] indicating the recognition probability for that class
         versus all other known classes.
-    known_label_enc : NominalDataEncoder = None
-    recog_label_enc : NominalDataEncoder = None
-    label_enc : NominalDataEncoder = None
+    _known_label_enc : NominalDataEncoder = None
+    _recog_label_enc : NominalDataEncoder = None
+    _label_enc : NominalDataEncoder = None
     feedback_request_method : str = 'uncertain_first'
         The method used to request feedback. Defaults to 'uncertain_first',
         allows also 'random'.
@@ -148,7 +148,7 @@ class OWHARecognizer(OWHAPredictor):
     @property
     def n_recog_labels(self):
         """The number of labels in recog_label_enc."""
-        return 0 if self.has_recogs else len(self.recog_label_enc)
+        return 0 if not self.has_recogs else len(self.recog_label_enc)
 
     @property
     def n_known_labels(self):
@@ -190,6 +190,11 @@ class OWHARecognizer(OWHAPredictor):
             )
         else:
             self._known_label_enc.append(new_knowns)
+
+    def reset_recogs(self):
+        """Resets the recognized unknown class-clusters, and label_enc"""
+        self._recog_label_enc = None
+        self._label_enc = deepcopy(self.known_label_enc)
 
     def get_unseen_mask(self, dataset_df):
         """Compares given DataFrame to experience to find unseen samples.
@@ -580,16 +585,14 @@ class OWHARecognizer(OWHAPredictor):
                     ).argmax(1).detach().cpu().numpy())
                 else:
                     logger.debug('No recognize fit in fit(). prior label enc.')
-                    self.recog_label_enc = None
-                    self.label_enc = deepcopy(self.known_label_enc)
+                    # TODO HANLDE ALL OF THIS given children... and GMMs
+                    self.reset_recogs()
             else:
                 logger.debug('No recognize fit in fit(). Not enough detects')
-                self.recog_label_enc = None
-                self.label_enc = deepcopy(self.known_label_enc)
+                self.reset_recogs()
         else:
             logger.debug('No recognize fit in fit(). No experience w/o oracle')
-            self.recog_label_enc = None
-            self.label_enc = deepcopy(self.known_label_enc)
+            self.reset_recogs()
 
         # If self.save_dir, save the state of this recognizer
         if self.save_dir:
