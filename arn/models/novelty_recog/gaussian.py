@@ -60,41 +60,13 @@ def cred_hyperellipse_thresh(mvn, min_error_tol):
     return mvn.log_prob(mvn.loc + vector)
 
 
-def closest_other_marignal_thresholds(mvns, min_thresholds=None):
-    """Given a GMM, for each gaussian component, find the pairwise closest
-    other gaussian and set the hyper ellipse to the maximum margin between the
-    pair of gaussians. Use this hyper ellipse based on log_prob thresholding
-    as the threshold for this
-
-    Args
-    ----
-    mvns : list(torch.distributions.multivariate_normal.MultivariateNormal)
-        List of MultivariateNormal objects.
-    min_thresholds : list
-        A List of the empirical minum thresholds per mvn.
-    accepted_error : float = 1e-5
-        The accepted error (alpha) used to find the credible hyper ellipse as
-        fallback or reference per gaussian component if a pairwise closest
-        other cannot be found.
-
-    Returns
-    -------
-    list(float)
-        The closest other marginal log_prob thershold per gaussian component.
-    """
-    raise NotImplementedError(
-        'min_max_threshold used in favor due to simplicity to be done in less '
-        'time with less math and should yield similar result.'
-    )
-
-
-def min_max_threshold(distribs, samples, likelihood=0, min_thresholds=None):
+def min_max_threshold(distribs, samples, likelihood=0.0):
     """For all the mvns over the data, find the sample with the minimum of the
     maximum log_probs. This is now the threshold to be used overall
 
     Args
     ----
-    distirbs :
+    distribs :
     samples : torch.Tensor
     likelihood : float = 0
         The likelihood scalar to "multiply" the resulting threshold by. Given
@@ -102,14 +74,18 @@ def min_max_threshold(distribs, samples, likelihood=0, min_thresholds=None):
         found threshold. If this likelihood is 2, that means the log_prob
         threshold is set such that the likelihood of a point being unknowns is
         if it is less than half as likely as the least likely known point.
-    min_thresholds : list | torch.Tensor = None
     """
-    raise NotImplementedError('TODO')
-
-    if isinstance(distribs, list):
-        raise NotImplementedError('TODO')
+    if (
+        isinstance(distribs, list)
+        and all(
+            [isinstance(d, torch.distribution.Distribution) for d in distribs]
+        )
+    ):
+        log_probs = torch.stack(
+            [d.log_prob(samples) for d in distribs],
+            dim=1,
+        )
     elif isinstance(distribs, torch.distribution.Distribution):
-        raise NotImplementedError('TODO')
         log_probs = distribs.log_prob(samples)
     else:
         raise ValueError(
@@ -118,8 +94,9 @@ def min_max_threshold(distribs, samples, likelihood=0, min_thresholds=None):
 
     # TODO will need to support a single scalar thershold for all distribs.
 
-    maxes = log_probs.max(1)
-    min_maxes = maxes.values.min()
+    min_maxes = log_probs.max(1).values.min()
+    if likelihood:
+        return min_maxes - likelihood
     return min_maxes
 
 

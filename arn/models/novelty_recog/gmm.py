@@ -20,7 +20,7 @@ from arn.torch_utils import torch_dtype
 from arn.models.novelty_recog.gaussian import (
     GaussianRecognizer,
     cred_hyperellipse_thresh,
-    closest_other_marignal_thresholds,
+    min_max_threshold,
 )
 
 import logging
@@ -498,8 +498,8 @@ class GMM(object):
             thresholds = torch.tensor(thresholds)
         thresholds = thresholds.reshape(-1)
         if (
-            thresholds.shape
-            != self.gmm.component_distribution.batch_shape
+            thresholds.shape != self.gmm.component_distribution.batch_shape
+            #or len(thresholds.shape) == 1
          ):
             raise ValueError('Thresholds flattened dims != number of mvns')
         self.thresholds = thresholds

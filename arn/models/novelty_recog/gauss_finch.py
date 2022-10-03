@@ -14,7 +14,7 @@ from exputils.io import create_filepath
 
 from arn.models.novelty_recog.gaussian import (
     cred_hyperellipse_thresh,
-    closest_other_marignal_thresholds,
+    min_max_threshold,
 )
 from arn.models.novelty_recog.gmm import (
     GMM,
