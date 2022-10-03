@@ -548,11 +548,14 @@ class OWHARecognizer(OWHAPredictor):
                 detect=True,
             ).argmax(1).detach().cpu().numpy()
 
-            # TODO experience does not have index == uid
+            # NOTE this was using knonw_label_enc.decode(recogs), but errored
+            # due to recognize using all  knowns and recognized unknowns. If
+            # this is to actually use only knowns in recognize, then it needs
+            # changed to do so.
             self.experience.loc[
                 dset_no_feedback_mask[dset_no_feedback_mask].index,
                 'labels',
-            ] = self.known_label_enc.decode(recogs)
+            ] = self.label_enc.decode(recogs)
 
             detects = recogs == self.known_label_enc.unknown_idx
             detects_mask = dset_no_feedback_mask.copy()
