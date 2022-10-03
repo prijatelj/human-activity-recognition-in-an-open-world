@@ -494,7 +494,10 @@ class OWHARecognizer(OWHAPredictor):
         for new_known in np.array(dataset.label_enc):
             if (
                 new_known in unique_dset_feedback
-                and new_known not in self.known_label_enc
+                and (
+                    self.known_label_enc is None
+                    or new_known not in self.known_label_enc
+                )
             ):
                 new_knowns.append(new_known)
 
