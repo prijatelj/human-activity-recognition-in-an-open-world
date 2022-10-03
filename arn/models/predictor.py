@@ -148,7 +148,7 @@ class OWHAPredictor(object):
     ----------
     fine_tune: arn.models.fine_tune_lit.FineTuneLit = None
         fine_tune: arn.models.fine_tune.FineTune
-    label_enc : NominalDataEncoder = None
+    _label_enc : NominalDataEncoder = None
     _uid : str = None
         An optional str unique identifier for this predictor. When not
         given, the uid property of this class' object is the trainer
@@ -198,9 +198,9 @@ class OWHAPredictor(object):
             else f"owhap-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
 
         if isinstance(label_enc, str):
-            self.label_enc = NominalDataEncoder.load(label_enc)
+            self._label_enc = NominalDataEncoder.load(label_enc)
         else:
-            self.label_enc = label_enc
+            self._label_enc = label_enc
 
         # TODO add predictor.experience, default None.
 
@@ -218,6 +218,10 @@ class OWHAPredictor(object):
             return self._uid
         return self.fine_tune.trainer.log_dir.rpartition(os.path.sep)[-1]
 
+    @property
+    def label_enc(self):
+        """Interface and forces to set label enc w/o assignment `=`."""
+        return self._label_enc
 
     # TODO feedback request for ANN batching fun times
     #   If fitting a torch ANN w/ batching, will need to tmp rm all
@@ -246,7 +250,7 @@ class OWHAPredictor(object):
                 or set(dataset.label_enc) - set(self.label_enc)
             ):
                 # Assumes dataset label enc is superset of label enc.
-                self.label_enc = deepcopy(dataset.label_enc)
+                self._label_enc = deepcopy(dataset.label_enc)
 
             n_classes = len(self.label_enc)
             if n_classes != self.fine_tune.n_classes:
