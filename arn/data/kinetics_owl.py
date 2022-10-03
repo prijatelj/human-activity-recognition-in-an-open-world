@@ -1,7 +1,7 @@
 """Kinetics Open World Learning pipeline object.
 
 Environment: incremental learning experiment over Kinetics data
-Predictor: arn.owhar.OWHARPredictor
+Predictor: arn.predictor.OWHARPredictor
 Actuators: Feedback request system
     - No feedback
     - Oracle feedback
@@ -26,7 +26,7 @@ from arn.data.kinetics_unified import (
     load_file_list,
     get_filename,
 )
-from arn.models.owhar import OWHAPredictor
+from arn.models.predictor import OWHAPredictor
 
 from exputils.data.labels import NominalDataEncoder
 from exputils.data.confusion_matrix import ConfusionMatrix
@@ -1048,8 +1048,8 @@ class KineticsOWL(object):
     ----------
     environment : KineticsOWLExperiment
     predictor : OWHAPredictor
-        predictor : arn.models.owhar.EVMPredictor
-        arn.models.owhar.load_evm_predictor
+        predictor : arn.models.predictor.EVMPredictor
+        arn.models.predictor.load_evm_predictor
         TODO docstr: support at least basic checking of multiple configurable
         types. Or maybe just parse all of them as options and support so in
         MultiType.
@@ -1617,7 +1617,7 @@ def kinetics_owl_evm(*args, **kwargs):
     Args
     ----
     environment : see KineticsOWL
-    predictor : arn.models.owhar.EVMPredictor
+    predictor : arn.models.predictor.EVMPredictor
     feedback_type : see KineticsOWL
     feedback_amount : see KineticsOWL
     rng_state : see KineticsOWL
@@ -1641,7 +1641,7 @@ def kinetics_owl_annevm(*args, **kwargs):
     Args
     ----
     environment : see KineticsOWL
-    predictor : arn.models.owhar.ANNEVM
+    predictor : arn.models.predictor.ANNEVM
     feedback_type : see KineticsOWL
     feedback_amount : see KineticsOWL
     rng_state : see KineticsOWL
