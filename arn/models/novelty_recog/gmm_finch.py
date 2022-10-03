@@ -80,7 +80,7 @@ def join_gmms(left, right, use_right_key=True):
     src = right if use_right_key else left
     label_enc = join_label_encs(left.label_enc, right.label_enc, use_right_key)
     mix = len(label_enc) - 1
-    mix = torch.Tensor([1 / mix] * mix, dtype=src.dtype)
+    mix = torch.tensor([1 / mix] * mix, dtype=src.dtype)
     # NOTE creates uniform mixture, not combining them and normalizing
     #torch.cat([left.mix, right.mix]),
     return GMM(
