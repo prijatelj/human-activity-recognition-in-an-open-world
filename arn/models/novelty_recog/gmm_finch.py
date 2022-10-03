@@ -6,8 +6,16 @@ import h5py
 import numpy as np
 import torch
 
+from exputils.data.labels import NominalDataEncoder
+from exputils.io import create_filepath
+
 from arn.models.novelty_recog.gaussian import (
     GaussianRecognizer,
+)
+from arn.models.novelty_recog.gmm import (
+    GMM,
+    join_gmms,
+    recognize_fit,
 )
 
 import logging

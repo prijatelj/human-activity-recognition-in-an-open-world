@@ -3,6 +3,7 @@ __all__ = [
     # Add new files to be imported here
     'gauss_finch',
     'gaussian',
+    'gmm',
     'gmm_finch',
     'naive_dpgmm',
     'recognizer',

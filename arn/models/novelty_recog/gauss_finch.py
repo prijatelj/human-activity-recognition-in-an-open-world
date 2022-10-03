@@ -17,7 +17,7 @@ from arn.models.novelty_recog.gaussian import (
     cred_hyperellipse_thresh,
     closest_other_marignal_thresholds,
 )
-from arn.models.novelty_recog.gmm_finch import (
+from arn.models.novelty_recog.gmm import (
     GMM,
     join_gmms,
     recognize_fit,
