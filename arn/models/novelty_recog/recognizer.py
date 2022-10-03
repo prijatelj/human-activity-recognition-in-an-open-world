@@ -513,15 +513,17 @@ class OWHARecognizer(OWHAPredictor):
             )
 
         features = []
-        labels = []
+        #labels = []
         # NOTE This doesn't check for oracle feedback or not, won't handle None
         #   within this code itself.
         for feature_tensor, label in dataset:
             features.append(feature_tensor)
-            labels.append(label)
+            #labels.append(label)
         del feature_tensor, label
         features = torch.stack(features)
-        labels = torch.stack(labels).argmax(1)
+        labels = torch.tensor(
+            self.known_label_enc.encode(dataset.labels.astype(str))
+        )
 
         return dset_feedback_mask, features, labels
 
