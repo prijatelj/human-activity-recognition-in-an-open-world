@@ -97,7 +97,11 @@ def min_max_threshold(distribs, samples, likelihood=0, min_thresholds=None):
     distirbs :
     samples : torch.Tensor
     likelihood : float = 0
-        The likelihood scalar to multiply the resulting threshold by.
+        The likelihood scalar to "multiply" the resulting threshold by. Given
+        these are log-probabilities, this likelihood is subtracted from the
+        found threshold. If this likelihood is 2, that means the log_prob
+        threshold is set such that the likelihood of a point being unknowns is
+        if it is less than half as likely as the least likely known point.
     min_thresholds : list | torch.Tensor = None
     """
     raise NotImplementedError('TODO')
@@ -111,6 +115,8 @@ def min_max_threshold(distribs, samples, likelihood=0, min_thresholds=None):
         raise ValueError(
             'The expected type is a list of distribs or a distrib object.'
         )
+
+    # TODO will need to support a single scalar thershold for all distribs.
 
     maxes = log_probs.max(1)
     min_maxes = maxes.values.min()
