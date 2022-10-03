@@ -92,7 +92,7 @@ def join_gmms(left, right, use_right_key=True):
         src.cov_epsilon,
         src.device,
         src.dtype,
-        src.threshold_method,
+        src.threshold_func,
         src.min_samples,
         src.accepted_error,
     )
@@ -136,12 +136,16 @@ def fit_gmm(
     cov_epsilon=1e-6,
     device='cpu',
     dtype='float32',
-    threshold_method='cred_hyperellipse_thresh',
+    threshold_func='cred_hyperellipse_thresh',
     min_samples=2,
     accepted_error=1e-5,
     return_kwargs=True,
 ):
     """Construct a Gaussian Mixture Model as a component of larger mixture.
+    Given this algorithm implies accepting that the points are within each
+    designated cluster, if the sample with the minimum log prob is less than
+    the found thresholding log_prob given threshold_func, then the minium
+    log prob will be used instead.
 
     Args
     ----
@@ -178,8 +182,8 @@ def fit_gmm(
             assert label_enc.unknown_idx == 0
             next(n_clusters)
 
-    if isinstance(threshold_method, str):
-        threshold_method = getattr(__name__, threshold_method)
+    if isinstance(threshold_func, str):
+        threshold_func = getattr(__name__, threshold_func)
 
     if stability_adjust is None:
         # Numerical stability adjustment for the sample covariance diagonal
@@ -208,23 +212,35 @@ def fit_gmm(
         else:
             cov_mat = None
 
+        cluster_features = features[cluster_mask].to(device, dtype)
         mvn = fit_multivariate_normal(
-            features[cluster_mask].to(device, dtype),
+            cluster_features,
             stability_adjust,
             device=device,
             cov_mat=cov_mat,
         )
         mvns.append(mvn)
-        if threshold_method == 'cred_hyperellipse_thresh':
-            thresholds.append(cred_hyperellipse_thresh(mvn, accepted_error))
+        min_log_prob = mvn.log_prob(cluster_features).min().detach()
+        if threshold_func == 'cred_hyperellipse_thresh':
+            err_lprob = cred_hyperellipse_thresh(mvn, accepted_error)
+            if err_lprob <= min_log_prob:
+                thresholds.append(err_lprob)
+            else:
+                thresholds.append(min_log_prob)
+        else:
+            thresholds.append(min_log_prob)
 
         # Update the label encoder with new recognized class-clusters
         if update_label_enc:
             label_enc.append(f'{label_enc.unknown_key}_{counter}')
             counter += 1
 
-    if threshold_method == 'closest_other_marignal_thresholds':
-        thresholds = closest_other_marignal_thresholds(mvns)
+    if threshold_func == 'closest_other_marignal_thresholds':
+        thresholds = closest_other_marignal_thresholds(
+            mvns,
+            thresholds,
+            accepted_error,
+        )
 
     if return_kwargs:
         return {'label_enc': label_enc, 'locs': mvns, 'thresholds': thresholds}
@@ -235,7 +251,7 @@ def fit_gmm(
         cov_epsilon=cov_epsilon,
         device=device,
         dtype=dtype,
-        threshold_method=threshold_method,
+        threshold_func=threshold_func,
         min_samples=min_samples,
         accepted_error=accepted_error,
     )
@@ -245,7 +261,7 @@ def recognize_fit(
     class_name,
     features,
     counter=0,
-    threshold_method='cred_hyperellipse_thresh',
+    threshold_func='cred_hyperellipse_thresh',
     allowed_error=1e-5,
     max_likely_gmm=False,
     level=-1,
@@ -267,7 +283,7 @@ def recognize_fit(
     features: np.ndarray | torch.Tensor
         2 dimensional float tensor of shape (samples, feature_repr_dims)
         that are the features deemed to be corresponding to the class.
-    threshold_method : str 'credible_ellipse'
+    threshold_func : str 'credible_ellipse'
         The method used to find the thresholds per component, defaulting to
         use the credible ellipse per gaussian given the accepted_error (alpha).
     accepted_error : float = 1e-5
@@ -296,11 +312,11 @@ def recognize_fit(
 
     logger.info(
         'Begin fit of FINCH for class %s, samples %d, counter %d, '
-        'threshold_method %s, allowed_error %f, max_likely_gmm %s, level %d',
+        'threshold_func %s, allowed_error %f, max_likely_gmm %s, level %d',
         class_name,
         len(features),
         counter,
-        threshold_method,
+        threshold_func,
         allowed_error,
         max_likely_gmm,
         level,
@@ -318,7 +334,7 @@ def recognize_fit(
             'Resulting GMM for %s kept 0 / 1 potential clusters',
             class_name,
         )
-        gmm = GMM(label_enc)
+        gmm = GMM(class_name)
     elif max_likely_gmm:
         raise NotImplementedError('max_likely_gmm')
         # TODO MLE GMM: from lowest level to highest, fit GMM to class clusters
@@ -340,7 +356,7 @@ def recognize_fit(
             n_clusters[level],
             device=device,
             dtype=dtype,
-            threshold_method=threshold_method,
+            threshold_func=threshold_func,
             stability_adjust=stability_adjust,
             cov_epsilon=cov_epsilon,
             return_kwargs=return_kwargs,
@@ -368,7 +384,7 @@ class GMM(object):
     cov_epsilon: float = 1e-6
     device: str = 'cpu'
     dtype: str = 'float32'
-    threshold_method: str = 'cred_hyperellipse_thresh'
+    threshold_func: str = 'cred_hyperellipse_thresh'
     min_samples: int = 2
     accepted_error: float = 1e-5
     """
@@ -383,7 +399,7 @@ class GMM(object):
         cov_epsilon: float = None,
         device: str = 'cpu',
         dtype: str = 'float32',
-        threshold_method: str = 'cred_hyperellipse_thresh',
+        threshold_func: str = 'cred_hyperellipse_thresh',
         min_samples: int = 2,
         accepted_error: float = 1e-5,
     ):
@@ -399,7 +415,7 @@ class GMM(object):
 
         self.device = torch.device(device)
         self.dtype = torch_dtype(dtype)
-        self.threshold_method = threshold_method
+        self.threshold_func = threshold_func
         self.min_samples = min_samples
         self.accepted_error = accepted_error
 
@@ -505,7 +521,7 @@ class GMM(object):
             cov_epsilon=self.cov_epsilon,
             device=self.device,
             dtype=self.dtype,
-            threshold_method=self.threshold_method,
+            threshold_func=self.threshold_func,
             min_samples=self.min_samples,
             accepted_error=self.accepted_error,
             **kwargs
@@ -639,7 +655,7 @@ class GMMFINCH(GaussianRecognizer):
     def predict(self, features):
         raise NotImplementedError
 
-    def save(self, h5):
+    def save(self, h5, overwrite=False):
         raise NotImplementedError
 
     @staticmethod
