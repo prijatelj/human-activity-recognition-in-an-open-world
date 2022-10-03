@@ -60,7 +60,7 @@ def cred_hyperellipse_thresh(mvn, min_error_tol):
     return mvn.log_prob(mvn.loc + vector)
 
 
-def closest_other_marignal_thresholds(mvns, min_thresholds):
+def closest_other_marignal_thresholds(mvns, min_thresholds=None):
     """Given a GMM, for each gaussian component, find the pairwise closest
     other gaussian and set the hyper ellipse to the maximum margin between the
     pair of gaussians. Use this hyper ellipse based on log_prob thresholding
@@ -82,8 +82,24 @@ def closest_other_marignal_thresholds(mvns, min_thresholds):
     list(float)
         The closest other marginal log_prob thershold per gaussian component.
     """
+    raise NotImplementedError(
+        'min_max_threshold used in favor due to simplicity to be done in less '
+        'time with less math and should yield similar result.'
+    )
+
+
+def min_max_threshold(distribs, min_thresholds=None):
+    """For all the mvns over the data, find the sample with the minimum of the
+    maximum log_probs. This is now the threshold to be used overall
+    """
     raise NotImplementedError('TODO')
-    return
+    if isinstance(distirbs, list):
+        raise NotImplementedError('TODO')
+    elif isinstance(distirbs, torch.distribution.Distribution):
+        raise NotImplementedError('TODO')
+    raise ValueError(
+        'The expected type is a list of distribs or a distrib object.'
+    )
 
 
 class GaussianRecognizer(OWHARecognizer):
