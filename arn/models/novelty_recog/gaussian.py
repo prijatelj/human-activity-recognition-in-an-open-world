@@ -1,6 +1,7 @@
 """Novelty Recognition abstract/generic class using a Gaussian distributions to
 model the class' density in feature space.
 """
+from abc import abstractmethod
 from copy import deepcopy
 import os
 
@@ -145,6 +146,8 @@ class GaussianRecognizer(OWHARecognizer):
         The torch.tensor.cov() is numerically unstable and so a small value
         will need adde to the diagonal of the resulting covariance matrix to
         avoid being treated as not a positive semi-definite matrix.
+    threshold_func : str = 'cred_hyperellipse_thresh'
+        The function to use
     see OWHARecognizer
     """
     def __init__(
@@ -153,6 +156,7 @@ class GaussianRecognizer(OWHARecognizer):
         detect_error_tol=None,
         min_density=None,
         cov_epsilon=1e-12,
+        threshold_func='cred_hyperellipse_thresh',
         **kwargs,
     ):
         """Initialize the recognizer.
@@ -191,130 +195,11 @@ class GaussianRecognizer(OWHARecognizer):
 
         self.cov_epsilon = cov_epsilon
         self.min_cov_mag = 1.0
+        self.threshold_func = threshold_func
 
+    @abstractmethod
     def fit_knowns(self, features, labels, val_dataset=None):
-        # Fit the Gaussians and thresholds per class-cluster. in F.Repr. space
-
-        # NOTE decide here if this is for fitting on frepr or the ANN.:
-        #   Staying with fitting in frepr for now.
-
-        raise NotImplementedError(
-            'This no longer funtions due to refactor. The inheritting class '
-            'should override this method.'
-        )
-
-        if self.device is None:
-            device = features.device
-            self.device = device
-        else:
-            device = self.device
-            features.to(self.device)
-            labels.to(self.device)
-
-        # Numerical stability adjustment for the sample covariance's diagonal
-        stability_adjust = self.cov_epsilon * torch.eye(
-            features.shape[-1],
-            device=device
-        )
-
-        # Fit a Gaussian per known class, starts at 1 to ignore unknown class.
-        # TODO This could made efficient by skipping knowns w/o any data changes
-        self._gaussians = []
-        thresholds = []
-        for label in list(self.known_label_enc.inv)[
-            self.known_label_enc.unknown_idx + 1:
-        ]:
-            mask = labels == torch.tensor(label)
-            if not mask.any():
-                logger.warning(
-                    '%s has known class %s (idx %d) with no samples in fit()',
-                    type(self).__name__,
-                    self.known_label_enc.inv[label],
-                    label,
-                )
-                continue
-
-            class_features = features[mask].to(device, self.dtype)
-
-            if self.min_samples:
-                if class_features.shape[0] < self.min_samples:
-                    #raise ValueError(
-                    logger.warning(
-                        "Label %d: %s features' samples < min_samples.",
-                        label,
-                        self.known_label_enc.inv[label]
-                    )
-            if class_features.shape[0] == 1:
-                loc = class_features.squeeze()
-                cov_mat = torch.eye(features.shape[-1], device=device) \
-                    * self.min_cov_mag
-            else:
-                loc = class_features.mean(0)
-                cov_mat = class_features.T.cov()
-            try:
-                mvn = MultivariateNormal(loc, cov_mat)
-            except:
-                mvn = MultivariateNormal(loc, cov_mat + stability_adjust)
-
-            if self.min_density:
-                if (
-                    mvn.log_prob(class_features).mean()
-                        < torch.log(
-                            torch.tensor(self.min_density, device=device)
-                        )
-                ):
-                    raise ValueError(
-                        f"Label {label} features' normalized density "
-                        '< min_density.'
-                    )
-            self._gaussians.append(mvn)
-            min_log_prob = mvn.log_prob(class_features).min().detach()
-            err_lprob = cred_hyperellipse_thresh(mvn, self.detect_error_tol)
-            if err_lprob <= min_log_prob:
-                thresholds.append(err_lprob)
-            else:
-                thresholds.append(min_log_prob)
-                logger.warning(
-                    'The min_log_prob for the knowns of class %d is %f which '
-                    'is less than the detect error tol log prob of %f',
-                    label,
-                    min_log_prob,
-                    err_lprob,
-                )
-                # NOTE it is non-trivial to change detect_err_tol given new min
-            logger.debug(
-                'Label %d: "%s" num samples = %d',
-                label,
-                self.known_label_enc.inv[label],
-                len(class_features),
-            )
-            logger.debug(
-                'Label %d: "%s" mean log_prob = %f',
-                label,
-                self.known_label_enc.inv[label],
-                float(mvn.log_prob(class_features).mean().detach()),
-            )
-            logger.debug(
-                'Label %d: "%s" min log_prob = %f',
-                label,
-                self.known_label_enc.inv[label],
-                min_log_prob,
-            )
-            logger.debug(
-                'Label %d: "%s" log_prob threshold = %f',
-                label,
-                self.known_label_enc.inv[label],
-                float(thresholds[-1].detach()),
-                #    if isinstance(thresholds[-1], torch.Tensor)
-                #    else float(thresholds[-1]),
-            )
-        self._thresholds = thresholds
-
-        # NOTE This is a hack for single sample cases.
-        self.min_cov_mag = np.stack([
-            mvn.covariance_matrix.sum() / mvn.loc.shape[-1]
-            for mvn in self._gaussians
-        ]).min()
+        raise NotImplementedError('Inheriting class overrides this.')
 
     def fit(self, dataset, val_dataset=None):
         """Fits a Gaussian to each class within feature space and a finds a
