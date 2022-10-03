@@ -640,17 +640,25 @@ class GMMRecognizer(GaussianRecognizer):
 
     Attributes
     ----------
+    level : int = -1
+        The level of cluster partitions to use during recognition_fit. FINCH
+        returns three levels of clustering. Defaults to the final level with
+        maximum clusters.
     unknown_gmm : GMM = None
     see GaussianRecognizer
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, level=-1, *args, **kwargs):
         """Initialize the recognizer
 
         Args
         ----
+        level : see self
         see GaussianRecognizer.__init__
         """
         super().__init__(*args, **kwargs)
+
+        # All GMMRecognizers will be using FINCH, so put specific params here.
+        self.level = level
 
         # unknown gmm, as in recognize_fit.
         self.unknown_gmm = None
@@ -678,6 +686,9 @@ class GMMRecognizer(GaussianRecognizer):
         close = isinstance(h5, str)
         if close:
             h5 = h5py.File(create_filepath(h5, overwrite), 'w')
+
+        # Save the attrs unique to this object
+        h5.attrs['level'] = self.level
 
         # Save unknown_gmm
         if self.unknown_gmm:

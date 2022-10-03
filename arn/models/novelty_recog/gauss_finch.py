@@ -34,27 +34,21 @@ class GaussFINCH(GMMRecognizer):
 
     Attributes
     ----------
-    level : int = -1
-        The level of cluster partitions to use during recognition_fit. FINCH
-        returns three levels of clustering. Defaults to the final level with
-        maximum clusters.
     known_gmm : GMM = None
         Gaussian per known class. The label encoder is the known classes with
         unknown as the catch-all class.
     gmm : GMM = None
     see GMMRecognizer
     """
-    def __init__(self, level=-1, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         """Initialize the GaussFINCH.
 
         Args
         ----
-        level : see self
         see GMMRecognizer.__init__
         """
         super().__init__(*args, **kwargs)
 
-        self.level = level
         self.known_gmm = None
 
         # The combined gmms into one for predict()/recigonize(), detect()
@@ -230,9 +224,6 @@ class GaussFINCH(GMMRecognizer):
         close = isinstance(h5, str)
         if close:
             h5 = h5py.File(create_filepath(h5, overwrite), 'w')
-
-        # Save the attrs unique to this object
-        h5.attrs['level'] = self.level
 
         # Save known_gmm, unknown_gmm, but NOT gmm, as it is joined by the 2.
         if self.known_gmm:

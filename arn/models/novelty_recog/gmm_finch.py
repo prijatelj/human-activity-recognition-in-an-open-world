@@ -35,6 +35,21 @@ class GMMFINCH(GMMRecognizer):
     def __init__(self, *kwargs):
         raise NotImplementedError
 
+        # TODO self.known_label_enc...
+        # TODO self._label_enc...
+
+    def add_new_knowns(self, new_knowns):
+        raise NotImplementedError
+
+    def reset_recogs(self):
+        """Resets the recognized unknown class-clusters, and label_enc"""
+        raise NotImplementedError
+        super().reset_recogs()
+        # TODO Reset general recognizer to use just knowns
+
+    def fit_knowns(self, features):
+        raise NotImplementedError
+
     def recognize_fit(self, features, n_expected_classes=None, **kwargs):
         raise NotImplementedError
 
@@ -51,17 +66,23 @@ class GMMFINCH(GMMRecognizer):
     def detect(self, features, known_only=True):
         raise NotImplementedError
 
-    def fit_known(self, features):
-        raise NotImplementedError
-
-    def fit(self, features):
-        raise NotImplementedError
-
-    def predict(self, features):
-        raise NotImplementedError
-
     def save(self, h5, overwrite=False):
         raise NotImplementedError
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
+
+        # Save the attrs unique to this object
+        h5.attrs['level'] = self.level
+
+        # Save known_gmm, unknown_gmm, but NOT gmm, as it is joined by the 2.
+        if self.known_gmm:
+            self.known_gmm.save(h5.create_group('known_gmm'))
+
+        super().save(h5)
+        if close:
+            h5.close()
+
 
     @staticmethod
     def load(h5):
