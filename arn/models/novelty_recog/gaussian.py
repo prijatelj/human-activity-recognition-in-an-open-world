@@ -88,18 +88,33 @@ def closest_other_marignal_thresholds(mvns, min_thresholds=None):
     )
 
 
-def min_max_threshold(distribs, min_thresholds=None):
+def min_max_threshold(distribs, samples, likelihood=0, min_thresholds=None):
     """For all the mvns over the data, find the sample with the minimum of the
     maximum log_probs. This is now the threshold to be used overall
+
+    Args
+    ----
+    distirbs :
+    samples : torch.Tensor
+    likelihood : float = 0
+        The likelihood scalar to multiply the resulting threshold by.
+    min_thresholds : list | torch.Tensor = None
     """
     raise NotImplementedError('TODO')
-    if isinstance(distirbs, list):
+
+    if isinstance(distribs, list):
         raise NotImplementedError('TODO')
-    elif isinstance(distirbs, torch.distribution.Distribution):
+    elif isinstance(distribs, torch.distribution.Distribution):
         raise NotImplementedError('TODO')
-    raise ValueError(
-        'The expected type is a list of distribs or a distrib object.'
-    )
+        log_probs = distribs.log_prob(samples)
+    else:
+        raise ValueError(
+            'The expected type is a list of distribs or a distrib object.'
+        )
+
+    maxes = log_probs.max(1)
+    min_maxes = maxes.values.min()
+    return min_maxes
 
 
 class GaussianRecognizer(OWHARecognizer):
