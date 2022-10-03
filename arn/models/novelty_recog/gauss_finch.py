@@ -177,6 +177,7 @@ class GaussFINCH(GaussianRecognizer):
             level=self.level,
             cov_epsilon=self.cov_epsilon,
             device=self.device,
+            dtype=self.dtype,
             **kwargs,
         )
 

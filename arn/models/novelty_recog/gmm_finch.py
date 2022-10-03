@@ -279,6 +279,7 @@ def recognize_fit(
     stability_adjust=None,
     cov_epsilon=None,
     device='cpu',
+    dtype=None,
     return_kwargs=False,
     **kwargs,
 ):
@@ -313,12 +314,14 @@ def recognize_fit(
     #label_enc = NominalDataEncoder([class_name], unknown_key=class_name)
 
     if isinstance(features, torch.Tensor):
-        dtype = features.dtype
+        if dtype is None:
+            dtype = features.dtype
         finch_features = features.detach().cpu().numpy()
     else:
-        dtype = getattr(torch, str(features.dtype))
+        if dtype is None:
+            dtype = getattr(torch, str(features.dtype))
         finch_features = features
-        features = torch.tensor(features, dtyp=dtype)
+        features = torch.tensor(features, dtype=dtype)
 
     default_kwargs = {'verbose': False}
     default_kwargs.update(kwargs)
