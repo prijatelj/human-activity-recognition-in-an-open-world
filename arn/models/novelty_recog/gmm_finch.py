@@ -2,9 +2,12 @@
 To find the log_prob, weighted sum of all gaussians in the mixture, which is
 weighted by their mixture probabilities.
 """
+from copy import deepcopy
+
 import h5py
 import numpy as np
 import torch
+F = torch.nn.functional
 
 from exputils.data.labels import NominalDataEncoder
 from exputils.io import create_filepath
@@ -30,7 +33,7 @@ class GMMFINCH(GMMRecognizer):
         of knowns.
     see GMMRecognizer.__init__
     """
-    def __init__(self, *args, *kwargs):
+    def __init__(self, *args, **kwargs):
         """
         Args
         ----
@@ -39,9 +42,7 @@ class GMMFINCH(GMMRecognizer):
         # NOTE uses self.known_label_enc and self._label_enc
         super().__init__(*args, **kwargs)
         self.known_gmms = None
-
-    def add_new_knowns(self, new_knowns):
-        raise NotImplementedError('Anything different from parent?')
+        self.thresholds = None
 
     def reset_recogs(self):
         """Resets the recognized unknown class-clusters, and label_enc"""
@@ -51,9 +52,51 @@ class GMMFINCH(GMMRecognizer):
         self._label_enc = deepcopy(self.known_label_enc)
 
     def fit_knowns(self, features, labels, val_dataset=None):
-        raise NotImplementedError
+        # For each known class with labels, fit the GMM.
+        knowns = iter(self.known_label_enc)
+        next(knowns.items())
 
-        # TODO for each known class with labels, fit the GMM.
+        if self.known_gmms is None:
+            n_old_knowns = 0
+            self.known_gmms = []
+        else:
+            n_old_knowns = len(self.known_gmms)
+
+        for known, idx in knowns:
+            class_mask = labels == idx
+            if not class_mask.any():
+                raise ValueError(
+                    'Every known class must have at least one feature sample.'
+                )
+            prior_idx = idx - 1
+            if prior_idx < n_old_knowns:
+                self.known_gmms[prior_idx] = recognize_fit(
+                    known,
+                    features[class_mask],
+                    self.known_gmms[prior_idx].counter,
+                    self.threshold_func,
+                    self.min_error_tol,
+                    level=self.level,
+                    cov_epsilon=self.cov_epsilon,
+                    device=self.device,
+                    dtype=self.dtype,
+                )
+            else:
+                self.known_gmms.append(recognize_fit(
+                    known,
+                    features[class_mask],
+                    0,
+                    self.threshold_func,
+                    self.min_error_tol,
+                    level=self.level,
+                    cov_epsilon=self.cov_epsilon,
+                    device=self.device,
+                    dtype=self.dtype,
+                ))
+
+        # TODO if threshold_func is min_max_threshold, then it is global to the
+        # known gmms and thus needs set.
+        # TODO Otherwise, relies on detection per gmm
 
     def recognize_fit(self, features, n_expected_classes=None, **kwargs):
         if not self.known_gmms:
@@ -70,7 +113,7 @@ class GMMFINCH(GMMRecognizer):
 
         if self.has_recogs:
             unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
-            recogs = torch.cat([recogs, uknown_log_probs], dim=1)
+            recogs = torch.cat([recogs, unknown_log_probs], dim=1)
 
         if detect:
             detect_unknowns = (recogs < self.thresholds).all(1)
@@ -84,14 +127,14 @@ class GMMFINCH(GMMRecognizer):
                 recogs[detect_unknowns, 1:] *= 1 \
                     - recogs[detect_unknowns, 0].reshape(-1, 1)
             return recogs
-        return F.softmax(known_log_probs, dim=1)
+        return F.softmax(recogs, dim=1)
 
     def detect(self, features, known_only=True):
         recogs = [gmm.log_prob(features) for gmm in self.known_gmms]
 
-        if self.has_recogs:
+        if self.has_recogs and not known_only:
             unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
-            recogs = torch.cat([recogs, uknown_log_probs], dim=1)
+            recogs = torch.cat([recogs, unknown_log_probs], dim=1)
 
         return (recogs < self.thresholds).all(1)
 
