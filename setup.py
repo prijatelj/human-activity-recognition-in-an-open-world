@@ -17,7 +17,7 @@ with open('README.md', 'r') as f:
 project_name = 'arn'
 
 install_requires = ''
-with open(f'requirements/{project_name}_docker.txt', 'r') as f:
+with open(f'requirements/{project_name}.txt', 'r') as f:
     install_requires = f.read()
 
 # TODO if possible, install the python deps done in Dockerfile here so it can

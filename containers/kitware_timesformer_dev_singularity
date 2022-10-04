@@ -32,7 +32,7 @@ From: nvcr.io/nvidia/pytorch:21.09-py3
     pip install -e ./arn/  
 
     # exputils recent dev version
-    pip install exputils==0.1.7rc0
+    pip install exputils==0.1.7rc3
 
     # Install docstr to the cli of the package
     pip install docstr==0.0.3rc0
