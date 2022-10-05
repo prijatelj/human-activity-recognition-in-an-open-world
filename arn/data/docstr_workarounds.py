@@ -1,15 +1,18 @@
 """The cli use of this project uses the prototype verison of docstr. As such,
 some workarounds are necessary to make it work as desired.
 """
+from arn.data.kinetics_owl import KineticsOWL
+
+
 def get_steps(step_1, step_2):
     """Hotfix for docstr to load in 2 KineticsUnified datasets. TODO update
     docstr to parse and generate CAPs for types within lits when specified.
 
     Args
     ----
-    step_1 : DataSplits
+    step_1 : arn.data.kinetics_owl.DataSplits
         The first DataSplit of KineticsUnified Datasets
-    step_2 : DataSplits
+    step_2 : arn.data.kinetics_owl.DataSplits
         The second DataSplit of KineticsUnified Datasets
 
     Returns
