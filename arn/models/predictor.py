@@ -1,7 +1,10 @@
 """Open World Human Activity Recognition predictor pipeline classes."""
 from datetime import datetime
+from collections import OrderedDict
 from copy import deepcopy
+import glob
 import os
+import re
 
 import numpy as np
 import torch
@@ -26,6 +29,27 @@ def load_evm_predictor(*args, **kwargs):
     skip_fit : bool = False
     """
     return EVMPredictor.load(load_cls=EVMPredictor, *args, **kwargs)
+
+
+def get_chkpts_paths(dir_path, pattern):
+    """Given the checkpoint directory and an opt. set of keys, dict of
+    filepaths.
+    dir_path : str
+        The path which contains the checkpoint files.
+    pattern : str = None
+        The regex pattern to use to determine the checkpoint files and their
+        increment number.
+    """
+    if not isinstance(pattern, re.Pattern):
+        raise TypeError(
+            f'Expected `pattern` of type `re.Pattern`, not `{type(pattern)}`'
+        )
+    chkpts = {}
+    for fp in glob.iglob(os.path.join(dir_path, '*')):
+        parsed = pattern.findall(fp)
+        if parsed:
+            chkpts[int(parsed[0])] = fp
+    return OrderedDict((key, chkpts[key]) for key in sorted(chkpts))
 
 
 class EVMPredictor(ExtremeValueMachine):
@@ -178,6 +202,7 @@ class OWHAPredictor(object):
         save_dir=None,
         start_increment=0,
         load_inc_paths=None,
+        chkpt_file_prefix='version_[0-9]+',
     ):
         """Initializes the OWHAR.
 
@@ -195,6 +220,9 @@ class OWHAPredictor(object):
         save_dir : str = None
         start_increment : int = 0
         load_inc_paths : see self
+        chkpt_file_prefix : str = 'version_[0-9]+'
+            The file prefix to use to match to chkpt files in the chkpt
+            director given by load_inc_paths, if given as a directory filepath.
         """
         self.fine_tune = fine_tune
         self._increment = int(start_increment)
@@ -210,7 +238,13 @@ class OWHAPredictor(object):
 
         # TODO add predictor.experience, default None.
 
-        self.load_inc_paths = load_inc_paths
+        if isinstance(load_inc_paths, str) and os.path.isdir(load_inc_paths):
+            self.load_inc_paths = get_chkpts_paths(
+                load_inc_paths,
+                re.compile(f'.*{chkpt_file_prefix}-[0-9]+.*\..*'),
+            )
+        else:
+            self.load_inc_paths = load_inc_paths
 
         logger.info('Predictor UID `%s` init finished.', self.uid)
 
@@ -251,10 +285,12 @@ class OWHAPredictor(object):
         """
         if self.load_inc_paths and self.increment + 1 in self.load_inc_paths:
            skip_fit = self.skip_fit
-           self.load_state(load_incs_path[self.increment + 1])
+           self.load_state(self.load_incs_path[self.increment + 1])
            self.skip_fit = skip_fit
 
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:
+            # for saving checkpoints of state external to fine_tune.
+            self._increment += 1
             return
         if isinstance(dataset, KineticsUnified):
             if (
@@ -326,6 +362,7 @@ class OWHAPredictor(object):
 
     def load_state(self, ftune_chkpt):
         # TODO other attrs of OWHAPredictor?
+
         if self.fine_tune is not None: # and self.increment < self.skip_fit:
             self.load_from_checkpoint(
                 ftune_chkpt,
