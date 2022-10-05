@@ -1,40 +1,25 @@
 FROM nvcr.io/nvidia/pytorch:21.09-py3
 
 # Set a working directory for the app
-WORKDIR /tmp/container_workspaces/docker/arn/
+WORKDIR /arn/
 
-# Copy all the files to the container
-COPY . .
+# Deps for opencv-python, and necessary ARG/ENV for docker build
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/New_York
+RUN apt-get update && apt-get install -y python3-opencv
 
-# Intall dependencies
-# install Prijatelj's public fork of `vast` for the EVM and FINCH
-#pip install git+https://github.com/prijatelj/vast.git
-RUN mkdir deps
-WORKDIR deps
+# Install main project and docstr for CLI
+RUN pip install -e . -r requirements/arn_dev.txt
+RUN pip install docstr==0.0.3rc2
+
+# Install Prijatelj's public fork of `vast` for the Extreme Value
+# Machine and FINCH with recurse-submodules, and get pyflann as dep.
+RUN git clone https://github.com/primetang/pyflann.git
+
+# Have to 2to3 the pyflann code...
+RUN pip install 2to3==1.0
+RUN 2to3 pyflann/
+RUN pip install -e pyflann/
 
 RUN git clone --recurse-submodules https://github.com/prijatelj/vast
-WORKDIR vast
-RUN python setup.py install
-
-WORKDIR ../../
-
-# Install CLIP
-# pytorch, torchvision, and cudatoolkit deps are handled from NVIDIA container
-RUN pip install ftfy regex tqdm
-RUN pip install git+https://github.com/openai/CLIP.git
-
-# Install this repo's main package and its dependencies
-RUN python setup.py install
-
-
-# Weight Installation can be handled after basic build is finished.
-# Should just give instuctions in README and tell user to mount the directory
-# containing those weights when running the Docker container.
-# TODO download CLIP weights
-#python experiments/download_CLIP_weights.py
-
-# TODO download X3D weights
-#python experiments/download_X3D_weights.py
-
-# TODO download TimeSformer weights
-#python experiments/download_TimeSformer_weights.py
+RUN pip install -e vast/

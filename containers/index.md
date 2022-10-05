@@ -1,6 +1,6 @@
-## Containerize with Docker and Singularity
+## Containerize with Docker and Apptainer
 
-This directory contains the configuration files to containerize this project using, first Docker, and then Singularity.
+This directory contains the configuration files to containerize this project using, first Docker, and then Apptainer.
 The Docker container depends on NVIDIA provided container.
 
 ### Install the Docker Image
@@ -12,7 +12,15 @@ docker pull . . . [Available after publication]
 ```
 
 ### Build from Source Repository
-When your active director is the root of this repository, run the following command to build the docker container:
+The Docker image is created using Nix for configuration and building.
+You will need to install [Nix](https://nixos.org).
+
+Run the following command to build the Docker image for the `arn` project.
+```
+nix-build containers/arn_docker.nix
+```
+
+When your active directory is the root of this repository, run the following command to build the docker container:
 ```
 docker build -t arn:latest -f containerize/Dockerfile .
 ```
@@ -23,13 +31,13 @@ you can give the docker build full network access as host.
 docker build --network host -t arn:latest -f containerize/Dockerfile .
 ```
 
-#### Install the Singularity Image
+#### Install the Apptainer Image
 
-If you prefer to use singularity, this work ran the singularity container by creating it from the docker image.
+If you prefer to use apptainer, this work ran the apptainer container by creating it from the docker image.
 You must obtain the Docker image as specified above either through downloading it from docker hub or building it from the source.
-After you have the Docker image, you run the following command to obtain the singularity image named as `arn_latest.sif` using the docker-daemon:
+After you have the Docker image, you run the following command to obtain the apptainer image named as `arn_latest.sif` using the docker-daemon:
 ```
-sudo singularity build arn_latest.sif docker-daemon://arn:latest
+sudo apptainer build arn_latest.sif docker-daemon://arn:latest
 ```
 Note that this may take a while.
 
@@ -51,15 +59,15 @@ docker run \
     arn:latest
 ```
 
-### Run the Singularity Image
+### Run the Apptainer Image
 
 ```
-sudo singularity run arn_latest.sif
+sudo apptainer run arn_latest.sif
 ```
 
 Mounts approach:
 The paper used mounts for the model weights and input data along with a mount for the output results, such as new model states, predictions, etc.
 ```
-sudo singularity run --bind $HOME/absolute_path_to/arn:/tmp/arn --pwd /tmp/arn arn_latest.sif
+sudo apptainer run --bind $HOME/absolute_path_to/arn:/tmp/arn --pwd /tmp/arn arn_latest.sif
 ```
 Once inside the container, you will need to move to that path `cd /tmp/arn`
