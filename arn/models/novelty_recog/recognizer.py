@@ -21,38 +21,38 @@ logger = logging.getLogger(__name__)
 
 
 def load_owhar(h5, class_type=None):
-        """Load the class instance from the HDF5 file."""
-        if class_type is None:
-            class_type = OWHARecognizer
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(h5, 'r')
+    """Load the class instance from the HDF5 file."""
+    if class_type is None:
+        class_type = OWHARecognizer
+    close = isinstance(h5, str)
+    if close:
+        h5 = h5py.File(h5, 'r')
 
-        attrs = dict(h5.attrs.items())
-        increment = attrs.pop('increment', None)
-        if increment:
-            attrs['start_increment'] = increment
+    attrs = dict(h5.attrs.items())
+    increment = attrs.pop('increment', None)
+    if increment:
+        attrs['start_increment'] = increment
 
-        # NOTE Does not load the fine_tune objects yet.
-        loaded = class_type(fine_tune=None, **attrs)
+    # NOTE Does not load the fine_tune objects yet.
+    loaded = class_type(fine_tune=None, **attrs)
 
-        if h5['experience']:
-            loaded.experience = pd.DataFrame(
-                np.stack(
-                    [
-                        np.array(h5['experience']['uid']).astype(int),
-                        np.array(h5['experience']['sample_path'], dtype=str),
-                        np.array(h5['experience']['labels'], dtype=str),
-                        np.array(h5['experience']['oracle'], dtype=bool),
-                    ],
-                    axis=1,
-                ),
-                columns=['uid', 'sample_path', 'labels', 'oracle'],
-            ).convert_dtypes([int, str, str, bool])
+    if h5['experience']:
+        loaded.experience = pd.DataFrame(
+            np.stack(
+                [
+                    np.array(h5['experience']['uid']).astype(int),
+                    np.array(h5['experience']['sample_path'], dtype=str),
+                    np.array(h5['experience']['labels'], dtype=str),
+                    np.array(h5['experience']['oracle'], dtype=bool),
+                ],
+                axis=1,
+            ),
+            columns=['uid', 'sample_path', 'labels', 'oracle'],
+        ).convert_dtypes([int, str, str, bool])
 
-        if close:
-            h5.close()
-        return loaded
+    if close:
+        h5.close()
+    return loaded
 
 
 class OWHARecognizer(OWHAPredictor):
