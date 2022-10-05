@@ -12,7 +12,7 @@ docker pull . . . [Available after publication]
 ```
 
 ### Build from Source Repository
-The Docker image is created using Nix for configuration and building.
+TODO The Docker image is created using Nix for configuration and building.
 You will need to install [Nix](https://nixos.org).
 
 Run the following command to build the Docker image for the `arn` project.
