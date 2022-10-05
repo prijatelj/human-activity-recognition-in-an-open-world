@@ -1,7 +1,7 @@
 """Kinetics Open World Learning pipeline object.
 
 Environment: incremental learning experiment over Kinetics data
-Predictor: arn.owhar.OWHARPredictor
+Predictor: arn.predictor.OWHARPredictor
 Actuators: Feedback request system
     - No feedback
     - Oracle feedback
@@ -26,7 +26,7 @@ from arn.data.kinetics_unified import (
     load_file_list,
     get_filename,
 )
-from arn.models.owhar import OWHAPredictor
+from arn.models.predictor import OWHAPredictor
 
 from exputils.data.labels import NominalDataEncoder
 from exputils.data.confusion_matrix import ConfusionMatrix
@@ -422,41 +422,6 @@ def get_increments(
         ))
 
     return increments
-
-
-def get_steps(step_1, step_2):
-    """Hotfix for docstr to load in 2 KineticsUnified datasets. TODO update
-    docstr to parse and generate CAPs for types within lits when specified.
-
-    Args
-    ----
-    step_1 : DataSplits
-        The first DataSplit of KineticsUnified Datasets
-    step_2 : DataSplits
-        The second DataSplit of KineticsUnified Datasets
-
-    Returns
-    -------
-    list
-        List of step 1 and step 2
-    """
-    steps = [step_1, step_2]
-    for i, step in enumerate(steps):
-        for split in ['train', 'validate', 'test']:
-            if (
-                step.validate is not None
-                and step.validate.subset is not None
-                and step.validate.subset.labels is not None
-                and step.validate.subset.labels.name is None
-            ):
-                logger.warning(
-                    "Removing step source %d's split %s because "
-                    'subset.labels.name is None',
-                    i,
-                    split,
-                )
-                setattr(step, split, None)
-    return steps
 
 
 class EvalDataSplitConfig(NamedTuple):
@@ -1048,8 +1013,8 @@ class KineticsOWL(object):
     ----------
     environment : KineticsOWLExperiment
     predictor : OWHAPredictor
-        predictor : arn.models.owhar.EVMPredictor
-        arn.models.owhar.load_evm_predictor
+        predictor : arn.models.predictor.EVMPredictor
+        arn.models.predictor.load_evm_predictor
         TODO docstr: support at least basic checking of multiple configurable
         types. Or maybe just parse all of them as options and support so in
         MultiType.
@@ -1283,8 +1248,10 @@ class KineticsOWL(object):
 
                 # TODO the predictor is still given all labels in train even if
                 # it does not recieve samples for an unknown label in train!
-                # This needs fixed!!!
-
+                # This needs fixed!!! (currently OWHARecognizer ignores them,
+                # but need to establish better barriers to information.
+                # Predictor code should never have access to the evaluator's
+                # insights.)
 
                 if self.increment == 1 or self.feedback_amount > 0:
                     # 4. Opt. Predictor Update/train on new data w/ feedback
@@ -1425,7 +1392,7 @@ class KineticsOWLExperiment(object):
         The starting increment's data as a KineticsUnifiedFeatures object.
 
         huh... docstr does not CAP gen on MultiType ... | KineticsUnified
-    steps : get_steps = None
+    steps : arn.data.docstr_workarounds.get_steps = None
         List of DataSplits containing the source KineticsUnifiedFeature objects
         representing the order to increment over them.
 
@@ -1549,6 +1516,13 @@ class KineticsOWLExperiment(object):
                     #label_col=step.label_col,
                 )
 
+        # TODO given resulting steps, split up a list of DataSplits into the
+        # same order, and then concat to end of DataFrame, such that it will
+        # load the different files as visual transforms of those samples.
+
+        # TODO For simplicity and to avoid re-evaluating the original data,
+        # replace the orignal with the visual transforms.
+
     @property
     def increment(self):
         """The current increment or steps taken."""
@@ -1605,103 +1579,3 @@ class KineticsOWLExperiment(object):
         data = self.steps[self.increment - 1]
         self._increment += 1
         return data
-
-
-# NOTE the following is all a workaround for the current docstr prototype to
-# support the ease of swapping predictors by changing the config only, not the
-# doc strings of KineticsOWL. This is what happens when reseach code meets
-# prototype code.
-def kinetics_owl_evm(*args, **kwargs):
-    """Initialize the KineticsOWL experiment.
-
-    Args
-    ----
-    environment : see KineticsOWL
-    predictor : arn.models.owhar.EVMPredictor
-    feedback_type : see KineticsOWL
-    feedback_amount : see KineticsOWL
-    rng_state : see KineticsOWL
-    eval_on_start : see KineticsOWL
-    eval_config : see KineticsOWL
-    post_feedback_eval_config : see KineticsOWL
-    tasks : see KineticsOWL
-    maintain_experience : bool = True
-        If False, the default, the past experienced samples are not saved
-        in the simulation for use by the predictor. Otherwise, the
-        experienced samples are saved by concatenating the new data splits
-        to the end of the prior ones.
-    labels : str = None
-    """
-    return KineticsOWL(*args, **kwargs)
-
-
-def kinetics_owl_annevm(*args, **kwargs):
-    """Initialize the KineticsOWL experiment.
-
-    Args
-    ----
-    environment : see KineticsOWL
-    predictor : arn.models.owhar.ANNEVM
-    feedback_type : see KineticsOWL
-    feedback_amount : see KineticsOWL
-    rng_state : see KineticsOWL
-    eval_on_start : see KineticsOWL
-    eval_config : see KineticsOWL
-    post_feedback_eval_config : see KineticsOWL
-    tasks : see KineticsOWL
-    maintain_experience : bool = True
-        If False, the default, the past experienced samples are not saved
-        in the simulation for use by the predictor. Otherwise, the
-        experienced samples are saved by concatenating the new data splits
-        to the end of the prior ones.
-    labels : str = None
-    """
-    return KineticsOWL(*args, **kwargs)
-
-
-def kinetics_owl_naive_dpgmm(*args, **kwargs):
-    """Initialize the KineticsOWL experiment.
-
-    Args
-    ----
-    environment : see KineticsOWL
-    predictor : arn.models.novelty_recog.naive_dpgmm.NaiveDPGMM
-    feedback_type : see KineticsOWL
-    feedback_amount : see KineticsOWL
-    rng_state : see KineticsOWL
-    eval_on_start : see KineticsOWL
-    eval_config : see KineticsOWL
-    post_feedback_eval_config : see KineticsOWL
-    tasks : see KineticsOWL
-    maintain_experience : bool = True
-        If False, the default, the past experienced samples are not saved
-        in the simulation for use by the predictor. Otherwise, the
-        experienced samples are saved by concatenating the new data splits
-        to the end of the prior ones.
-    labels : str = None
-    """
-    return KineticsOWL(*args, **kwargs)
-
-
-def kinetics_owl_gauss_finch(*args, **kwargs):
-    """Initialize the KineticsOWL experiment.
-
-    Args
-    ----
-    environment : see KineticsOWL
-    predictor : arn.models.novelty_recog.gauss_finch.GaussFINCH
-    feedback_type : see KineticsOWL
-    feedback_amount : see KineticsOWL
-    rng_state : see KineticsOWL
-    eval_on_start : see KineticsOWL
-    eval_config : see KineticsOWL
-    post_feedback_eval_config : see KineticsOWL
-    tasks : see KineticsOWL
-    maintain_experience : bool = True
-        If False, the default, the past experienced samples are not saved
-        in the simulation for use by the predictor. Otherwise, the
-        experienced samples are saved by concatenating the new data splits
-        to the end of the prior ones.
-    labels : str = None
-    """
-    return KineticsOWL(*args, **kwargs)

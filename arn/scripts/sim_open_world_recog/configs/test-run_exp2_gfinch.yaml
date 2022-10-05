@@ -4,14 +4,15 @@
 docstr:
   style: numpy
   from import:
+    arn.data.docstr_workarounds:
+      - get_steps
+      - kinetics_owl_gauss_finch
     arn.data.kinetics_owl:
       - EvalConfig
       - EvalDataSplitConfig
       - DataSplits
       - KineticsOWL
       - KineticsOWLExperiment
-      - get_steps
-      - kinetics_owl_gauss_finch
     arn.data.kinetics_unified:
       - KineticsUnified
       - KineticsUnifiedFeatures
@@ -27,7 +28,7 @@ docstr:
       - init_trainer
       - init_ray_plugin
       - init_tensorboard_logger
-    arn.models.owhar:
+    arn.models.predictor:
       - OWHAPredictor
     arn.models.novelty_recog.gaussian:
       - GaussianRecognizer
@@ -72,6 +73,7 @@ kinetics_owl_gauss_finch: # Pipeline for the Open World Learning Data process
   predictor:
     GaussFINCH: # the Open World Agent
       #min_samples: 2
+      cov_epsilon: 1e-6
       detect_error_tol: 1e-5
       device: cpu
       skip_fit: 0 # Does not use the FineTune ANN at all.

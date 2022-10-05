@@ -4,281 +4,168 @@ weighted by their mixture probabilities.
 """
 from copy import deepcopy
 
+import h5py
 import numpy as np
 import torch
 F = torch.nn.functional
-MultivariateNormal = torch.distributions.multivariate_normal.MultivariateNormal
 
 from exputils.data.labels import NominalDataEncoder
-from vast.clusteringAlgos.FINCH.python.finch import FINCH
+from exputils.io import create_filepath
 
-from arn.models.novelty_recog.gaussian import (
-    OWHARecognizer,
-    GaussianRecognizer, # TODO Ensure the parent handles all experience updates
-    cred_hyperellipse_thresh,
+from arn.models.novelty_recog.gmm import (
+    GMM,
+    GMMRecognizer,
+    join_gmms,
+    recognize_fit,
 )
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-#@ray
-def fit_multivariate_normal(
-    features,
-    stability_adjust=None,
-    cov_epsilon=1e-12,
-    device='cpu',
-):
-    """Construct a MultivariateNormal for a GMM."""
-    if stability_adjust is None:
-        # Numerical stability adjustment for the sample covariance diagonal
-        stability_adjust = cov_epsilon * torch.eye(
-            features.shape[-1],
-            device=device,
-        )
-    loc = features.mean(0)
-    cov_mat = features.T.cov()
-    try:
-        mvn = MultivariateNormal(loc, cov_mat)
-    except:
-        mvn = MultivariateNormal(loc, cov_mat + stability_adjust)
-    return mvn
-
-
-def closest_other_marignal_thresholds(mvns):
-    """Given a GMM, for each gaussian component, find the pairwise closest
-    other gaussian and set the hyper ellipse to the maximum margin between the
-    pair of gaussians. Use this hyper ellipse based on log_prob thresholding
-    as the threshold for this
-
-    Args
-    ----
-    mvns : list(torch.distributions.multivariate_normal.MultivariateNormal)
-        List of MultivariateNormal objects.
-    accepted_error : float = 1e-5
-        The accepted error (alpha) used to find the credible hyper ellipse as
-        fallback or reference per gaussian component if a pairwise closest
-        other cannot be found.
-
-    Returns
-    -------
-    list(float)
-        The closest other marginal log_prob thershold per gaussian component.
-    """
-    raise NotImplementedError
-    return
-
-
-#@ray
-def fit_gmm(
-    class_name,
-    features,
-    recog_labels,
-    n_clusters,
-    counter=0,
-    stability_adjust=None,
-    cov_epsilon=1e-12,
-    device='cpu',
-    dtype='float32',
-    threshold_method='cred_hyperellipse_thresh',
-    min_samples=2,
-    accepted_error=1e-5,
-):
-    """Construct a Gaussian Mixture Model as a component of larger mixture.
-
-    Args
-    ----
-    features : torch.Tensor
-
-    Returns
-    -------
-    GMM
-        A Gaussian Mixture Model object as fit to the features.
-    """
-    raise NotImplementedError
-
-    label_enc = NominalDataEncoder([], unknown_key=class_name)
-
-    if isinstance(threshold_method, str):
-        threshold_method = getattr(__name__, threshold_method)
-
-    mvns = []
-    thresholds = []
-    for i in range(n_clusters):
-        cluster_mask = recog_labels == i
-        logger.debug(
-            "`fit_gmm()`'s %d-th potential class has %d samples.",
-            i,
-            sum(cluster_mask),
-        )
-        if min_samples:
-            if sum(cluster_mask) < min_samples:
-                continue
-
-        mvn = fit_multivariate_normal(
-            torch.tensor(features[cluster_mask], dtype=dtype, device=device),
-        )
-        mvns.append(mvn)
-        if threshold_method == 'cred_hyperellipse_thresh':
-            thresholds.append(cred_hyperellipse_thresh(mvn, accepted_error))
-
-        # Update the label encoder with new recognized class-clusters
-        label_enc.append(f'{class_name}_{counter}')
-        counter += 1
-
-    if threshold_method == 'closest_other_marignal_thresholds':
-        thresholds = closest_other_marignal_thresholds(mvns)
-    return GMM(label_enc, mvns, thresholds)
-
-
-def recognize_fit(
-    class_name,
-    features,
-    counter=0,
-    threshold_method='cred_hyperellipse_thresh',
-    allowed_error=1e-5,
-    max_likely_gmm=False,
-    level=-1,
-    device='cpu',
-    **kwargs,
-):
-    """For a single class' features, fit a Gaussian Mixture Model to it using
-    the clusters found by FINCH.
-
-    Args
-    ----
-    class_name : str
-        The name for this class. Used to construct the labels in the resulting
-        label encoder as the prefix to all the labels:
-            `f'{class_name}_{component_idx}'`
-    features: np.ndarray | torch.Tensor
-        2 dimensional float tensor of shape (samples, feature_repr_dims)
-        that are the features deemed to be corresponding to the class.
-    threshold_method : str 'credible_ellipse'
-        The method used to find the thresholds per component, defaulting to
-        use the credible ellipse per gaussian given the accepted_error (alpha).
-    accepted_error : float = 1e-5
-        The accepted error (alpha) to be used to find the corresponding 1-alpha
-        credible ellipse per gaussian component.
-    **kwargs : dict
-        Key word arguments for FINCH for detecting clusters.
-
-    Returns
-    -------
-    GMM
-        The label encoder for this class' components, a list of the components'
-        MultivariateNormal distributions and a list of the components'
-        thresholds.
-    """
-    raise NotImplementedError
-
-    #label_enc = NominalDataEncoder([class_name], unknown_key=class_name)
-
-    if isinstance(features, torch.Tensor):
-        dtype = features.dtype
-        features = features.detach().cpu().numpy()
-    else:
-        dtype = getattr(torch, str(features.dtype))
-
-    default_kwargs = {'verbose': False}
-    default_kwargs.update(kwargs)
-
-    logger.info(
-        'Begin fit of FINCH for class %s, samples %d, counter %d, '
-        'threshold_method %s, allowed_error %f, max_likely_gmm %s, level %d',
-        class_name,
-        len(features),
-        counter,
-        threshold_method,
-        allowed_error,
-        max_likely_gmm,
-        level,
-    )
-    recog_labels, n_clusters, _ = FINCH(features, **default_kwargs)
-
-    if max_likely_gmm:
-        raise NotImplementedError('max_likely_gmm')
-        # TODO MLE GMM: from lowest level to highest, fit GMM to class clusters
-        #   Keep looking or most likely until next in level sequence is less
-        #   likely by log_prob on the data.
-    else:
-        # Fit a GMM to the given class clusters using level
-        gmm = fit_gmm(
-            class_name,
-            features,
-            recog_labels[:, level],
-            n_clusters[level],
-            device=device,
-            threshold_method=threshold_method,
-        )
-    return gmm
-
-
-class GMM(object):
-    """Gaussian Mixture Model consisting of MVN components and thresholds.
-
-    Attributes
-    ----------
-    mvns : list(GMM)
-        List of Gaussian Mixture Model objects per class, where classes consist
-        of knowns and unknown.
-    thresholds : list(float)
-    label_enc : NominalDataEncoder
-    """
-    def __init__(self, class_name, *kwargs):
-        self.label_enc = NominalDataEncoder([], unknown_key='class_name')
-        raise NotImplementedError
-
-    @property
-    def class_name(self):
-        return self.label_enc.unknown_key
-
-    def log_prob(self, features):
-        """The logarithmic probability of the features belonging to this GMM"""
-        raise NotImplementedError
-
-    def recognize(self, features):
-        """The logarithmic probabilities of the features per MVN component."""
-        raise NotImplementedError
-
-
-#class GMMFINCH(GaussianRecognizer):
-class GMMFINCH(OWHARecognizer):
+class GMMFINCH(GMMRecognizer):
     """Gaussian Mixture Model per class using FINCH to find the components.
 
     Attributes
     ----------
-    gmms : list(GMM)
+    known_gmms : list(GMM) = None
         List of Gaussian Mixture Model objects per class, where classes consist
-        of knowns and unknown.
-    label_enc : NominalDataEncoder
-        The label encoder corresponding to the classes with GMMs. This follows
-        the order of unknown (index 0), then knowns.
+        of knowns.
+    see GMMRecognizer.__init__
     """
-    def __init__(self, *kwargs):
-        raise NotImplementedError
+    def __init__(self, *args, **kwargs):
+        """
+        Args
+        ----
+        see GMMRecognizer.__init__
+        """
+        # NOTE uses self.known_label_enc and self._label_enc
+        super().__init__(*args, **kwargs)
+        self.known_gmms = None
+        self.thresholds = None
+
+    def reset_recogs(self):
+        """Resets the recognized unknown class-clusters, and label_enc"""
+        super().reset_recogs()
+
+        # Reset general recognizer to use just knowns
+        self._label_enc = deepcopy(self.known_label_enc)
+
+    def fit_knowns(self, features, labels, val_dataset=None):
+        # For each known class with labels, fit the GMM.
+        knowns = iter(self.known_label_enc)
+        next(knowns.items())
+
+        if self.known_gmms is None:
+            n_old_knowns = 0
+            self.known_gmms = []
+        else:
+            n_old_knowns = len(self.known_gmms)
+
+        for known, idx in knowns:
+            class_mask = labels == idx
+            if not class_mask.any():
+                raise ValueError(
+                    'Every known class must have at least one feature sample.'
+                )
+            prior_idx = idx - 1
+            if prior_idx < n_old_knowns:
+                self.known_gmms[prior_idx] = recognize_fit(
+                    known,
+                    features[class_mask],
+                    self.known_gmms[prior_idx].counter,
+                    self.threshold_func,
+                    self.min_error_tol,
+                    level=self.level,
+                    cov_epsilon=self.cov_epsilon,
+                    device=self.device,
+                    dtype=self.dtype,
+                )
+            else:
+                self.known_gmms.append(recognize_fit(
+                    known,
+                    features[class_mask],
+                    0,
+                    self.threshold_func,
+                    self.min_error_tol,
+                    level=self.level,
+                    cov_epsilon=self.cov_epsilon,
+                    device=self.device,
+                    dtype=self.dtype,
+                ))
+
+        # TODO if threshold_func is min_max_threshold, then it is global to the
+        # known gmms and thus needs set.
+        # TODO Otherwise, relies on detection per gmm
 
     def recognize_fit(self, features, n_expected_classes=None, **kwargs):
-        raise NotImplementedError
+        if not self.known_gmms:
+            raise ValueError('Recognizer is not fit: self.known_gmms is None.')
 
-        # NOTE Given multiple GMMs, find the thresholds per GMM (i don't think
-        # this applies, just use detect() of the GMM.)
+        super().recognize_fit(features, n_expected_classes, **kwargs)
 
-        # NOTE return the list of GMMs, each w/ thier own label_enc, gaussians,
-        # and thresholds and methods for finding recog, detect w/in, and
-        # returning the log prob of samples belonging to the entire GMM
+        # Update the general knowns + unknown recogs expanded
+        self._label_enc = deepcopy(self.known_label_enc)
 
     def recognize(self, features, detect=False):
-        raise NotImplementedError
+        # Loop through all known gmms + unknown_recogs getting log_probs.
+        if self.thresholds is not None:
+            recogs = [gmm.log_prob(features) for gmm in self.known_gmms]
+
+            if self.has_recogs:
+                unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
+                recogs += [unknown_log_probs]
+            recogs = torch.stack(recogs, dim=1)
+
+            if detect:
+                detect_unknowns = (recogs < self.thresholds).all(1)
+
+                recogs = F.pad(F.softmax(recogs, dim=1), (1, 0), 'constant', 0)
+
+                # Sets unknown to max prob value, scales the rest by 1 - max
+                if detect_unknowns.any():
+                    recogs[detect_unknowns, 0] = \
+                        recogs[detect_unknowns].max(1).values
+                    recogs[detect_unknowns, 1:] *= 1 \
+                        - recogs[detect_unknowns, 0].reshape(-1, 1)
+                return recogs
+            return F.softmax(recogs, dim=1)
+
+        # TODO Must use gmms' thresholds instead.
+        recogs = [gmm.detect(features) for gmm in self.known_gmms]
+
+        if self.has_recogs:
+            unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
+            recogs = torch.cat([recogs, unknown_log_probs], dim=1)
+        recogs = torch.stack(recogs, dim=1).all(1)
+
 
     def detect(self, features, known_only=True):
-        raise NotImplementedError
+        if self.thresholds is not None:
+            recogs = [gmm.log_prob(features) for gmm in self.known_gmms]
 
-    def fit_known(self, features):
-        raise NotImplementedError
+            if self.has_recogs and not known_only:
+                unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
+                recogs = torch.cat([recogs, unknown_log_probs], dim=1)
 
-    def fit(self, features):
-        raise NotImplementedError
+            return (recogs < self.thresholds).all(1)
 
-    def predict(self, features):
+        # TODO Use the gmms' thresholds
+
+    def save(self, h5, overwrite=False):
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
+
+        # Save known_gmms, but NOT gmm, as it is joined by the 2.
+        knowns = h5.create_group('known_gmms')
+        for gmm in self.known_gmms:
+            gmm.save(knowns.create_group(gmm.unknown_key))
+
+        super().save(h5)
+        if close:
+            h5.close()
+
+    @staticmethod
+    def load(h5):
         raise NotImplementedError

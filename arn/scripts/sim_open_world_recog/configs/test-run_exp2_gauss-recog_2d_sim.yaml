@@ -4,14 +4,15 @@
 docstr:
   style: numpy
   from import:
+    arn.data.docstr_workarounds:
+      - get_steps
+      - kinetics_owl_naive_dpgmm
     arn.data.kinetics_owl:
       - EvalConfig
       - EvalDataSplitConfig
       - DataSplits
       - KineticsOWL
       - KineticsOWLExperiment
-      - get_steps
-      - kinetics_owl_naive_dpgmm
     arn.data.kinetics_unified:
       - KineticsUnified
       - KineticsUnifiedFeatures

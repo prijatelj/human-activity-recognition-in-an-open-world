@@ -1,7 +1,10 @@
 """Open World Human Activity Recognition predictor pipeline classes."""
 from datetime import datetime
+from collections import OrderedDict
 from copy import deepcopy
+import glob
 import os
+import re
 
 import numpy as np
 import torch
@@ -26,6 +29,27 @@ def load_evm_predictor(*args, **kwargs):
     skip_fit : bool = False
     """
     return EVMPredictor.load(load_cls=EVMPredictor, *args, **kwargs)
+
+
+def get_chkpts_paths(dir_path, pattern):
+    """Given the checkpoint directory and an opt. set of keys, dict of
+    filepaths.
+    dir_path : str
+        The path which contains the checkpoint files.
+    pattern : str = None
+        The regex pattern to use to determine the checkpoint files and their
+        increment number.
+    """
+    if not isinstance(pattern, re.Pattern):
+        raise TypeError(
+            f'Expected `pattern` of type `re.Pattern`, not `{type(pattern)}`'
+        )
+    chkpts = {}
+    for fp in glob.iglob(os.path.join(dir_path, '*')):
+        parsed = pattern.findall(fp)
+        if parsed:
+            chkpts[int(parsed[0])] = fp
+    return OrderedDict((key, chkpts[key]) for key in sorted(chkpts))
 
 
 class EVMPredictor(ExtremeValueMachine):
@@ -148,7 +172,7 @@ class OWHAPredictor(object):
     ----------
     fine_tune: arn.models.fine_tune_lit.FineTuneLit = None
         fine_tune: arn.models.fine_tune.FineTune
-    label_enc : NominalDataEncoder = None
+    _label_enc : NominalDataEncoder = None
     _uid : str = None
         An optional str unique identifier for this predictor. When not
         given, the uid property of this class' object is the trainer
@@ -163,6 +187,10 @@ class OWHAPredictor(object):
     save_dir : str = None
         If given, the filepath to a directory to save all model checkpoints
         after fitting on an increment.
+    load_inc_paths : dict = None
+        Dictionary of str filepaths which contain the state to be loaded via
+        load_state() as the value and the key is the increment to which that
+        loaded state was fit on.
     """
     def __init__(
         self,
@@ -173,6 +201,8 @@ class OWHAPredictor(object):
         skip_fit=-1,
         save_dir=None,
         start_increment=0,
+        load_inc_paths=None,
+        chkpt_file_prefix='version_[0-9]+',
     ):
         """Initializes the OWHAR.
 
@@ -189,6 +219,10 @@ class OWHAPredictor(object):
         skip_fit : see self
         save_dir : str = None
         start_increment : int = 0
+        load_inc_paths : see self
+        chkpt_file_prefix : str = 'version_[0-9]+'
+            The file prefix to use to match to chkpt files in the chkpt
+            director given by load_inc_paths, if given as a directory filepath.
         """
         self.fine_tune = fine_tune
         self._increment = int(start_increment)
@@ -198,11 +232,19 @@ class OWHAPredictor(object):
             else f"owhap-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
 
         if isinstance(label_enc, str):
-            self.label_enc = NominalDataEncoder.load(label_enc)
+            self._label_enc = NominalDataEncoder.load(label_enc)
         else:
-            self.label_enc = label_enc
+            self._label_enc = label_enc
 
         # TODO add predictor.experience, default None.
+
+        if isinstance(load_inc_paths, str) and os.path.isdir(load_inc_paths):
+            self.load_inc_paths = get_chkpts_paths(
+                load_inc_paths,
+                re.compile(f'.*{chkpt_file_prefix}-[0-9]+.*\..*'),
+            )
+        else:
+            self.load_inc_paths = load_inc_paths
 
         logger.info('Predictor UID `%s` init finished.', self.uid)
 
@@ -218,6 +260,10 @@ class OWHAPredictor(object):
             return self._uid
         return self.fine_tune.trainer.log_dir.rpartition(os.path.sep)[-1]
 
+    @property
+    def label_enc(self):
+        """Interface and forces to set label enc w/o assignment `=`."""
+        return self._label_enc
 
     # TODO feedback request for ANN batching fun times
     #   If fitting a torch ANN w/ batching, will need to tmp rm all
@@ -231,14 +277,20 @@ class OWHAPredictor(object):
 
         return available_uids[idx]
 
-
     def fit(self, dataset, val_dataset=None):
         """Incrementally fit the OWHAPredictor's parts. Update classes in
         classifier to match the training dataset. This assumes the training
         dataset contains all prior classes. This deep copy is convenient for
         ensuring the class indices are always aligned.
         """
+        if self.load_inc_paths and self.increment + 1 in self.load_inc_paths:
+           skip_fit = self.skip_fit
+           self.load_state(self.load_incs_path[self.increment + 1])
+           self.skip_fit = skip_fit
+
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:
+            # for saving checkpoints of state external to fine_tune.
+            self._increment += 1
             return
         if isinstance(dataset, KineticsUnified):
             if (
@@ -246,7 +298,7 @@ class OWHAPredictor(object):
                 or set(dataset.label_enc) - set(self.label_enc)
             ):
                 # Assumes dataset label enc is superset of label enc.
-                self.label_enc = deepcopy(dataset.label_enc)
+                self._label_enc = deepcopy(dataset.label_enc)
 
             n_classes = len(self.label_enc)
             if n_classes != self.fine_tune.n_classes:
@@ -308,7 +360,14 @@ class OWHAPredictor(object):
         """
         return self.fine_tune.feature_extract(dataset)
 
-    # TODO def feedback_query(self, dataset):
+    def load_state(self, ftune_chkpt):
+        # TODO other attrs of OWHAPredictor?
+
+        if self.fine_tune is not None: # and self.increment < self.skip_fit:
+            self.load_from_checkpoint(
+                ftune_chkpt,
+                model=self.fine_tune.model.model,
+            )
 
 
 # TODO class OWHAPredictorEVM(OWHAPredictor):

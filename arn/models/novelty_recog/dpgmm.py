@@ -11,7 +11,7 @@ import pyro
 
 from exputils.data.labels import NominalDataEncoder
 
-from arn.models.novelty_recog.predictor import OWHARecognizer
+from arn.models.novelty_recog.recognizer import OWHARecognizer
 from arn.torch_utils import torch_dtype
 
 import logging

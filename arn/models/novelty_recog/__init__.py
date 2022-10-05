@@ -1,9 +1,12 @@
 from importlib import import_module
 __all__ = [
     # Add new files to be imported here
-    'gaussian',
-    'naive_dpgmm',
     'gauss_finch',
+    'gaussian',
+    'gmm',
+    'gmm_finch',
+    'naive_dpgmm',
+    'recognizer',
 ]
 
 for module in __all__:

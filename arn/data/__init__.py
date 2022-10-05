@@ -1,6 +1,7 @@
 from importlib import import_module
 
 __all__ = [
+    'docstr_workarounds',
     'dataloader_utils',
     'kinetics_unified',
     'kinetics_owl',

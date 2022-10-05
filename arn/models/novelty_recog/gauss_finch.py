@@ -1,44 +1,116 @@
-"""Naive DPGMM version of GaussianRecognizer."""
+"""Recognizer with a Gaussian per known class, GMM for unknowns using FINCH to
+find unknown class clustes.
+"""
 from copy import deepcopy
 
+import h5py
 import numpy as np
-from sklearn.mixture import BayesianGaussianMixture
 import torch
 F = torch.nn.functional
 MultivariateNormal = torch.distributions.multivariate_normal.MultivariateNormal
 
 from exputils.data.labels import NominalDataEncoder
-from vast.clusteringAlgos.FINCH.python.finch import FINCH
+from exputils.io import create_filepath
 
 from arn.models.novelty_recog.gaussian import (
-    GaussianRecognizer,
     cred_hyperellipse_thresh,
+    min_max_threshold,
+)
+from arn.models.novelty_recog.gmm import (
+    GMM,
+    GMMRecognizer,
+    join_gmms,
+    recognize_fit,
 )
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-class GaussFINCH(GaussianRecognizer):
-    """A GaussianRecognizer with FINCH for recognize_fit.
+class GaussFINCH(GMMRecognizer):
+    """A GaussianRecognizer with FINCH for recognize_fit. Gaussian per class,
+    Gaussian Mixture Model for unknowns based on detection thresholds of known
+    classes. Every recognize_fit() with new data the unknown GMM gets refit.
 
-    Args
-    ----
-    level : int = -1
-        The level of cluster partitions to use during recognition_fit. FINCH
-        returns three levels of clustering. Defaults to the final level with
-        maximum clusters.
-    see GaussianRecognizer
+    Attributes
+    ----------
+    known_gmm : GMM = None
+        Gaussian per known class. The label encoder is the known classes with
+        unknown as the catch-all class.
+    gmm : GMM = None
+    see GMMRecognizer
     """
-    def __init__(self, level=-1, *args, **kwargs):
-        """
+    def __init__(self, *args, **kwargs):
+        """Initialize the GaussFINCH.
+
         Args
         ----
-        level : see self
-        see GaussianRecognizer.__init__
+        see GMMRecognizer.__init__
         """
-        self.level = level
         super().__init__(*args, **kwargs)
+
+        self.known_gmm = None
+
+        # The combined gmms into one for predict()/recigonize(), detect()
+        self.gmm = None
+
+    @property
+    def known_label_enc(self):
+        if self.known_gmm is not None:
+            return self.known_gmm.label_enc
+
+    @property
+    def label_enc(self):
+        if self.gmm is not None:
+            return self.gmm.label_enc
+
+    def add_new_knowns(self, new_knowns):
+        """Adds the given class labels as new knowns to the known label encoder
+
+        Both known and unknown gmm label encoders have 'unknown' catchall!
+        """
+        if self.known_gmm is None:
+            if isinstance(new_knowns, NominalDataEncoder):
+                self.known_gmm = GMM(
+                    new_knowns,
+                    cov_epsilon=self.cov_epsilon,
+                    device=self.device,
+                    dtype=self.dtype,
+                    threshold_func=self.threshold_func,
+                    min_samples=0,
+                    accepted_error=self.detect_error_tol,
+                )
+            else:
+                self.known_gmm = GMM(
+                    NominalDataEncoder(
+                        new_knowns,
+                        unknown_key='unknown',
+                    ),
+                    cov_epsilon=self.cov_epsilon,
+                    device=self.device,
+                    dtype=self.dtype,
+                    threshold_func=self.threshold_func,
+                    min_samples=0,
+                    accepted_error=self.detect_error_tol,
+                )
+        else:
+            self.known_gmm.label_enc.append(new_knowns)
+
+    def reset_recogs(self):
+        """Resets the recognized unknown class-clusters, and label_enc"""
+        super().reset_recogs()
+        self.gmm = self.known_gmm
+
+    def fit_knowns(self, features, labels, val_dataset=None):
+        self.known_gmm.fit(
+            features,
+            labels,
+            use_label_enc=True,
+        )
+        if self.unknown_gmm is not None:
+            self.gmm = join_gmms(self.known_gmm, self.unknown_gmm)
+        else:
+            self.gmm = self.known_gmm
 
     def recognize_fit(
         self,
@@ -62,131 +134,89 @@ class GaussFINCH(GaussianRecognizer):
         Any new unknown classes are added to the self.recog_label_enc, and
         self._gaussians
         """
-        if not self._gaussians:
-            raise ValueError('Recognizer is not fit: self._gaussians is None.')
+        if not self.known_gmm:
+            raise ValueError('Recognizer is not fit: self.known_gmm is None.')
 
-        if isinstance(features, torch.Tensor):
-            dtype = features.dtype
-            features = features.detach().cpu().numpy()
-        else:
-            dtype = getattr(torch, str(features.dtype))
+        super().recognize_fit(features, n_expected_classes, **kwargs)
 
-        default_kwargs = {'verbose': False}
-        default_kwargs.update(kwargs)
+        self.gmm = join_gmms(self.known_gmm, self.unknown_gmm)
 
-        logger.info("Begin fit of GaussianRecog's FINCH.")
-        logger.debug(
-            "Fitting %s with %d samples.",
-            type(self).__name__,
-            len(features),
-        )
-        recog_labels, n_clusters, _ = FINCH(features, **default_kwargs)
+    def recognize(self, features, detect=False):
+        """Using the existing Gaussians per class-cluster, get log probs.
+         Normalize the probability each feature belongs to a recognized class,
+         st the recognized classes are mutually exclusive to one another.
+        """
+        return self.gmm.recognize(features, detect)
 
-        # TODO level is always the last, most fine grained w/ max clusters,
-        # we probably do not want this and would instead like to find the max
-        # likely clusters on the data from ranges of [2, max].
-        #   A way to do this, fit MVN to clusters in every partition and calc
-        #   the Bayes factor or likelihood ratios to find best fit.
-        # Using the above method could incorporate the known MVNs as well
-        # such that the resulting clusters are then fit on all points in the
-        # space, not just the detected outliers/novel points.
+    def detect(self, features, knowns_only=True):
+        """Given data samples, detect novel samples to the known classes.
 
-        recog_labels = recog_labels[:, self.level]
-        n_clusters = n_clusters[self.level]
+        fit/recog: If given unlabeled data, decide if any of those samples form
+        new clusters that consitute as a new class based on the initial
+        hyperparameters.
 
-        # TODO Max the likelihood of GMM to select the number of FINCH parts
-        # TODO generalize this recognize_fit to apply to any set of pts and be
-        # func called that returns all the class' GMM state
+        Recognized novel unknown classes are represented as 'unknown_#' where #
+        is the newest class number.
 
-        # rm old unknown classes, replacing with current ones as this is
-        # always called to redo the unknown class-clusters on ALL currently
-        # unlabeled data deemed unknown.
-        #if self.recog_label_enc is None:
-        self._gaussians = self._gaussians[:self.n_known_labels - 1]
-        self._thresholds = self._thresholds[:self.n_known_labels - 1]
+        Criteria for a new class cluster:
+        - min number of samples
+        - which density param is acceptable?
+            min density of any class XOR density level of nearest class.
 
-        # Must update experience everytime and handle prior unknowns if any
-        unks = ['unknown']
-        if self.recog_label_enc:
-            unks += list(self.recog_label_enc)
-        unlabeled = self.experience[~self.experience['oracle']]
-        unknowns = unlabeled['labels'].isin(unks)
-        if unknowns.any():
-            self.experience.loc[unknowns.index, 'labels'] = \
-                self.known_label_enc.unknown_key
+        Args
+        ----
+        features : torch.Tensor
+            2 dimensional float tensor of shape (samples, feature_repr_dims).
+        preds : torch.Tensor
+            1 dimensional integer tensor of shape (samples,). Contains the
+            index encoding of each label predicted per feature.
+        n_expected_classes : int = None
+            The number of expected classes, thus including the total known
+            classes + unknown class + any recognized unknown classes.
 
-        self.recog_label_enc = NominalDataEncoder()
-        self.label_enc = deepcopy(self.known_label_enc)
+        Returns
+        -------
+        torch.Tensor
+            The predicted class label whose values are within label_enc.
 
-        # Get all MVNs found to serve as new class-clusters, unless deemed
-        # unconfident its a new class based on critera (min samples and
-        # density)
-        logger.debug(
-            "%s found %d new unknown classes.",
-            type(self).__name__,
-            n_clusters,
-        )
-        if n_clusters <= 1 or n_clusters < self.min_samples:
-            # No recognized unknown classes.
-            return
+        Notes
+        -----
+        NOTE IDEAL elsewhere: Detect is an inference time only task, and
+        inherently binary classificicaiton of known vs unknown.
+          0. new data is already assumed to have been used to fit ANN / recog
+          1. call `class_log_probs = recognize(features)`
+          2. reduce unknowns.
+          3. return sum of probs of unknowns, that is detection given recog.
+        NOTE in this method, there is disjoint between ANN and recog.
+          with this approach, perhaps should compare just DPGMM on frepr to
+          DPGMM on ANN of frepr.
+        Given never letting go of all experienced data, the DPGMM on ANN
+          has a better chance of success over the increments than on just the
+          frepr as the frepr currently is frozen over the increments.
+        """
+        if not self.known_gmm:
+            raise ValueError('Recognizer is not fit: self.known_gmm is None.')
 
-        # Numerical stability adjustment for the sample covariance's diagonal
-        stability_adjust = self.cov_epsilon * torch.eye(
-            features.shape[-1],
-            device=self.device,
-        )
+        if knowns_only:
+            return self.known_gmm.detect(features)
+        return self.gmm.detect(features)
 
-        # TODO make this go brr in ray for parellization
-        for i in range(n_clusters):
-            cluster_mask = recog_labels == i
-            logger.debug(
-                "%s's %d-th potential class has %d samples.",
-                type(self).__name__,
-                i,
-                sum(cluster_mask),
-            )
-            if self.min_samples:
-                if sum(cluster_mask) < self.min_samples:
-                    continue
+    def save(self, h5, overwrite=False):
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
 
-            class_features = torch.tensor(
-                features[cluster_mask],
-                dtype=self.dtype,
-                device=self.device,
-            )
-            loc = class_features.mean(0)
-            cov_mat = class_features.T.cov()
-            try:
-                mvn = MultivariateNormal(loc, cov_mat)
-            except:
-                mvn = MultivariateNormal(loc, cov_mat + stability_adjust)
+        # Save known_gmm, unknown_gmm, but NOT gmm, as it is joined by the 2.
+        if self.known_gmm:
+            self.known_gmm.save(h5.create_group('known_gmm'))
 
-            logger.debug(
-                "%s's %d-th potential class has "
-                '%f log_prob.mean.',
-                type(self).__name__,
-                i,
-                mvn.log_prob(class_features).mean(),
-            )
+        super().save(h5)
+        if close:
+            h5.close()
 
-            self._gaussians.append(mvn)
-            self._thresholds.append(cred_hyperellipse_thresh(
-                mvn,
-                self.detect_error_tol,
-            ))
+    @staticmethod
+    def load(h5):
+        raise NotImplementedError
 
-            # Update the label encoder with new recognized class-clusters
-            self.recog_label_enc.append(f'unknown_{self._recog_counter}')
-            self._recog_counter += 1
-
-        # Save the normalized belief of the unknowns
-        #self._recog_weights = dpgmm.weights_[argsorted_weights]
-        logger.debug(
-            "%s found %d new classes.",
-            type(self).__name__,
-            self.n_recog_labels
-        )
-
-        # Update label_enc to include the recog_label_enc at the end.
-        if self.recog_label_enc:
-            self.label_enc.append(self.recog_label_enc)
+        # TODO self.gmm = join_gmms(...
+        # self.gmm = join_gmms(self.known_gmm, self.unknown_gmm)

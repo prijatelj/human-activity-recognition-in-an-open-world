@@ -1,0 +1,15 @@
+Writing manifest to image destination
+Storing signatures
+-> ImageName: nvcr.io/nvidia/pytorch
+-> ImageDigest: sha256:ab303284646e417327ae1589b3768e04211669438110efec6c7fccad476b4b18
+-> FinalImageName: nvcr.io/nvidia/pytorch
+-> FinalImageTag: 21.09-py3
+-> ImagePath: /nix/store/gcr1gi9l1wji32h2n2rdr5vw0fdqhx4q-docker-image-nvcr.io-nvidia-pytorch-21.09-py3.tar
+-> ImageHash: 053pf4y23aa821sj4mc5lkl6nxs9vg40rr0k7bq3snlyryw9igsl
+{
+  imageName = "nvcr.io/nvidia/pytorch";
+  imageDigest = "sha256:ab303284646e417327ae1589b3768e04211669438110efec6c7fccad476b4b18";
+  sha256 = "053pf4y23aa821sj4mc5lkl6nxs9vg40rr0k7bq3snlyryw9igsl";
+  finalImageName = "nvcr.io/nvidia/pytorch";
+  finalImageTag = "21.09-py3";
+}

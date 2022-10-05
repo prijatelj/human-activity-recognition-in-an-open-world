@@ -7,28 +7,23 @@ From: nvcr.io/nvidia/pytorch:21.09-py3
     export TZ="America/New_York"
     apt-get update && apt-get install -y python3-opencv
 
-    # Install dependencies
-    mkdir deps
-    cd deps
+    # Install this repo's main package and its dependencies
+    pip install -e . -r requirements/arn_dev.txt
+
+    # Install docstr for the cli of the package
+    pip install docstr==0.0.3rc2
 
     # Install Prijatelj's public fork of `vast` for the Extreme Value Machine
+    # and FINCH with recurse-submodules, and get pyflann as dep.
+    git clone https://github.com/primetang/pyflann.git
+
+    # Have to 2to3 the pyflann code...
+    pip install 2to3==1.0
+    2to3 pyflann/
+    pip install -e pyflann/
+
     git clone --recurse-submodules https://github.com/prijatelj/vast
-    cd vast
-    python setup.py install
-
-    cd ../../
-
-    # Install CLIP
-    # pytorch, torchvision, and cudatoolkit deps are handled from NVIDIA container
-    pip install ftfy regex tqdm
-    pip install git+https://github.com/openai/CLIP.git
-
-    # Install this repo's main package and its dependencies
-    python setup.py install
-
-    # Install docstr to the cli of the package
-    pip install docstr
-
+    pip install -e vast/
 %labels
     Author dprijate@nd.edu
-    Version v0.0.1
+    Version v0.2.0rc1
