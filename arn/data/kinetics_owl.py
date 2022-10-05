@@ -1514,6 +1514,13 @@ class KineticsOWLExperiment(object):
                     #label_col=step.label_col,
                 )
 
+        # TODO given resulting steps, split up a list of DataSplits into the
+        # same order, and then concat to end of DataFrame, such that it will
+        # load the different files as visual transforms of those samples.
+
+        # TODO For simplicity and to avoid re-evaluating the original data,
+        # replace the orignal with the visual transforms.
+
     @property
     def increment(self):
         """The current increment or steps taken."""
