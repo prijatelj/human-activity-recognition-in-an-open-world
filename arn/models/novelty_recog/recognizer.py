@@ -743,3 +743,8 @@ class OWHARecognizer(OWHAPredictor):
     @staticmethod
     def load(h5):
         return load_owhar(h5, OWHARecognizer)
+
+    def load_state(h5):
+        raise NotImplementedError
+        tmp = type(self).load(h5)
+        # TODO update state inplace by extracting it from the loaded predictor.
