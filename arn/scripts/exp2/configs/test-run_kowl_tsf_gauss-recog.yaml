@@ -14,8 +14,6 @@ docstr:
       - DataSplits
       - KineticsOWL
       - KineticsOWLExperiment
-      - get_steps
-      - kinetics_owl_grecog
     arn.data.kinetics_unified:
       - KineticsUnified
       - KineticsUnifiedFeatures
