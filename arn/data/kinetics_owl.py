@@ -1248,8 +1248,10 @@ class KineticsOWL(object):
 
                 # TODO the predictor is still given all labels in train even if
                 # it does not recieve samples for an unknown label in train!
-                # This needs fixed!!!
-
+                # This needs fixed!!! (currently OWHARecognizer ignores them,
+                # but need to establish better barriers to information.
+                # Predictor code should never have access to the evaluator's
+                # insights.)
 
                 if self.increment == 1 or self.feedback_amount > 0:
                     # 4. Opt. Predictor Update/train on new data w/ feedback
