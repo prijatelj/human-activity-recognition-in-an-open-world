@@ -163,6 +163,10 @@ class OWHAPredictor(object):
     save_dir : str = None
         If given, the filepath to a directory to save all model checkpoints
         after fitting on an increment.
+    load_inc_paths : dict = None
+        Dictionary of str filepaths which contain the state to be loaded via
+        load_state() as the value and the key is the increment to which that
+        loaded state was fit on.
     """
     def __init__(
         self,
@@ -173,6 +177,7 @@ class OWHAPredictor(object):
         skip_fit=-1,
         save_dir=None,
         start_increment=0,
+        load_inc_paths=None,
     ):
         """Initializes the OWHAR.
 
@@ -189,6 +194,7 @@ class OWHAPredictor(object):
         skip_fit : see self
         save_dir : str = None
         start_increment : int = 0
+        load_inc_paths : see self
         """
         self.fine_tune = fine_tune
         self._increment = int(start_increment)
@@ -203,6 +209,8 @@ class OWHAPredictor(object):
             self._label_enc = label_enc
 
         # TODO add predictor.experience, default None.
+
+        self.load_inc_paths = load_inc_paths
 
         logger.info('Predictor UID `%s` init finished.', self.uid)
 
@@ -241,11 +249,10 @@ class OWHAPredictor(object):
         dataset contains all prior classes. This deep copy is convenient for
         ensuring the class indices are always aligned.
         """
-        # if load_inc_paths is not None and self.increment in load_inc_paths:
-        #   skip_fit = self.skip_fit
-        #   TODO except need to create a load_state() method per predictor.
-        #   self.load_state(load_incs_path[self.increment])
-        #   self.skip_fit = skip_fit
+        if self.load_inc_paths and self.increment + 1 in self.load_inc_paths:
+           skip_fit = self.skip_fit
+           self.load_state(load_incs_path[self.increment + 1])
+           self.skip_fit = skip_fit
 
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:
             return
@@ -317,7 +324,13 @@ class OWHAPredictor(object):
         """
         return self.fine_tune.feature_extract(dataset)
 
-    # TODO def feedback_query(self, dataset):
+    def load_state(self, ftune_chkpt):
+        # TODO other attrs of OWHAPredictor?
+        if self.fine_tune is not None: # and self.increment < self.skip_fit:
+            self.load_from_checkpoint(
+                ftune_chkpt,
+                model=self.fine_tune.model.model,
+            )
 
 
 # TODO class OWHAPredictorEVM(OWHAPredictor):
