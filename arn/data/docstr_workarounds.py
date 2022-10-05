@@ -1,12 +1,23 @@
 """The cli use of this project uses the prototype verison of docstr. As such,
 some workarounds are necessary to make it work as desired.
 """
+from collections import OrderedDict
+
 from arn.data.kinetics_owl import KineticsOWL
 
+import logging
+logger = logging.getLogger(__name__)
 
-def get_steps(step_1, step_2):
+
+def get_steps(**kwargs):
     """Hotfix for docstr to load in 2 KineticsUnified datasets. TODO update
     docstr to parse and generate CAPs for types within lits when specified.
+
+    Note that the number of expected source DataSplits objects is based on the
+    following args section.
+
+    Note that kwargs is not sorted by order given in docstr config! Uses
+    lexical sort of the Arg names.
 
     Args
     ----
@@ -20,23 +31,53 @@ def get_steps(step_1, step_2):
     list
         List of step 1 and step 2
     """
-    steps = [step_1, step_2]
-    for i, step in enumerate(steps):
+    kwargs = OrderedDict((key, kwargs[key]) for key in sorted(kwargs))
+    steps = []
+    for i, (key, step) in enumerate(kwargs.items()):
+        logger.debug(
+            'Loading step source DataSplit "%s" as %d-th step',
+            key,
+            i,
+        )
         for split in ['train', 'validate', 'test']:
+            step_split = getattr(step, split)
             if (
-                step.validate is not None
-                and step.validate.subset is not None
-                and step.validate.subset.labels is not None
-                and step.validate.subset.labels.name is None
+                step_split is not None
+                and step_split.subset is not None
+                and step_split.subset.labels is not None
+                and step_split.subset.labels.name is None
             ):
                 logger.warning(
-                    "Removing step source %d's split %s because "
+                    "Removing step %dth's source %s split %s because "
                     'subset.labels.name is None',
                     i,
+                    key,
                     split,
                 )
                 setattr(step, split, None)
+        steps.append(step)
     return steps
+
+
+def get_vtransforms(**kwargs):
+    """Hotfix for docstr same as above get_steps, but for the visually
+    transformed versions of the entire Kinetics Unified data.
+
+    Args
+    ----
+    color_invert : arn.data.kinetics_owl.DataSplits
+    color_jitter : arn.data.kinetics_owl.DataSplits
+    gaussian_blur : arn.data.kinetics_owl.DataSplits
+    gaussian_noise : arn.data.kinetics_owl.DataSplits
+    rotation : arn.data.kinetics_owl.DataSplits
+    vertical_flip : arn.data.kinetics_owl.DataSplits
+
+    Returns
+    -------
+    list
+        List of the DataSplits as ordered in Args.
+    """
+    return get_steps(**kwargs)
 
 
 # NOTE the following is all a workaround for the current docstr prototype to
