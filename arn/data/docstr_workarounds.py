@@ -59,7 +59,7 @@ def get_steps(**kwargs):
     return steps
 
 
-def get_vtransforms(**kwargs):
+def get_visual_transforms(**kwargs):
     """Hotfix for docstr same as above get_steps, but for the visually
     transformed versions of the entire Kinetics Unified data.
 
