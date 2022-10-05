@@ -241,8 +241,11 @@ class OWHAPredictor(object):
         dataset contains all prior classes. This deep copy is convenient for
         ensuring the class indices are always aligned.
         """
-        # TODO
         # if load_inc_paths is not None and self.increment in load_inc_paths:
+        #   skip_fit = self.skip_fit
+        #   TODO except need to create a load_state() method per predictor.
+        #   self.load_state(load_incs_path[self.increment])
+        #   self.skip_fit = skip_fit
 
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:
             return
