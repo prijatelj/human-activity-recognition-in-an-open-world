@@ -235,13 +235,15 @@ class OWHAPredictor(object):
 
         return available_uids[idx]
 
-
     def fit(self, dataset, val_dataset=None):
         """Incrementally fit the OWHAPredictor's parts. Update classes in
         classifier to match the training dataset. This assumes the training
         dataset contains all prior classes. This deep copy is convenient for
         ensuring the class indices are always aligned.
         """
+        # TODO
+        # if load_inc_paths is not None and self.increment in load_inc_paths:
+
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:
             return
         if isinstance(dataset, KineticsUnified):
