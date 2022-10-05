@@ -5,6 +5,9 @@
 docstr:
   style: numpy
   from import:
+      arn.data.docstr_workarounds:
+      - get_steps
+      - kinetics_owl_grecog
     arn.data.kinetics_owl:
       - EvalConfig
       - EvalDataSplitConfig
