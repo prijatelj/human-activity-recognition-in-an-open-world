@@ -26,7 +26,6 @@ from arn.data.kinetics_unified import (
     load_file_list,
     get_filename,
 )
-from arn.models.predictor import OWHAPredictor
 
 from exputils.data.labels import NominalDataEncoder
 from exputils.data.confusion_matrix import ConfusionMatrix
@@ -1012,7 +1011,7 @@ class KineticsOWL(object):
     Attributes
     ----------
     environment : KineticsOWLExperiment
-    predictor : OWHAPredictor
+    predictor : arn.models.predictor.OWHAPredictor
         predictor : arn.models.predictor.EVMPredictor
         arn.models.predictor.load_evm_predictor
         TODO docstr: support at least basic checking of multiple configurable
