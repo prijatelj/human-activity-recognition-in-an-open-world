@@ -27,7 +27,7 @@ docstr:
       - init_trainer
       - init_ray_plugin
       - init_tensorboard_logger
-    arn.models.owhar:
+    arn.models.predictor:
       - OWHAPredictor
   main: run #KineticsOWL.run
   log_sink: stdout # '/home/prijatelj/workspace/research/osr/repos/har/results/k400_start/x3d/fine-tune/label_recent_first/logs/log.log'

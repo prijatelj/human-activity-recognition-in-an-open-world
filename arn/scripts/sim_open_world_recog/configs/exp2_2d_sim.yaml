@@ -26,7 +26,7 @@ docstr:
       - init_trainer
       - init_ray_plugin
       - init_tensorboard_logger
-    arn.models.owhar:
+    arn.models.predictor:
       - OWHAPredictor
   main: run #KineticsOWL.run
   log_sink: stdout
