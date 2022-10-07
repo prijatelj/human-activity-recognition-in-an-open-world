@@ -165,8 +165,8 @@ def fit_gmm(
             assert label_enc.unknown_idx == 0
             next(n_clusters)
 
-    if isinstance(threshold_func, str):
-        threshold_func = globals()[threshold_func]
+    #if isinstance(threshold_func, str):
+    #    threshold_func = globals()[threshold_func]
 
     if cov_epsilon is None:
         cov_epsilon = torch.finfo(features.dtype).eps * 10
@@ -178,7 +178,10 @@ def fit_gmm(
         )
 
     mvns = []
-    thresholds = []
+    if threshold_func is None:
+        thresholds = None
+    else:
+        thresholds = []
     for i in range(n_clusters) if update_label_enc else n_clusters:
         cluster_mask = recog_labels == i
         logger.debug(
@@ -216,7 +219,7 @@ def fit_gmm(
                 thresholds.append(err_lprob)
             else:
                 thresholds.append(min_log_prob)
-        else:
+        elif isinstance(thresholds, list):
             thresholds.append(min_log_prob)
 
         # Update the label encoder with new recognized class-clusters
@@ -224,11 +227,11 @@ def fit_gmm(
             label_enc.append(f'{label_enc.unknown_key}_{counter}')
             counter += 1
 
-    if threshold_func == 'closest_other_marignal_thresholds':
-        thresholds = closest_other_marignal_thresholds(
+    if threshold_func == 'min_max_threshold':
+        thresholds = min_max_threshold(
             mvns,
-            thresholds,
-            accepted_error,
+            features,
+            #TODO likelihood param,
         )
 
     if return_kwargs:
