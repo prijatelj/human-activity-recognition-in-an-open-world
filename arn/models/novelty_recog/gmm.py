@@ -180,18 +180,14 @@ def fit_gmm(
             i,
             sum(cluster_mask),
         )
-        #if not cluster_mask.any():
-        #    # TODO How does such a case even occur? Is the label enc being
-        #    # given labels it should not be given during parital feedback?
-        #    continue
         if min_samples:
             if sum(cluster_mask) < min_samples:
-                continue
-
-        if min_samples <= 1 and len(cluster_mask) == 1:
+                #continue
+                cov_mat = stability_adjust
+        elif min_samples <= 1 and sum(cluster_mask) == 1:
             # TODO this is probably an issue, was setting to overall min
             # magnitude before, but screw it.
-            cov_mat = torch.eye(features.shape[-1]) * cov_epsilon
+            cov_mat = stability_adjust
         else:
             cov_mat = None
 
