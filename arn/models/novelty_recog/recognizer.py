@@ -20,6 +20,30 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def join_label_encs(left, right, use_right_key=True):
+    label_enc = deepcopy(left)
+    if use_right_key:
+        if right.unknown_key is None:
+            raise ValueError(
+                'right unknown key is None when use_right_key is True'
+            )
+        key = right.unknown_key
+    else:
+        if left.unknown_key is None:
+            raise ValueError(
+                'left unknown key is None when use_right_key is False'
+            )
+        key = left.unknown_key
+    if right.unknown_key is None:
+        right = iter(right)
+    else:
+        right = iter(right)
+        next(right)
+    label_enc.append(list(right))
+    label_enc.inv[0] = key
+    return label_enc
+
+
 def load_owhar(h5, class_type=None):
     """Load the class instance from the HDF5 file."""
     if class_type is None:
@@ -190,6 +214,16 @@ class OWHARecognizer(OWHAPredictor):
             )
         else:
             self._known_label_enc.append(new_knowns)
+
+        # Update the label encoder given new knowns
+        if self.has_recogs:
+            self._label_enc = join_label_encs(
+                self._known_label_enc,
+                self.recog_label_enc,
+                use_right_key=False,
+            )
+        else:
+            self._label_enc = deepcopy(self._known_label_enc)
 
     def reset_recogs(self):
         """Resets the recognized unknown class-clusters, and label_enc"""
