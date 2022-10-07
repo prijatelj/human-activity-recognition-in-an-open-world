@@ -268,7 +268,7 @@ class OWHAPredictor(object):
     # TODO feedback request for ANN batching fun times
     #   If fitting a torch ANN w/ batching, will need to tmp rm all
     #   samples w/o a label before fitting and then restore after.
-    def feedback_request(self, available_uids=None, amount=1.0):
+    def feedback_request(self, features, available_uids=None, amount=1.0):
         """The predictor's method of requesting feedback."""
         if available_uids is None:
             raise NotImplementedError('available_uids is necessary for ANNs.')
