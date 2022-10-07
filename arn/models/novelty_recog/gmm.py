@@ -180,13 +180,13 @@ def fit_gmm(
             i,
             sum(cluster_mask),
         )
-        if min_samples:
-            if sum(cluster_mask) < min_samples:
-                #continue
-                cov_mat = stability_adjust
+        #if min_samples:
+        if sum(cluster_mask) < min_samples:
+            #continue
+            cov_mat = stability_adjust
         elif min_samples <= 1 and sum(cluster_mask) == 1:
             # TODO this is probably an issue, was setting to overall min
-            # magnitude before, but screw it.
+            # magnitude before, but this works for now.
             cov_mat = stability_adjust
         else:
             cov_mat = None
@@ -316,6 +316,7 @@ def recognize_fit(
             features.shape[-1],
             device=device,
         )
+    """
     if len(n_clusters) == 1 and n_clusters[-1] == 1:
         logger.debug(
             'Resulting GMM for %s kept 0 / 1 potential clusters',
@@ -329,7 +330,8 @@ def recognize_fit(
             threshold_func=threshold_func,
             # min samples, accepted error
         )
-    elif max_likely_gmm:
+    #"""
+    if max_likely_gmm:
         raise NotImplementedError('max_likely_gmm')
         # TODO MLE GMM: from lowest level to highest, fit GMM to class clusters
         #   Keep looking or most likely until next in level sequence is less
