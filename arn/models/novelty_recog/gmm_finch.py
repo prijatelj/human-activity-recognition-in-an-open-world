@@ -12,7 +12,7 @@ F = torch.nn.functional
 from exputils.data.labels import NominalDataEncoder
 from exputils.io import create_filepath
 
-from models.novelty_recog.gaussian import min_max_threshold
+from arn.models.novelty_recog.gaussian import min_max_threshold
 from arn.models.novelty_recog.gmm import (
     GMM,
     GMMRecognizer,
@@ -29,24 +29,33 @@ class GMMFINCH(GMMRecognizer):
 
     Attributes
     ----------
-    known_gmms : list(GMM) = None
+    known_gmms : GMM = None
         List of Gaussian Mixture Model objects per class, where classes consist
         of knowns.
     threshold : float | torch.Tensor = None
         Global threshold for all distribs involved. If None, use the internal
         distribs thresholding for detection.
+    likelihood_unknown : float = None
+        The likelihood used to specify how likely a sample is unknown to the
+        the minimum maximum log prob sample. We recommend zero or negative
+        values as it is added to the log_prob, and subtraction is then saying
+        it is less likely, e.g., likelihood of -2 means the (currnetly static)
+        prior belief is that the unknown samples will be half as likely as the
+        least likely known class any sample was assigned to.
     see GMMRecognizer.__init__
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, likelihood_unknown=0.0, *args, **kwargs):
         """
         Args
         ----
+        likelihood_unknown : see self
         see GMMRecognizer.__init__
         """
         # NOTE uses self.known_label_enc and self._label_enc
         super().__init__(*args, **kwargs)
         self.known_gmms = None
         self.thresholds = None
+        self.likelihood_unknown = likelihood_unknown
 
     def reset_recogs(self):
         """Resets the recognized unknown class-clusters, and label_enc"""
@@ -57,8 +66,8 @@ class GMMFINCH(GMMRecognizer):
 
     def fit_knowns(self, features, labels, val_dataset=None):
         # For each known class with labels, fit the GMM.
-        knowns = iter(self.known_label_enc)
-        next(knowns.items())
+        knowns = iter(self.known_label_enc.items())
+        next(knowns)
 
         if self.known_gmms is None:
             n_old_knowns = 0
@@ -104,7 +113,7 @@ class GMMFINCH(GMMRecognizer):
             self.thresholds = min_max_threshold(
                 self.known_gmms,
                 features,
-                #self.likelihood,
+                self.likelihood_unknown,
             )
 
     def recognize_fit(self, features, n_expected_classes=None, **kwargs):
@@ -147,8 +156,8 @@ class GMMFINCH(GMMRecognizer):
 
         if self.has_recogs:
             unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
-            recogs = torch.cat([recogs, unknown_log_probs], dim=1)
-        recogs = torch.stack(recogs, dim=1).all(1)
+            recogs.append(unknown_log_probs)
+        recogs = (torch.stack(recogs, dim=1) < self.thresholds).all(1)
 
     def detect(self, features, known_only=True):
         if self.thresholds is not None:
@@ -156,7 +165,8 @@ class GMMFINCH(GMMRecognizer):
 
             if self.has_recogs and not known_only:
                 unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
-                recogs = torch.cat([recogs, unknown_log_probs], dim=1)
+                recogs.append(unknown_log_probs)
+            recogs = torch.stack(recogs, dim=1)
 
             return (recogs < self.thresholds).all(1)
 
@@ -171,7 +181,7 @@ class GMMFINCH(GMMRecognizer):
         # Save known_gmms, but NOT gmm, as it is joined by the 2.
         knowns = h5.create_group('known_gmms')
         for gmm in self.known_gmms:
-            gmm.save(knowns.create_group(gmm.unknown_key))
+            gmm.save(knowns.create_group(gmm.label_enc.unknown_key))
 
         super().save(h5)
         if close:
