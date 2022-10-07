@@ -85,7 +85,7 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
         log_probs = distribs.log_prob(samples)
     else:
         raise ValueError(
-            'The expected either an objet or list of objects with .log_prob().'
+            'Expected either an object or list of objects with .log_prob().'
         )
 
     # TODO will need to support a single scalar thershold for all distribs.
