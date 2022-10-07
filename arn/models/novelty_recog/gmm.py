@@ -17,6 +17,7 @@ from exputils.io import create_filepath
 from vast.clusteringAlgos.FINCH.python.finch import FINCH
 
 from arn.torch_utils import torch_dtype
+from arn.models.novelty_recog.recognizer import join_label_encs
 from arn.models.novelty_recog.gaussian import (
     GaussianRecognizer,
     cred_hyperellipse_thresh,
@@ -25,16 +26,6 @@ from arn.models.novelty_recog.gaussian import (
 
 import logging
 logger = logging.getLogger(__name__)
-
-
-def join_label_encs(left, right, use_right_key=True):
-    label_enc = deepcopy(left)
-    key = right.unknown_key if use_right_key else left.unknown_key
-    right = iter(right)
-    next(right)
-    label_enc.append(list(right))
-    label_enc.inv[0] = key
-    return label_enc
 
 
 def join_gmms(left, right, use_right_key=True):
@@ -502,9 +493,17 @@ class GMM(object):
         thresholds = thresholds.reshape(-1)
         if (
             thresholds.shape != self.gmm.component_distribution.batch_shape
-            #or len(thresholds.shape) == 1
+            and self.threshold_func != 'min_max_threshold'
          ):
             raise ValueError('Thresholds flattened dims != number of mvns')
+        elif (
+            (len(thresholds.shape) != 1 or thresholds.shape[0] != 1)
+            and self.threshold_func != 'min_max_threshold'
+        ):
+            raise ValueError(
+                'Thresholds flattened dims != 1 when '
+                'thresholf_func="min_max_threshold"'
+            )
         self.thresholds = thresholds
 
     def log_prob(self, features):
