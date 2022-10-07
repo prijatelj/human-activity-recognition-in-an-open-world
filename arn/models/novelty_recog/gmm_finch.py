@@ -12,6 +12,7 @@ F = torch.nn.functional
 from exputils.data.labels import NominalDataEncoder
 from exputils.io import create_filepath
 
+from models.novelty_recog.gaussian import min_max_threshold
 from arn.models.novelty_recog.gmm import (
     GMM,
     GMMRecognizer,
@@ -31,6 +32,9 @@ class GMMFINCH(GMMRecognizer):
     known_gmms : list(GMM) = None
         List of Gaussian Mixture Model objects per class, where classes consist
         of knowns.
+    threshold : float | torch.Tensor = None
+        Global threshold for all distribs involved. If None, use the internal
+        distribs thresholding for detection.
     see GMMRecognizer.__init__
     """
     def __init__(self, *args, **kwargs):
@@ -94,9 +98,14 @@ class GMMFINCH(GMMRecognizer):
                     dtype=self.dtype,
                 ))
 
-        # TODO if threshold_func is min_max_threshold, then it is global to the
+        # If threshold_func is min_max_threshold, then it is global to the
         # known gmms and thus needs set.
-        # TODO Otherwise, relies on detection per gmm
+        if self.threshold_func == 'min_max_threshold':
+            self.thresholds = min_max_threshold(
+                self.known_gmms,
+                features,
+                #self.likelihood,
+            )
 
     def recognize_fit(self, features, n_expected_classes=None, **kwargs):
         if not self.known_gmms:
@@ -131,6 +140,8 @@ class GMMFINCH(GMMRecognizer):
                 return recogs
             return F.softmax(recogs, dim=1)
 
+        raise NotImplementedError('Only global thresholding implemented atm.')
+
         # TODO Must use gmms' thresholds instead.
         recogs = [gmm.detect(features) for gmm in self.known_gmms]
 
@@ -150,6 +161,7 @@ class GMMFINCH(GMMRecognizer):
 
             return (recogs < self.thresholds).all(1)
 
+        raise NotImplementedError('Only global thresholding implemented atm.')
         # TODO Use the gmms' thresholds
 
     def save(self, h5, overwrite=False):
