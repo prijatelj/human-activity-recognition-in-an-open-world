@@ -77,24 +77,20 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
     """
     if (
         isinstance(distribs, list)
-        and all(
-            [isinstance(d, torch.distribution.Distribution) for d in distribs]
-        )
+        and all([hasattr(d, 'log_prob') for d in distribs])
     ):
-        log_probs = torch.stack(
-            [d.log_prob(samples) for d in distribs],
-            dim=1,
-        )
-    elif isinstance(distribs, torch.distribution.Distribution):
+        log_probs = torch.stack([d.log_prob(samples) for d in distribs], dim=1)
+        min_maxes = log_probs.max(1).values
+    elif hasattr(distribs, 'log_prob'):
         log_probs = distribs.log_prob(samples)
     else:
         raise ValueError(
-            'The expected type is a list of distribs or a distrib object.'
+            'The expected either an objet or list of objects with .log_prob().'
         )
 
     # TODO will need to support a single scalar thershold for all distribs.
 
-    min_maxes = log_probs.max(1).values.min()
+    min_maxes = log_probs.min()
     if likelihood:
         return min_maxes - likelihood
     return min_maxes
