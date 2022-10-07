@@ -26,6 +26,7 @@ from arn.data.kinetics_unified import (
     load_file_list,
     get_filename,
 )
+from arn.models.novelty_recog.recognizer import OWHARecognizer
 
 from exputils.data.labels import NominalDataEncoder
 from exputils.data.confusion_matrix import ConfusionMatrix
@@ -525,7 +526,7 @@ class EvalDataSplitConfig(NamedTuple):
                     np.zeros([preds.shape[0], len(missing_labels)]),
                 ))
             label_enc = data_split.label_enc
-        else:
+        elif isinstance(predictor, OWHARecognizer):
             label_enc = deepcopy(predictor.label_enc)
             # TODO If these are changing cuz new unknown_# from recognize_fit()
             # then the state needs updated correctly after recognize_fit()! The
@@ -557,6 +558,8 @@ class EvalDataSplitConfig(NamedTuple):
                     'constant',
                     constant_values=0,
                 )
+        else:
+            label_enc = deepcopy(predictor.label_enc)
 
         if self.pred_dir:
             if self.save_preds_with_labels:
@@ -1173,7 +1176,8 @@ class KineticsOWL(object):
                 #    if not self.eval_config.save_features
                 #    else self.predictor.extract_predict,
                 f'{eval_prefix}_new-data_predict',
-                experience=self.experience,
+                experience=self.experience
+                    if isinstance(self.predictor, OWHARecognizer) else None,
             )
             if self.experience:
                 self.experience.train.return_label = True
@@ -1289,7 +1293,8 @@ class KineticsOWL(object):
                 #    if not self.eval_config.save_features
                 #    else self.predictor.extract_predict,
                 f'{eval_prefix}_post-feedback_predict',
-                experience=self.experience,
+                experience=self.experience
+                    if isinstance(self.predictor, OWHARecognizer) else None,
             )
             if self.experience:
                 self.experience.train.return_label = True
