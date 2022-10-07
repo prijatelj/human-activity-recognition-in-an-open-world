@@ -92,7 +92,7 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
 
     min_maxes = log_probs.min()
     if likelihood:
-        return min_maxes - likelihood
+        return min_maxes + likelihood
     return min_maxes
 
 
