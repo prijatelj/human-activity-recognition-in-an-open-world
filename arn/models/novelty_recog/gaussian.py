@@ -177,6 +177,7 @@ class GaussianRecognizer(OWHARecognizer):
         detect_error_tol : see self
         min_density : see self
         cov_epsilon : see self
+        threshold_func : see self
         see OWHARecognizer.__init__
         """
         super().__init__(**kwargs)
