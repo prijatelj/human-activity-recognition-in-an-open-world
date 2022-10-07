@@ -173,6 +173,12 @@ class GMMFINCH(GMMRecognizer):
         raise NotImplementedError('Only global thresholding implemented atm.')
         # TODO Use the gmms' thresholds
 
+    def log_prob(self, features):
+        return torch.stack(
+            [gmm.log_prob(features) for gmm in self.known_gmms],
+            dim=1,
+        ).sum(1)
+
     def save(self, h5, overwrite=False):
         close = isinstance(h5, str)
         if close:
