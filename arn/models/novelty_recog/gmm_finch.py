@@ -150,7 +150,6 @@ class GMMFINCH(GMMRecognizer):
             recogs = torch.cat([recogs, unknown_log_probs], dim=1)
         recogs = torch.stack(recogs, dim=1).all(1)
 
-
     def detect(self, features, known_only=True):
         if self.thresholds is not None:
             recogs = [gmm.log_prob(features) for gmm in self.known_gmms]
