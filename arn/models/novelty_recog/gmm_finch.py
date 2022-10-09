@@ -109,6 +109,12 @@ class GMMFINCH(GMMRecognizer):
                     dtype=self.dtype,
                 ))
 
+        logger.debug(
+            "%s's %s.fit_knowns() finished fitting the GMMs per class",
+            self.uid,
+            type(self).__name__,
+        )
+
         # If threshold_func is min_max_threshold, then it is global to the
         # known gmms and thus needs set.
         if self.threshold_func == 'min_max_threshold':
