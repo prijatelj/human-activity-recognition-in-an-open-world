@@ -465,10 +465,21 @@ class OWHARecognizer(OWHAPredictor):
         #   recogs is not entirely ignored? Hmm...
         #preds = super().predict(dataset)
 
+        logger.debug(
+            "Begin call to %s's %s.pre_predict()",
+            self.uid,
+            type(self),
+        )
         unseen_mask, update_detects = self.pre_predict(dataset, experience)
+        logger.debug("Begin call to %s's %s.recognize()", self.uid, type(self))
         preds = self.recognize(
             torch.stack(list(dataset)).to(self.device),
             detect=True,
+        )
+        logger.debug(
+            "Begin call to %s's %s.oost_predict()",
+            self.uid,
+            type(self),
         )
         self.post_predict(
             dataset,
@@ -476,6 +487,11 @@ class OWHARecognizer(OWHAPredictor):
             preds,
             unseen_mask,
             update_detects,
+        )
+        logger.debug(
+            "End call to %s's %s.predict()",
+            self.uid,
+            type(self),
         )
         return preds
 
@@ -705,9 +721,17 @@ class OWHARecognizer(OWHAPredictor):
         when writing custom fit_knowns() or overriding any other of these
         methods in children classes.
         """
+        logger.debug("Start call to %s's %s.pre_fit()", self.uid, type(self))
         dset_feedback_mask, features, labels = self.pre_fit(dataset)
+        logger.debug(
+            "Start call to %s's %s.fit_knowns()",
+            self.uid,
+            type(self),
+        )
         self.fit_knowns(dataset, val_dataset=val_dataset)
+        logger.debug("Start call to %s's %s.post_fit()", self.uid, type(self))
         self.post_fit(dset_feedback_mask, features)
+        logger.debug("End call to %s's %s.fit()", self.uid, type(self))
 
     def pre_recognize_fit(self):
         """Must update experience everytime and handle prior unknowns if any"""

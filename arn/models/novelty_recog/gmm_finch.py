@@ -64,6 +64,8 @@ class GMMFINCH(GMMRecognizer):
         # Reset general recognizer to use just knowns
         self._label_enc = deepcopy(self.known_label_enc)
 
+        logger.debug('%s.reset_recogs() finished', type(self))
+
     def fit_knowns(self, features, labels, val_dataset=None):
         # For each known class with labels, fit the GMM.
         knowns = iter(self.known_label_enc.items())
