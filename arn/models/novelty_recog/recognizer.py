@@ -468,10 +468,14 @@ class OWHARecognizer(OWHAPredictor):
         logger.debug(
             "Begin call to %s's %s.pre_predict()",
             self.uid,
-            type(self),
+            type(self).__name__,
         )
         unseen_mask, update_detects = self.pre_predict(dataset, experience)
-        logger.debug("Begin call to %s's %s.recognize()", self.uid, type(self))
+        logger.debug(
+            "Begin call to %s's %s.recognize()",
+            self.uid,
+            type(self).__name__,
+        )
         preds = self.recognize(
             torch.stack(list(dataset)).to(self.device),
             detect=True,
@@ -479,7 +483,7 @@ class OWHARecognizer(OWHAPredictor):
         logger.debug(
             "Begin call to %s's %s.oost_predict()",
             self.uid,
-            type(self),
+            type(self).__name__,
         )
         self.post_predict(
             dataset,
@@ -491,7 +495,7 @@ class OWHARecognizer(OWHAPredictor):
         logger.debug(
             "End call to %s's %s.predict()",
             self.uid,
-            type(self),
+            type(self).__name__,
         )
         return preds
 
@@ -721,17 +725,29 @@ class OWHARecognizer(OWHAPredictor):
         when writing custom fit_knowns() or overriding any other of these
         methods in children classes.
         """
-        logger.debug("Start call to %s's %s.pre_fit()", self.uid, type(self))
+        logger.debug(
+            "Start call to %s's %s.pre_fit()",
+            self.uid,
+            type(self).__name__,
+        )
         dset_feedback_mask, features, labels = self.pre_fit(dataset)
         logger.debug(
             "Start call to %s's %s.fit_knowns()",
             self.uid,
-            type(self),
+            type(self).__name__,
         )
         self.fit_knowns(dataset, val_dataset=val_dataset)
-        logger.debug("Start call to %s's %s.post_fit()", self.uid, type(self))
+        logger.debug(
+            "Start call to %s's %s.post_fit()",
+            self.uid,
+            type(self).__name__,
+        )
         self.post_fit(dset_feedback_mask, features)
-        logger.debug("End call to %s's %s.fit()", self.uid, type(self))
+        logger.debug(
+            "End call to %s's %s.fit()",
+            self.uid,
+            type(self).__name__,
+        )
 
     def pre_recognize_fit(self):
         """Must update experience everytime and handle prior unknowns if any"""

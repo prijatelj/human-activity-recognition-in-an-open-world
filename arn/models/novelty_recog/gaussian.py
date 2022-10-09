@@ -230,15 +230,23 @@ class GaussianRecognizer(OWHARecognizer):
             1 dimensional integer tensor of shape (samples,). Contains the
             index encoding of each label per features.
         """
-        logger.debug("Start call to %s's %s.pre_fit()", self.uid, type(self))
+        logger.debug(
+            "Start call to %s's %s.pre_fit()",
+            self.uid,
+            type(self).__name__,
+        )
         dset_feedback_mask, features, labels = self.pre_fit(dataset)
         logger.debug(
             "Start call to %s's %s.fit_knowns()",
             self.uid,
-            type(self),
+            type(self).__name__,
         )
         self.fit_knowns(features, labels, val_dataset)
-        logger.debug("Start call to %s's %s.post_fit()", self.uid, type(self))
+        logger.debug(
+            "Start call to %s's %s.post_fit()",
+            self.uid,
+            type(self).__name__,
+        )
         self.post_fit(dset_feedback_mask, features)
 
         # NOTE Should fit on the soft labels (output of recognize) for
@@ -252,10 +260,14 @@ class GaussianRecognizer(OWHARecognizer):
         logger.debug(
             "Begin call to %s's super(%s).fit()",
             self.uid,
-            type(self),
+            type(self).__name__,
         )
         super().fit_knowns(dataset, val_dataset)
-        logger.debug("End call to %s's %s.fit()", self.uid, type(self))
+        logger.debug(
+            "End call to %s's %s.fit()",
+            self.uid,
+            type(self).__name__,
+        )
 
     def save(self, h5, overwrite=False):
         """Save as an HDF5 file."""
