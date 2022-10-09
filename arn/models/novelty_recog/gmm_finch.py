@@ -35,7 +35,7 @@ class GMMFINCH(GMMRecognizer):
     threshold : float | torch.Tensor = None
         Global threshold for all distribs involved. If None, use the internal
         distribs thresholding for detection.
-    likelihood_unknown : float = None
+    likelihood_unknown : float = 0.0
         The likelihood used to specify how likely a sample is unknown to the
         the minimum maximum log prob sample. We recommend zero or negative
         values as it is added to the log_prob, and subtraction is then saying
