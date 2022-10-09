@@ -75,14 +75,26 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
         threshold is set such that the likelihood of a point being unknowns is
         if it is less than half as likely as the least likely known point.
     """
+    logger.debug(
+        'min_max_threshold: '
+        'distribs = %s; '
+        'samples.shape = %s; '
+        'likelihood = %f; ',
+        distribs,
+        samples.shape,
+        likelihood,
+    )
     if (
         isinstance(distribs, list)
         and all([hasattr(d, 'log_prob') for d in distribs])
     ):
         log_probs = torch.stack([d.log_prob(samples) for d in distribs], dim=1)
-        min_maxes = log_probs.max(1).values
+        logger.debug('list: log_probs.shape = %s', log_probs.shape)
+        log_probs = log_probs.max(1).values
+        logger.debug('log_probs.max(1).values.shape = %s', log_probs.shape)
     elif hasattr(distribs, 'log_prob'):
         log_probs = distribs.log_prob(samples)
+        logger.debug('has log_prob(): log_probs.shape = %s', log_probs.shape)
     else:
         raise ValueError(
             'Expected either an object or list of objects with .log_prob().'
@@ -91,6 +103,7 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
     # TODO will need to support a single scalar thershold for all distribs.
 
     min_maxes = log_probs.min()
+    logger.debug('log_probs.min() = ', min_maxes)
     if likelihood:
         return min_maxes + likelihood
     return min_maxes
