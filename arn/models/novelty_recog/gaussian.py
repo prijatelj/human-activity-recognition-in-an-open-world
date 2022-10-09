@@ -231,19 +231,19 @@ class GaussianRecognizer(OWHARecognizer):
             index encoding of each label per features.
         """
         logger.debug(
-            "Start call to %s's %s.pre_fit()",
+            "Begin call to %s's %s.pre_fit()",
             self.uid,
             type(self).__name__,
         )
         dset_feedback_mask, features, labels = self.pre_fit(dataset)
         logger.debug(
-            "Start call to %s's %s.fit_knowns()",
+            "Begin call to %s's %s.fit_knowns()",
             self.uid,
             type(self).__name__,
         )
         self.fit_knowns(features, labels, val_dataset)
         logger.debug(
-            "Start call to %s's %s.post_fit()",
+            "Begin call to %s's %s.post_fit()",
             self.uid,
             type(self).__name__,
         )
