@@ -80,6 +80,7 @@ def min_max_threshold(
     distribs,
     samples: torch.Tensor,
     likelihood: float = 0.0,
+    batch_size=8192,
 ):
     """For all the mvns over the data, find the sample with the minimum of the
     maximum log_probs. This is now the threshold to be used overall
@@ -94,6 +95,11 @@ def min_max_threshold(
         found threshold. If this likelihood is 2, that means the log_prob
         threshold is set such that the likelihood of a point being unknowns is
         if it is less than half as likely as the least likely known point.
+    batch_size : int = 8192
+        The memory required to calculate the gmm.log_prob per distribution is
+        `memory_required = dims * components * samples * 4 Bytes`. 2**13 = 8192
+        samples which when dims are 768 and max components is 4000, <51GB of
+        RAM is required.
     """
     logger.debug(
         'min_max_threshold: '
@@ -113,19 +119,27 @@ def min_max_threshold(
         logger.debug('list: len(distribs) = %s', len(distribs))
         #log_probs = torch.stack([d.log_prob(samples) for d in distribs], dim=1)
         #log_probs = []
-        log_probs = torch.tensor(
-            [[-torch.inf]] * len(samples),
-            dtype=samples.dtype,
-        )
-        for i, d in enumerate(distribs):
-            logger.debug(
-                'the %d-th distrib, w/ unknown_key = %s',
-                i,
-                'No label_enc attr' if not hasattr(d, 'label_enc')
-                    else d.label_enc.unknown_key,
+        min_maxes = torch.tensor(torch.inf)
+        for idx in range(batch_size, len(samples) + batch_size, batch_size):
+            batch = samples[idx - batch_size:idx]
+            log_probs = torch.tensor(
+                [[-torch.inf]] * len(batch),
+                dtype=samples.dtype,
             )
-            other = d.log_prob(samples).reshape(-1,1)
-            log_probs = torch.where(log_probs > other, log_probs, other)
+            for i, d in enumerate(distribs):
+                log_probs = torch.max(
+                    log_probs,
+                    d.log_prob(batch).reshape(-1, 1),
+                )
+            min_maxes = torch.min(min_maxes, log_probs.min())
+        #logger.debug(
+        #    'the %d-th distrib, w/ unknown_key = %s; %d components',
+        #    i,
+        #    'No label_enc attr' if not hasattr(d, 'label_enc')
+        #        else d.label_enc.unknown_key,
+        #    1 if not hasattr(d, 'gmm') else
+        #        d.gmm.component_distribution.batch_shape[0],
+        #)
         #log_probs = torch.stack(log_probs, dim=1)
         #logger.debug('list: log_probs.shape = %s', log_probs.shape)
         #log_probs = log_probs.max(1).values
@@ -133,13 +147,13 @@ def min_max_threshold(
     elif hasattr(distribs, 'log_prob'):
         log_probs = distribs.log_prob(samples)
         #logger.debug('has log_prob(): log_probs.shape = %s', log_probs.shape)
+        min_maxes = log_probs.min()
     else:
         raise ValueError(
             'Expected either an object or list of objects with .log_prob().'
         )
 
-    min_maxes = log_probs.min()
-    #logger.debug('log_probs.min() = %s', min_maxes)
+    logger.debug('log_probs.min() = %s', min_maxes)
     if likelihood:
         return min_maxes + likelihood
     return min_maxes
