@@ -77,18 +77,31 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
     """
     logger.debug(
         'min_max_threshold: '
-        'distribs = %s; '
+        'type(distribs) = %s; '
         'samples.shape = %s; '
-        'likelihood = %f; ',
-        distribs,
+        'samples.dtype = %s; '
+        'likelihood = %s; ',
+        type(distribs),
         samples.shape,
+        samples.dtype,
         likelihood,
     )
     if (
         isinstance(distribs, list)
         and all([hasattr(d, 'log_prob') for d in distribs])
     ):
-        log_probs = torch.stack([d.log_prob(samples) for d in distribs], dim=1)
+        logger.debug('list: len(distribs) = %s', len(distribs))
+        #log_probs = torch.stack([d.log_prob(samples) for d in distribs], dim=1)
+        log_probs = []
+        for i, d in enumerate(distribs):
+            logger.debug(
+                'the %d-th distrib, w/ unknown_key = %s',
+                i,
+                'No label_enc attr' if not hasattr(d, 'label_enc')
+                    else d.label_enc.unknown_key,
+            )
+            log_probs.append(d.log_prob(samples))
+        log_probs = torch.stack(log_probs, dim=1)
         logger.debug('list: log_probs.shape = %s', log_probs.shape)
         log_probs = log_probs.max(1).values
         logger.debug('log_probs.max(1).values.shape = %s', log_probs.shape)
@@ -103,7 +116,7 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
     # TODO will need to support a single scalar thershold for all distribs.
 
     min_maxes = log_probs.min()
-    logger.debug('log_probs.min() = ', min_maxes)
+    logger.debug('log_probs.min() = %s', min_maxes)
     if likelihood:
         return min_maxes + likelihood
     return min_maxes
