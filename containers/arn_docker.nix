@@ -41,54 +41,30 @@ let
   };
 in
 pkgs.dockerTools.buildImage {
-    name = "arn";
-    tag = "0.2.0rc1";
+  name = "arn";
+  tag = "0.2.0rc1";
 
-    #fromImage = peanut;
-    #fromImageName = "74d53f84c686";
-    #fromImageTag = "21.09-py3";
+  contents = (builtins.toList mach-nix.mkNixpkgs {
+    requirements = builtins.readFile ../requirements/arn.txt;
+  });
+  runAsRoot = ''
+    #!${pkgs.runtimeShell}
+    # Install Prijatelj's public fork of `vast` for the Extreme Value
+    # Machine and FINCH with recurse-submodules, and get pyflann as dep.
+    git clone https://github.com/primetang/pyflann.git
 
-    #copyToRoot = pkgs.buildEnv {
-    #  name = "image-root";
-    #  #pathsToLink= [ "/bin" ];
-    #  paths = builtins.concatLists [
-    #contents = builtins.concatLists [
-    contents = mach-nix.mkNixpkgs {
-      requirements = builtins.readFile ../requirements/arn.txt;
-    };
-      /*
-      pkgs.git
-      pkgs.curl
-      pkgs.cudatoolkit
-      pkgs.stdenv.cc
-      #*/
-    #;
-    #};
+    # Have to 2to3 the pyflann code...
+    pip install 2to3==1.0
+    2to3 pyflann/
+    pip install -e pyflann/
 
-    runAsRoot = ''
-        #!${pkgs.runtimeShell}
-        # Install this repo's main package and its dependencies
-        #pip install -e . -r requirements/arn_dev.txt
+    git clone --recurse-submodules https://github.com/prijatelj/vast
+    pip install -e vast/
+  '';
 
-        # Install docstr for the cli of the package
-        #pip install docstr==0.0.3rc2
-
-        # Install Prijatelj's public fork of `vast` for the Extreme Value
-        # Machine and FINCH with recurse-submodules, and get pyflann as dep.
-        git clone https://github.com/primetang/pyflann.git
-
-        # Have to 2to3 the pyflann code...
-        pip install 2to3==1.0
-        2to3 pyflann/
-        pip install -e pyflann/
-
-        git clone --recurse-submodules https://github.com/prijatelj/vast
-        pip install -e vast/
-    '';
-
-    config = {
-        #Cmd = [ "/bin/..." ];
-        WorkingDir = "/arn";
-        #Volumes = { "/arn" = { }; };
-    };
+  config = {
+    #Cmd = [ "/bin/..." ];
+    WorkingDir = "/arn";
+    #Volumes = { "/arn" = { }; };
+  };
 }
