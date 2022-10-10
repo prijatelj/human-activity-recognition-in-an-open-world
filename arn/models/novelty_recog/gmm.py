@@ -224,7 +224,8 @@ def fit_gmm(
     if return_kwargs:
         return {'label_enc': label_enc, 'locs': mvns, 'thresholds': thresholds}
     return GMM(
-        label_enc, mvns,
+        label_enc,
+        mvns,
         thresholds=thresholds,
         counter=counter,
         cov_epsilon=cov_epsilon,
