@@ -113,8 +113,6 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
             'Expected either an object or list of objects with .log_prob().'
         )
 
-    # TODO will need to support a single scalar thershold for all distribs.
-
     min_maxes = log_probs.min()
     logger.debug('log_probs.min() = %s', min_maxes)
     if likelihood:
