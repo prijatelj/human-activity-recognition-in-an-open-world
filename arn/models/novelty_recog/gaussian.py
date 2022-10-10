@@ -59,8 +59,28 @@ def cred_hyperellipse_thresh(mvn, min_error_tol):
 
     return mvn.log_prob(mvn.loc + vector)
 
+"""
+@torch.jit.script
+def min_max_thresh_jit(
+    distribs,#: list,
+    samples: torch.Tensor,
+    likelihood: float = 0.0,
+):
+    log_probs = torch.tensor(
+        [[-torch.inf]] * len(samples),
+        dtype=samples.dtype,
+    )
+    for i, d in enumerate(distribs):
+        other = d.log_prob(samples)
+        log_probs = torch.where(log_probs > other, log_probs, other)
+    return log_probs.min() + likelihood
+#"""
 
-def min_max_threshold(distribs, samples, likelihood=0.0):
+def min_max_threshold(
+    distribs,
+    samples: torch.Tensor,
+    likelihood: float = 0.0,
+):
     """For all the mvns over the data, find the sample with the minimum of the
     maximum log_probs. This is now the threshold to be used overall
 
@@ -92,7 +112,11 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
     ):
         logger.debug('list: len(distribs) = %s', len(distribs))
         #log_probs = torch.stack([d.log_prob(samples) for d in distribs], dim=1)
-        log_probs = []
+        #log_probs = []
+        log_probs = torch.tensor(
+            [[-torch.inf]] * len(samples),
+            dtype=samples.dtype,
+        )
         for i, d in enumerate(distribs):
             logger.debug(
                 'the %d-th distrib, w/ unknown_key = %s',
@@ -100,21 +124,22 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
                 'No label_enc attr' if not hasattr(d, 'label_enc')
                     else d.label_enc.unknown_key,
             )
-            log_probs.append(d.log_prob(samples))
-        log_probs = torch.stack(log_probs, dim=1)
-        logger.debug('list: log_probs.shape = %s', log_probs.shape)
-        log_probs = log_probs.max(1).values
-        logger.debug('log_probs.max(1).values.shape = %s', log_probs.shape)
+            other = d.log_prob(samples).reshape(-1,1)
+            log_probs = torch.where(log_probs > other, log_probs, other)
+        #log_probs = torch.stack(log_probs, dim=1)
+        #logger.debug('list: log_probs.shape = %s', log_probs.shape)
+        #log_probs = log_probs.max(1).values
+        #logger.debug('log_probs.max(1).values.shape = %s', log_probs.shape)
     elif hasattr(distribs, 'log_prob'):
         log_probs = distribs.log_prob(samples)
-        logger.debug('has log_prob(): log_probs.shape = %s', log_probs.shape)
+        #logger.debug('has log_prob(): log_probs.shape = %s', log_probs.shape)
     else:
         raise ValueError(
             'Expected either an object or list of objects with .log_prob().'
         )
 
     min_maxes = log_probs.min()
-    logger.debug('log_probs.min() = %s', min_maxes)
+    #logger.debug('log_probs.min() = %s', min_maxes)
     if likelihood:
         return min_maxes + likelihood
     return min_maxes
