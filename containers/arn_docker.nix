@@ -36,7 +36,9 @@ let
   mach-nix = import (builtins.fetchGit {
     url = "https://github.com/DavHau/mach-nix";
     ref = "refs/tags/3.5.0";
-  }) {};
+  }) {
+    python = "python39";
+  };
 in
 pkgs.dockerTools.buildImage {
     name = "arn";
@@ -46,23 +48,22 @@ pkgs.dockerTools.buildImage {
     #fromImageName = "74d53f84c686";
     #fromImageTag = "21.09-py3";
 
-    copyToRoot = pkgs.buildEnv {
-      name = "image-root";
-      #pathsToLink= [ "/bin" ];
-      paths = concatLists [
-        mach-nix.mkNixpkgs {
-          requirements = "./requirements/arn.txt"
-          packagesExtra = [
-            docstr
-          ]
-        }
-        [
-          pkgs.git
-          pkgs.curl
-          pkgs.cudatoolkit
-          pkgs.stdenv.cc
-        ]
+    #copyToRoot = pkgs.buildEnv {
+    #  name = "image-root";
+    #  #pathsToLink= [ "/bin" ];
+    #  paths = builtins.concatLists [
+    #contents = builtins.concatLists [
+    contents = mach-nix.mkNixpkgs {
+      requirements = builtins.readFile ../requirements/arn.txt;
     };
+      /*
+      pkgs.git
+      pkgs.curl
+      pkgs.cudatoolkit
+      pkgs.stdenv.cc
+      #*/
+    #;
+    #};
 
     runAsRoot = ''
         #!${pkgs.runtimeShell}
@@ -70,7 +71,7 @@ pkgs.dockerTools.buildImage {
         #pip install -e . -r requirements/arn_dev.txt
 
         # Install docstr for the cli of the package
-        pip install docstr==0.0.3rc2
+        #pip install docstr==0.0.3rc2
 
         # Install Prijatelj's public fork of `vast` for the Extreme Value
         # Machine and FINCH with recurse-submodules, and get pyflann as dep.
