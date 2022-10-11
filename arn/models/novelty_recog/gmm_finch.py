@@ -158,7 +158,10 @@ class GMMFINCH(GMMRecognizer):
                 )
                 if self.has_recogs:
                     detect_unknowns = torch.cat(
-                        unknown_log_probs < self.unknown_gmm.thresholds,
+                        (
+                            detect_unknowns,
+                            unknown_log_probs < self.unknown_gmm.thresholds,
+                        ),
                         dim=1,
                     )
                 detect_unknowns = detect_unknowns.all(1)
