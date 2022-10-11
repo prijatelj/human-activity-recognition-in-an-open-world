@@ -117,7 +117,10 @@ class GMMFINCH(GMMRecognizer):
 
         # If threshold_func is min_max_threshold, then it is global to the
         # known gmms and thus needs set.
-        if self.threshold_func == 'min_max_threshold':
+        if (
+            self.threshold_global
+            and self.threshold_func == 'min_max_threshold'
+        ):
             self.thresholds = min_max_threshold(
                 self.known_gmms,
                 features,
