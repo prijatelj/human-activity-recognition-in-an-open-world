@@ -136,12 +136,14 @@ class GMMFINCH(GMMRecognizer):
     def recognize(self, features, detect=False):
         # Loop through all known gmms + unknown_recogs getting log_probs.
         if self.thresholds is not None:
-            recogs = [gmm.log_prob(features) for gmm in self.known_gmms]
+            recogs = torch.stack(
+                [gmm.log_prob(features) for gmm in self.known_gmms],
+                dim=1
+            )
 
             if self.has_recogs:
                 unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
-                recogs += [unknown_log_probs]
-            recogs = torch.stack(recogs, dim=1)
+                recogs = torch.cat([recogs, unknown_log_probs], dim=1)
 
             if detect:
                 detect_unknowns = (recogs < self.thresholds).all(1)
@@ -169,12 +171,14 @@ class GMMFINCH(GMMRecognizer):
 
     def detect(self, features, known_only=True):
         if self.thresholds is not None:
-            recogs = [gmm.log_prob(features) for gmm in self.known_gmms]
+            recogs = torch.stack(
+                [gmm.log_prob(features) for gmm in self.known_gmms],
+                dim=1
+            )
 
             if self.has_recogs and not known_only:
                 unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
-                recogs.append(unknown_log_probs)
-            recogs = torch.stack(recogs, dim=1)
+                recogs = torch.cat([recogs, unknown_log_probs], dim=1)
 
             return (recogs < self.thresholds).all(1)
 
