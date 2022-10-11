@@ -64,7 +64,7 @@ class GMMFINCH(GMMRecognizer):
         # Reset general recognizer to use just knowns
         self._label_enc = deepcopy(self.known_label_enc)
 
-        logger.debug('%s.reset_recogs() finished', type(self))
+        logger.info('%s.reset_recogs() finished', type(self))
 
     def fit_knowns(self, features, labels, val_dataset=None):
         # For each known class with labels, fit the GMM.
@@ -109,7 +109,7 @@ class GMMFINCH(GMMRecognizer):
                     dtype=self.dtype,
                 ))
 
-        logger.debug(
+        logger.info(
             "%s's %s.fit_knowns() finished fitting the GMMs per class",
             self.uid,
             type(self).__name__,

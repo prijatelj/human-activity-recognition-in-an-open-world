@@ -468,13 +468,13 @@ class OWHARecognizer(OWHAPredictor):
         #   recogs is not entirely ignored? Hmm...
         #preds = super().predict(dataset)
 
-        logger.debug(
+        logger.info(
             "Begin call to %s's %s.pre_predict()",
             self.uid,
             type(self).__name__,
         )
         unseen_mask, update_detects = self.pre_predict(dataset, experience)
-        logger.debug(
+        logger.info(
             "Begin call to %s's %s.recognize()",
             self.uid,
             type(self).__name__,
@@ -483,7 +483,7 @@ class OWHARecognizer(OWHAPredictor):
             torch.stack(list(dataset)).to(self.device),
             detect=True,
         )
-        logger.debug(
+        logger.info(
             "Begin call to %s's %s.oost_predict()",
             self.uid,
             type(self).__name__,
@@ -495,7 +495,7 @@ class OWHARecognizer(OWHAPredictor):
             unseen_mask,
             update_detects,
         )
-        logger.debug(
+        logger.info(
             "End call to %s's %s.predict()",
             self.uid,
             type(self).__name__,
@@ -728,25 +728,25 @@ class OWHARecognizer(OWHAPredictor):
         when writing custom fit_knowns() or overriding any other of these
         methods in children classes.
         """
-        logger.debug(
+        logger.info(
             "Begin call to %s's %s.pre_fit()",
             self.uid,
             type(self).__name__,
         )
         dset_feedback_mask, features, labels = self.pre_fit(dataset)
-        logger.debug(
+        logger.info(
             "Begin call to %s's %s.fit_knowns()",
             self.uid,
             type(self).__name__,
         )
         self.fit_knowns(dataset, val_dataset=val_dataset)
-        logger.debug(
+        logger.info(
             "Begin call to %s's %s.post_fit()",
             self.uid,
             type(self).__name__,
         )
         self.post_fit(dset_feedback_mask, features)
-        logger.debug(
+        logger.info(
             "End call to %s's %s.fit()",
             self.uid,
             type(self).__name__,

@@ -293,19 +293,19 @@ class GaussianRecognizer(OWHARecognizer):
             1 dimensional integer tensor of shape (samples,). Contains the
             index encoding of each label per features.
         """
-        logger.debug(
+        logger.info(
             "Begin call to %s's %s.pre_fit()",
             self.uid,
             type(self).__name__,
         )
         dset_feedback_mask, features, labels = self.pre_fit(dataset)
-        logger.debug(
+        logger.info(
             "Begin call to %s's %s.fit_knowns()",
             self.uid,
             type(self).__name__,
         )
         self.fit_knowns(features, labels, val_dataset)
-        logger.debug(
+        logger.info(
             "Begin call to %s's %s.post_fit()",
             self.uid,
             type(self).__name__,
@@ -320,13 +320,13 @@ class GaussianRecognizer(OWHARecognizer):
         #   proportional, albeit scaled down, to the recognize output.
 
         # Fit the FineTune ANN if it exists now that the labels are determined.
-        logger.debug(
+        logger.info(
             "Begin call to %s's super(%s).fit()",
             self.uid,
             type(self).__name__,
         )
         super().fit_knowns(dataset, val_dataset)
-        logger.debug(
+        logger.info(
             "End call to %s's %s.fit()",
             self.uid,
             type(self).__name__,
