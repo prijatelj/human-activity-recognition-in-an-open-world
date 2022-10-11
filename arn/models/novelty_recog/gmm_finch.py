@@ -131,7 +131,7 @@ class GMMFINCH(GMMRecognizer):
         super().recognize_fit(features, n_expected_classes, **kwargs)
 
         # Update the general knowns + unknown recogs expanded
-        self._label_enc = deepcopy(self.known_label_enc)
+        self.update_label_enc(False)
 
     def recognize(self, features, detect=False):
         # Loop through all known gmms + unknown_recogs getting log_probs.
