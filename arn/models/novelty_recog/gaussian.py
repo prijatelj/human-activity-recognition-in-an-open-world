@@ -220,7 +220,12 @@ class GaussianRecognizer(OWHARecognizer):
         will need adde to the diagonal of the resulting covariance matrix to
         avoid being treated as not a positive semi-definite matrix.
     threshold_func : str = 'cred_hyperellipse_thresh'
-        The function to use
+        The function to use for finding the thresold for known to unknown.
+    threshold_global : bool = False
+        If True, applies the threshold of the model globally to the log_probs
+        of all the known distributions. Otherwise, assesses each known with
+        it own local threshold. For local detection, overall detection of an
+        unknown occurs when all known distribs detect a sample as unknown.
     see OWHARecognizer
     """
     def __init__(
@@ -230,6 +235,7 @@ class GaussianRecognizer(OWHARecognizer):
         min_density=None,
         cov_epsilon=None,
         threshold_func='cred_hyperellipse_thresh',
+        threshold_global=False,
         **kwargs,
     ):
         """Initialize the recognizer.
@@ -241,6 +247,7 @@ class GaussianRecognizer(OWHARecognizer):
         min_density : see self
         cov_epsilon : see self
         threshold_func : see self
+        threshold_global : see self
         see OWHARecognizer.__init__
         """
         super().__init__(**kwargs)
@@ -275,6 +282,7 @@ class GaussianRecognizer(OWHARecognizer):
 
         self.min_cov_mag = 1.0
         self.threshold_func = threshold_func
+        self.threshold_global = threshold_global
 
     @abstractmethod
     def fit_knowns(self, features, labels, val_dataset=None):
