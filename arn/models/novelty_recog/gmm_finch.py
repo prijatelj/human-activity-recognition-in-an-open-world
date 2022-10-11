@@ -134,43 +134,49 @@ class GMMFINCH(GMMRecognizer):
         self.update_label_enc(False)
 
     def recognize(self, features, detect=False):
+        # TODO consider known_only arg.
+        # For consistency w/ detect, may have to set it to True, and call it
+        # with False in pipeline for current behavior.
+
         # Loop through all known gmms + unknown_recogs getting log_probs.
-        if self.thresholds is not None:
-            recogs = torch.stack(
-                [gmm.log_prob(features) for gmm in self.known_gmms],
-                dim=1
-            )
-
-            if self.has_recogs:
-                unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
-                recogs = torch.cat([recogs, unknown_log_probs], dim=1)
-
-            if detect:
-                detect_unknowns = (recogs < self.thresholds).all(1)
-
-                recogs = F.pad(F.softmax(recogs, dim=1), (1, 0), 'constant', 0)
-
-                # Sets unknown to max prob value, scales the rest by 1 - max
-                if detect_unknowns.any():
-                    recogs[detect_unknowns, 0] = \
-                        recogs[detect_unknowns].max(1).values
-                    recogs[detect_unknowns, 1:] *= 1 \
-                        - recogs[detect_unknowns, 0].reshape(-1, 1)
-                return recogs
-            return F.softmax(recogs, dim=1)
-
-        raise NotImplementedError('Only global thresholding implemented atm.')
-
-        # TODO Must use gmms' thresholds instead.
-        recogs = [gmm.detect(features) for gmm in self.known_gmms]
+        recogs = torch.stack(
+            [gmm.log_prob(features) for gmm in self.known_gmms],
+            dim=1,
+        )
 
         if self.has_recogs:
             unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
-            recogs.append(unknown_log_probs)
-        recogs = (torch.stack(recogs, dim=1) < self.thresholds).all(1)
+            recogs = torch.cat([recogs, unknown_log_probs], dim=1)
+
+        if detect:
+            if self.threshold_global:
+                detect_unknowns = (recogs < self.thresholds).all(1)
+            else:
+                detect_unknowns = torch.stack(
+                    [gmm.detect(features) for gmm in self.known_gmms],
+                    dim=1,
+                )
+                if self.has_recogs:
+                    detect_unknowns = torch.cat(
+                        unknown_log_probs < self.unknown_gmm.thresholds,
+                        dim=1,
+                    )
+                detect_unknowns = detect_unknowns.all(1)
+
+            recogs = F.pad(F.softmax(recogs, dim=1), (1, 0), 'constant', 0)
+
+            # NOTE may want to change this to not set unknown to max prob.
+            # Sets unknown to max prob value, scales the rest by 1 - max
+            if detect_unknowns.any():
+                recogs[detect_unknowns, 0] = \
+                    recogs[detect_unknowns].max(1).values
+                recogs[detect_unknowns, 1:] *= \
+                    1 - recogs[detect_unknowns, 0].reshape(-1, 1)
+            return recogs
+        return F.softmax(recogs, dim=1)
 
     def detect(self, features, known_only=True):
-        if self.thresholds is not None:
+        if self.threshold_global:
             recogs = torch.stack(
                 [gmm.log_prob(features) for gmm in self.known_gmms],
                 dim=1
@@ -182,14 +188,20 @@ class GMMFINCH(GMMRecognizer):
 
             return (recogs < self.thresholds).all(1)
 
-        raise NotImplementedError('Only global thresholding implemented atm.')
-        # TODO Use the gmms' thresholds
+        detects = [gmm.detect(features) for gmm in self.known_gmms]
 
-    def log_prob(self, features):
-        return torch.stack(
-            [gmm.log_prob(features) for gmm in self.known_gmms],
-            dim=1,
-        ).sum(1)
+        if self.has_recogs and not known_only:
+            detects.append(self.unknown_gmm.detect(features))
+
+        return torch.stack(detects, dim=1).all(1)
+
+    def log_prob(self, features, known_only=True):
+        log_probs = [gmm.log_prob(features) for gmm in self.known_gmms]
+
+        if self.has_recogs and not known_only:
+            log_probs.append(self.unknown_gmm.log_prob(features))
+
+        return torch.stack(log_probs, dim=1).sum(1)
 
     def save(self, h5, overwrite=False):
         close = isinstance(h5, str)
