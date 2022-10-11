@@ -215,12 +215,15 @@ class OWHARecognizer(OWHAPredictor):
         else:
             self._known_label_enc.append(new_knowns)
 
+        self.update_label_enc(False)
+
+    def update_label_enc(self, use_right_key=False):
         # Update the label encoder given new knowns
         if self.has_recogs:
             self._label_enc = join_label_encs(
                 self._known_label_enc,
                 self.recog_label_enc,
-                use_right_key=False,
+                use_right_key=use_right_key,
             )
         else:
             self._label_enc = deepcopy(self._known_label_enc)
