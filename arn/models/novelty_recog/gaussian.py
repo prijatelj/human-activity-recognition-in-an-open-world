@@ -59,22 +59,6 @@ def cred_hyperellipse_thresh(mvn, min_error_tol):
 
     return mvn.log_prob(mvn.loc + vector)
 
-"""
-@torch.jit.script
-def min_max_thresh_jit(
-    distribs,#: list,
-    samples: torch.Tensor,
-    likelihood: float = 0.0,
-):
-    log_probs = torch.tensor(
-        [[-torch.inf]] * len(samples),
-        dtype=samples.dtype,
-    )
-    for i, d in enumerate(distribs):
-        other = d.log_prob(samples)
-        log_probs = torch.where(log_probs > other, log_probs, other)
-    return log_probs.min() + likelihood
-#"""
 
 def min_max_threshold(
     distribs,
@@ -90,11 +74,13 @@ def min_max_threshold(
     distribs :
     samples : torch.Tensor
     likelihood : float = 0
-        The likelihood scalar to "multiply" the resulting threshold by. Given
-        these are log-probabilities, this likelihood is subtracted from the
-        found threshold. If this likelihood is 2, that means the log_prob
-        threshold is set such that the likelihood of a point being unknowns is
-        if it is less than half as likely as the least likely known point.
+        The likelihood used to specify how likely a sample is unknown to the
+        the minimum maximum log prob sample of a distribution. We recommend
+        zero or negative values as it is added to the log_prob, and subtraction
+        is then saying it is less likely, e.g., likelihood of -2 means the
+        (currnetly static) prior belief is that the unknown samples will be
+        half as likely as the least likely known class any sample was assigned
+        to.
     batch_size : int = 8192
         The memory required to calculate the gmm.log_prob per distribution is
         `memory_required = dims * components * samples * 4 Bytes`. 2**13 = 8192
@@ -226,7 +212,7 @@ class GaussianRecognizer(OWHARecognizer):
         of all the known distributions. Otherwise, assesses each known with
         it own local threshold. For local detection, overall detection of an
         unknown occurs when all known distribs detect a sample as unknown.
-    detect_likelihood : float = 0.0
+    detect_likelihood : see min_max_threshold.likelihood
     batch_size : int = None
     see OWHARecognizer
     """
