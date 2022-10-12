@@ -810,6 +810,8 @@ class GMMRecognizer(GaussianRecognizer):
         # Save unknown_gmm
         if self.unknown_gmm:
             self.unknown_gmm.save(h5.create_group('unknown_gmm'))
+            # TODO will have to ensure unknown_likelihood is reset in loaded
+            # instance
 
         super().save(h5)
         if close:
