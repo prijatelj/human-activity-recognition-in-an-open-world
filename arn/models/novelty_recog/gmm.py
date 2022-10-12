@@ -722,15 +722,20 @@ class GMMRecognizer(GaussianRecognizer):
         The level of cluster partitions to use during recognition_fit. FINCH
         returns three levels of clustering. Defaults to the final level with
         maximum clusters.
+    unknown_likelihood : float = None
+        Relative log likelihood to the min_max recognized unknown gaussians to
+        determine is a sample is the catch-all unknown. Defaults to same as
+        self.detect_likelihood.
     unknown_gmm : GMM = None
     see GaussianRecognizer
     """
-    def __init__(self, level=-1, *args, **kwargs):
+    def __init__(self, level=-1, unknown_likelihood=None, *args, **kwargs):
         """Initialize the recognizer
 
         Args
         ----
         level : see self
+        unknown_likelihood : see self
         see GaussianRecognizer.__init__
         """
         super().__init__(*args, **kwargs)
@@ -740,6 +745,10 @@ class GMMRecognizer(GaussianRecognizer):
 
         # unknown gmm, as in recognize_fit.
         self.unknown_gmm = None
+        if unknown_likelihood is None:
+            self.unknown_likelihood = self.detect_likelihood
+        else:
+            self.unknown_likelihood = unknown_likelihood
 
     @property
     def n_recog_labels(self):
@@ -785,7 +794,7 @@ class GMMRecognizer(GaussianRecognizer):
             threshold_func=self.threshold_func,
             min_samples=self.min_samples,
             accepted_error=self.min_error_tol,
-            detect_likelihood=self.detect_likelihood,
+            detect_likelihood=self.unknown_likelihood,
             batch_size=self.batch_size,
             **kwargs,
         )
