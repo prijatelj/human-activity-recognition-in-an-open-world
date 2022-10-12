@@ -338,9 +338,10 @@ class OWHARecognizer(OWHAPredictor):
             detects = self.detect(features)
             update_detects = detects.any() and detects.sum() >=self.min_samples
             if update_detects:
+                # Only recognize_fit on those detected as unknown.
                 features = features[detects]
                 if experience:
-                    # Get the experience features of orcale == False and
+                    # Get the experience features of orcale == False AND
                     # unknown predictions to be added to the detected here as
                     # all unknowns/unlabeled should be fit together
                     unlabeled = self.experience[~self.experience['oracle']]
