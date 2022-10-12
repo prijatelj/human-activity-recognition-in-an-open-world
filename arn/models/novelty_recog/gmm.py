@@ -1,5 +1,5 @@
 """Gaussian Mixture Model utility functions and class with unsupervised
-findingof the gaussians by using the partitions resulting from FINCH.
+finding of the gaussians by using the partitions resulting from FINCH.
 
 Notes
 -----
