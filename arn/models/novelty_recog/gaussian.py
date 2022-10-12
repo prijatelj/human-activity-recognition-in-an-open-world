@@ -226,6 +226,8 @@ class GaussianRecognizer(OWHARecognizer):
         of all the known distributions. Otherwise, assesses each known with
         it own local threshold. For local detection, overall detection of an
         unknown occurs when all known distribs detect a sample as unknown.
+    detect_likelihood : float = 0.0
+    batch_size : int = None
     see OWHARecognizer
     """
     def __init__(
@@ -236,6 +238,7 @@ class GaussianRecognizer(OWHARecognizer):
         cov_epsilon=None,
         threshold_func='cred_hyperellipse_thresh',
         threshold_global=False,
+        detect_likelihood : float = 0.0,
         batch_size : int = None,
         **kwargs,
     ):
@@ -249,7 +252,8 @@ class GaussianRecognizer(OWHARecognizer):
         cov_epsilon : see self
         threshold_func : see self
         threshold_global : see self
-        batch_size : int = None
+        detect_likelihood : see self
+        batch_size : see self
         see OWHARecognizer.__init__
         """
         super().__init__(**kwargs)
@@ -285,6 +289,7 @@ class GaussianRecognizer(OWHARecognizer):
         self.min_cov_mag = 1.0
         self.threshold_func = threshold_func
         self.threshold_global = threshold_global
+        self.detect_likelihood = detect_likelihood
         self.batch_size = int(batch_size)
 
     @abstractmethod
