@@ -510,6 +510,7 @@ class GMM(object):
         """The logarithmic probability of the features belonging to this GMM"""
         if self.gmm is None:
             raise ValueError('`self.gmm` is None, must set gmm!')
+        # TODO enable batching to avoid the issue of gmm log_prob memory.
         return self.gmm.log_prob(features)
 
     def comp_log_prob(self, features):
