@@ -5,10 +5,12 @@ h5py>=2.8.0
 pandas>=1.4.4
 tqdm>=4.62.2
 
-pytorch>=1.9.1
+#pytorch>=1.9.1
+torch>=1.12.1
+torchvision>=0.11.1
 torchsummary>=1.5.1
 pytorch-lightning>=1.5.10
-pyro-ppl
+pyro-ppl>=1.8.1
 
 exputils==0.1.7rc3
 

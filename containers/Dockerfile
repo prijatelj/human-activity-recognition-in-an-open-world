@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y python3-opencv
 
 # Install main project and docstr for CLI
 COPY . .
-RUN pip install -e . -r requirements/arn_dev.txt
+RUN pip install -e . -r requirements/arn.txt #dev.txt
 RUN pip install docstr==0.0.3rc2
 
 # Install Prijatelj's public fork of `vast` for the Extreme Value
