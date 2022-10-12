@@ -321,7 +321,8 @@ def recognize_fit(
 
     logger.info(
         'Begin fit of FINCH for class %s, samples %d, counter %d, '
-        'threshold_func %s, accepted_error %f, max_likely_gmm %s, level %d',
+        'threshold_func %s, accepted_error %f, max_likely_gmm %s, level %d '
+        'detect_likelihood %f, batch_size %d',
         class_name,
         len(features),
         counter,
@@ -329,6 +330,8 @@ def recognize_fit(
         accepted_error,
         max_likely_gmm,
         level,
+        detect_likelihood,
+        batch_size,
     )
     recog_labels, n_clusters, _ = FINCH(finch_features, **default_kwargs)
     del finch_features
@@ -379,10 +382,10 @@ def recognize_fit(
             device=device,
             dtype=dtype,
             threshold_func=threshold_func,
-            #min_samples=self.min_samples,
-            #accepted_error=self.accepted_error,
-            #detect_likelihood=self.detect_likelihood,
-            #batch_size=self.batch_size,
+            min_samples=min_samples,
+            accepted_error=accepted_error,
+            detect_likelihood=detect_likelihood,
+            batch_size=batch_size,
             return_kwargs=return_kwargs,
         )
         # NOTE kept has len(label_enc)-1 to exclude the 1st catch-all class
