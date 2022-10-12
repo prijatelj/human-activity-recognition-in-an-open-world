@@ -64,7 +64,7 @@ def min_max_threshold(
     distribs,
     samples: torch.Tensor,
     likelihood: float = 0.0,
-    batch_size=8192,
+    batch_size=None,
 ):
     """For all the mvns over the data, find the sample with the minimum of the
     maximum log_probs. This is now the threshold to be used overall
@@ -87,6 +87,8 @@ def min_max_threshold(
         samples which when dims are 768 and max components is 4000, <51GB of
         RAM is required.
     """
+    if batch_size is None:
+        batch_size = len(samples) #8192
     logger.debug(
         'min_max_threshold: '
         'type(distribs) = %s; '
@@ -212,7 +214,8 @@ class GaussianRecognizer(OWHARecognizer):
         of all the known distributions. Otherwise, assesses each known with
         it own local threshold. For local detection, overall detection of an
         unknown occurs when all known distribs detect a sample as unknown.
-    detect_likelihood : see min_max_threshold.likelihood
+    detect_likelihood : float = 0.0
+        see min_max_threshold.likelihood
     batch_size : int = None
     see OWHARecognizer
     """
@@ -276,7 +279,7 @@ class GaussianRecognizer(OWHARecognizer):
         self.threshold_func = threshold_func
         self.threshold_global = threshold_global
         self.detect_likelihood = detect_likelihood
-        self.batch_size = int(batch_size)
+        self.batch_size = int(batch_size) if batch_size else None
 
     @abstractmethod
     def fit_knowns(self, features, labels, val_dataset=None):
