@@ -1,5 +1,18 @@
 """Gaussian Mixture Model utility functions and class with unsupervised
 findingof the gaussians by using the partitions resulting from FINCH.
+
+Notes
+-----
+I took a more "functional" approach to this, which you'll see results in a lot
+of arguments being passed around. I did this to experiment and learn the
+balance I want when writing objects and functions. I think its good to specify
+all the calls to `self` attributes in a function/method, but I would definitely
+will use those calls more when writing something like this where the functions
+are heavily tied to the object. More DRY please and the reason for methods or
+for structs/grouped together state by semantics.  The important thing I was
+experimenting with is specificaiton in practice of those methods as functions
+in order to answer the question: What is the complete set of inputs and
+outputs?
 """
 from copy import deepcopy
 
@@ -68,10 +81,12 @@ def join_gmms(left, right, use_right_key=True):
         src.threshold_func,
         src.min_samples,
         src.accepted_error,
+        src.detect_likelihood,
+        src.batch_size,
     )
 
 
-# TODO perhaps @ray?
+# NOTE perhaps @ray?
 def fit_multivariate_normal(
     features,
     stability_adjust=None,
@@ -114,6 +129,8 @@ def fit_gmm(
     threshold_func='cred_hyperellipse_thresh',
     min_samples=2,
     accepted_error=1e-5,
+    detect_likelihood=0.0,
+    batch_size=None,
     return_kwargs=True,
 ):
     """Construct a Gaussian Mixture Model as a component of larger mixture.
@@ -186,7 +203,7 @@ def fit_gmm(
             #continue
             cov_mat = stability_adjust
         elif min_samples <= 1 and sum(cluster_mask) == 1:
-            # TODO this is probably an issue, was setting to overall min
+            # NOTE this is probably an issue, was setting to overall min
             # magnitude before, but this works for now.
             cov_mat = stability_adjust
         else:
@@ -219,7 +236,8 @@ def fit_gmm(
         thresholds = min_max_threshold(
             mvns,
             features,
-            #TODO likelihood param,
+            detect_likelihood,
+            batch_size,
         )
 
     if return_kwargs:
@@ -235,6 +253,8 @@ def fit_gmm(
         threshold_func=threshold_func,
         min_samples=min_samples,
         accepted_error=accepted_error,
+        detect_likelihood=detect_likelihood,
+        batch_size=batch_size,
     )
 
 
@@ -242,14 +262,17 @@ def recognize_fit(
     class_name,
     features,
     counter=0,
-    threshold_func='cred_hyperellipse_thresh',
-    allowed_error=1e-5,
     max_likely_gmm=False,
     level=-1,
     stability_adjust=None,
     cov_epsilon=None,
     device='cpu',
     dtype=None,
+    min_samples=2,
+    threshold_func='cred_hyperellipse_thresh',
+    accepted_error=1e-5, # TODO change name to accepted_error?
+    detect_likelihood=0.0,
+    batch_size=None,
     return_kwargs=False,
     **kwargs,
 ):
@@ -298,12 +321,12 @@ def recognize_fit(
 
     logger.info(
         'Begin fit of FINCH for class %s, samples %d, counter %d, '
-        'threshold_func %s, allowed_error %f, max_likely_gmm %s, level %d',
+        'threshold_func %s, accepted_error %f, max_likely_gmm %s, level %d',
         class_name,
         len(features),
         counter,
         threshold_func,
-        allowed_error,
+        accepted_error,
         max_likely_gmm,
         level,
     )
@@ -352,11 +375,14 @@ def recognize_fit(
             features,
             recog_labels[:, level],
             n_clusters[level],
+            stability_adjust=stability_adjust,
             device=device,
             dtype=dtype,
             threshold_func=threshold_func,
-            stability_adjust=stability_adjust,
-            cov_epsilon=cov_epsilon,
+            #min_samples=self.min_samples,
+            #accepted_error=self.accepted_error,
+            #detect_likelihood=self.detect_likelihood,
+            #batch_size=self.batch_size,
             return_kwargs=return_kwargs,
         )
         # NOTE kept has len(label_enc)-1 to exclude the 1st catch-all class
@@ -385,6 +411,11 @@ class GMM(object):
     threshold_func: str = 'cred_hyperellipse_thresh'
     min_samples: int = 2
     accepted_error: float = 1e-5
+    detect_likelihood: float = 0.0
+        Applied to min_max_threshold(likelihood=detect_likelihood)
+    batch_size : int = None
+        The default batch_size to use for log_prob calls. Defaults to no
+        batching.
     """
     def __init__(
         self,
@@ -400,6 +431,8 @@ class GMM(object):
         threshold_func: str = 'cred_hyperellipse_thresh',
         min_samples: int = 2,
         accepted_error: float = 1e-5,
+        detect_likelihood: float = 0.0,
+        batch_size : int = None,
     ):
         self.counter = counter
         self.set_label_enc(label_enc)
@@ -413,6 +446,8 @@ class GMM(object):
         self.threshold_func = threshold_func
         self.min_samples = min_samples
         self.accepted_error = accepted_error
+        self.detect_likelihood = detect_likelihood
+        self.batch_size = batch_size
 
         self.set_gmm(locs, covariance_matrices, mix)
         self.set_thresholds(thresholds)
@@ -506,12 +541,29 @@ class GMM(object):
             )
         self.thresholds = thresholds
 
-    def log_prob(self, features):
-        """The logarithmic probability of the features belonging to this GMM"""
+    def log_prob(self, features, batch_size=None):
+        """The logarithmic probability of the features belonging to this GMM.
+        Notes
+        -----
+        Batching to avoid gmm log_prob requesting too much memory (OOM).
+        """
         if self.gmm is None:
             raise ValueError('`self.gmm` is None, must set gmm!')
-        # TODO enable batching to avoid the issue of gmm log_prob memory.
-        return self.gmm.log_prob(features)
+        if batch_size is None and self.batch_size is not None:
+            batch_size = self.batch_size
+        else:
+            return self.gmm.log_prob(features)
+
+        log_probs = torch.empty(
+            [features.shape[0]],
+            dtype=self.dtype,
+            device=self.device,
+        )
+        for idx in range(batch_size, len(features) + batch_size, batch_size):
+            log_probs[idx - batch_size:idx] = \
+                self.gmm.log_prob(features[idx - batch_size:idx])
+
+        return log_probs
 
     def comp_log_prob(self, features):
         """The log_prob of each component per sample."""
@@ -546,6 +598,8 @@ class GMM(object):
             threshold_func=self.threshold_func,
             min_samples=self.min_samples,
             accepted_error=self.accepted_error,
+            detect_likelihood=self.detect_likelihood,
+            batch_size=self.batch_size,
             **kwargs
         )
         self.set_label_enc(params['label_enc'])
@@ -613,6 +667,23 @@ class GMM(object):
         h5['thresholds'] = self.thresholds.detach().cpu().numpy()
         h5['mix'] = self.gmm.mixture_distribution.probs.detach().cpu().numpy()
 
+        # TODO what about these?
+        state = dict(
+            counter=self.counter,
+            cov_epsilon=self.cov_epsilon,
+            device=self.device.type,
+            dtype=str(self.dtype)[6:],
+            threshold_func=self.threshold_func,
+            min_samples=self.min_samples,
+            accepted_error=self.accepted_error,
+            detect_likelihood=self.detect_likelihood,
+            batch_size=self.batch_size,
+        )
+        for key, val in state.items():
+            if val is None:
+                continue
+            h5.attrs[key] = val
+
         if close:
             h5.close()
 
@@ -629,8 +700,9 @@ class GMM(object):
             torch.tensor(h5['locs']),
             torch.tensor(h5['covariance_matrices']),
             torch.tensor(h5['thresholds']),
-            np.array(h5['mixes']),
-            # TODO everything else!
+            np.array(h5['mix']),
+            # Everything else!
+            **dict(h5.attrs.items())
         )
         if close:
             h5.close()
@@ -703,12 +775,15 @@ class GMMRecognizer(GaussianRecognizer):
             'unknown',
             features,
             counter,
-            self.threshold_func,
-            self.min_error_tol,
             level=self.level,
             cov_epsilon=self.cov_epsilon,
             device=self.device,
             dtype=self.dtype,
+            threshold_func=self.threshold_func,
+            min_samples=self.min_samples,
+            accepted_error=self.min_error_tol,
+            detect_likelihood=self.detect_likelihood,
+            batch_size=self.batch_size,
             **kwargs,
         )
 

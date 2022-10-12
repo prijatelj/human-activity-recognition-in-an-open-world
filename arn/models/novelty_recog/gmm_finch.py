@@ -35,27 +35,18 @@ class GMMFINCH(GMMRecognizer):
     threshold : float | torch.Tensor = None
         Global threshold for all distribs involved. If None, use the internal
         distribs thresholding for detection.
-    likelihood_unknown : float = 0.0
-        The likelihood used to specify how likely a sample is unknown to the
-        the minimum maximum log prob sample. We recommend zero or negative
-        values as it is added to the log_prob, and subtraction is then saying
-        it is less likely, e.g., likelihood of -2 means the (currnetly static)
-        prior belief is that the unknown samples will be half as likely as the
-        least likely known class any sample was assigned to.
     see GMMRecognizer.__init__
     """
-    def __init__(self, likelihood_unknown=0.0, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         """
         Args
         ----
-        likelihood_unknown : see self
         see GMMRecognizer.__init__
         """
         # NOTE uses self.known_label_enc and self._label_enc
         super().__init__(*args, **kwargs)
         self.known_gmms = None
         self.thresholds = None
-        self.likelihood_unknown = likelihood_unknown
 
     def reset_recogs(self):
         """Resets the recognized unknown class-clusters, and label_enc"""
@@ -88,25 +79,31 @@ class GMMFINCH(GMMRecognizer):
                 self.known_gmms[prior_idx] = recognize_fit(
                     known,
                     features[class_mask],
-                    self.known_gmms[prior_idx].counter,
-                    self.threshold_func,
-                    self.min_error_tol,
+                    counter=self.known_gmms[prior_idx].counter,
                     level=self.level,
                     cov_epsilon=self.cov_epsilon,
                     device=self.device,
                     dtype=self.dtype,
+                    threshold_func=self.threshold_func,
+                    min_samples=self.min_samples,
+                    accepted_error=self.min_error_tol,
+                    detect_likelihood=self.detect_likelihood,
+                    batch_size=self.batch_size,
                 )
             else:
                 self.known_gmms.append(recognize_fit(
                     known,
                     features[class_mask],
-                    0,
-                    self.threshold_func,
-                    self.min_error_tol,
+                    counter=0,
                     level=self.level,
                     cov_epsilon=self.cov_epsilon,
                     device=self.device,
                     dtype=self.dtype,
+                    threshold_func=self.threshold_func,
+                    min_samples=self.min_samples,
+                    accepted_error=self.min_error_tol,
+                    detect_likelihood=self.detect_likelihood,
+                    batch_size=self.batch_size,
                 ))
 
         logger.info(
@@ -124,7 +121,8 @@ class GMMFINCH(GMMRecognizer):
             self.thresholds = min_max_threshold(
                 self.known_gmms,
                 features,
-                self.likelihood_unknown,
+                self.detect_likelihood,
+                self.batch_size,
             )
 
     def recognize_fit(self, features, n_expected_classes=None, **kwargs):
