@@ -136,6 +136,10 @@ class GMMFINCH(GMMRecognizer):
             #   TODO do so programmatically. Also do not allow any initial step
             #   validation data to be treated in experience as unknown
             #   predictions. (so assign the predictions from recog w/o detect).
+            #   TODO Could enable the use of min_error_tol to find the
+            #   appropriate quantile of all falsely detected unknowns from the
+            #   vlaidaiton data, this becomes a kind of prior mixed with risk
+            #   assessment. Probably will just do without this.
 
     def recognize_fit(self, features, n_expected_classes=None, **kwargs):
         if not self.known_gmms:
