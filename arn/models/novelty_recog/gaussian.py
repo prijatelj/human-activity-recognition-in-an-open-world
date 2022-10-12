@@ -77,10 +77,10 @@ def min_max_threshold(
         The likelihood used to specify how likely a sample is unknown to the
         the minimum maximum log prob sample of a distribution. We recommend
         zero or negative values as it is added to the log_prob, and subtraction
-        is then saying it is less likely, e.g., likelihood of -2 means the
+        is then saying it is less likely, e.g., likelihood of -1 means the
         (currnetly static) prior belief is that the unknown samples will be
         half as likely as the least likely known class any sample was assigned
-        to.
+        to, assuming base 2. A likelihood of -2 would be 1/4 as likely.
     batch_size : int = 8192
         The memory required to calculate the gmm.log_prob per distribution is
         `memory_required = dims * components * samples * 4 Bytes`. 2**13 = 8192
