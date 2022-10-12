@@ -124,6 +124,18 @@ class GMMFINCH(GMMRecognizer):
                 self.detect_likelihood,
                 self.batch_size,
             )
+            # TODO For the initial increment only, assign the detect_likelihood
+            # of this instance to the minimum maximum log_prob of the detected
+            # unknowns in the validation dataset during prediction. Either that
+            # or set the detect_likelihood to the difference between that
+            # minimum maximum log_prob. All the data in validation are supposed
+            # to be used to tune the model, further all the validation data are
+            # known classes, so any detected unknowns is wrong and thus the
+            # threshold found from the above should be adjusted using the
+            # validation data.
+            #   TODO do so programmatically. Also do not allow any initial step
+            #   validation data to be treated in experience as unknown
+            #   predictions. (so assign the predictions from recog w/o detect).
 
     def recognize_fit(self, features, n_expected_classes=None, **kwargs):
         if not self.known_gmms:
@@ -202,14 +214,13 @@ class GMMFINCH(GMMRecognizer):
                 quantiles = torch.linspace(0, 1, 11).to(
                     recogs.device, recogs.dtype
                 )
+                logger.debug('quantiles for detection: %s', quantiles)
                 logger.debug(
-                    'detected quantiles ([%s]) log_prob = %s',
-                    quantiles,
+                    'detected quantiles log_prob = %s',
                     torch.quantile(recogs[detects], quantiles)
                 )
                 logger.debug(
-                    'detected quantiles of max(1) ([%s]) log_prob = %s',
-                    quantiles,
+                    'detected quantiles of max(1) log_prob = %s',
                     torch.quantile(recogs[detects].max(1).values, quantiles)
                 )
             return detects
