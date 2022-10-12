@@ -236,6 +236,7 @@ class GaussianRecognizer(OWHARecognizer):
         cov_epsilon=None,
         threshold_func='cred_hyperellipse_thresh',
         threshold_global=False,
+        batch_size : int = None,
         **kwargs,
     ):
         """Initialize the recognizer.
@@ -248,6 +249,7 @@ class GaussianRecognizer(OWHARecognizer):
         cov_epsilon : see self
         threshold_func : see self
         threshold_global : see self
+        batch_size : int = None
         see OWHARecognizer.__init__
         """
         super().__init__(**kwargs)
@@ -283,6 +285,7 @@ class GaussianRecognizer(OWHARecognizer):
         self.min_cov_mag = 1.0
         self.threshold_func = threshold_func
         self.threshold_global = threshold_global
+        self.batch_size = int(batch_size)
 
     @abstractmethod
     def fit_knowns(self, features, labels, val_dataset=None):
