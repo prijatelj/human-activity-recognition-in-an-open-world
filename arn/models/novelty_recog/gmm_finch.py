@@ -32,7 +32,7 @@ class GMMFINCH(GMMRecognizer):
     known_gmms : GMM = None
         List of Gaussian Mixture Model objects per class, where classes consist
         of knowns.
-    threshold : float | torch.Tensor = None
+    thresholds : float | torch.Tensor = None
         Global threshold for all distribs involved. If None, use the internal
         distribs thresholding for detection.
     see GMMRecognizer.__init__
@@ -213,6 +213,7 @@ class GMMFINCH(GMMRecognizer):
             h5 = h5py.File(create_filepath(h5, overwrite), 'w')
 
         # Save known_gmms, but NOT gmm, as it is joined by the 2.
+        h5['thresholds'] = self.thresholds.detach().cpu().numpy()
         knowns = h5.create_group('known_gmms')
         for gmm in self.known_gmms:
             gmm.save(knowns.create_group(gmm.label_enc.unknown_key))

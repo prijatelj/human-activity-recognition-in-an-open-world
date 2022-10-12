@@ -352,6 +352,9 @@ class GaussianRecognizer(OWHARecognizer):
             threshold_func=self.threshold_func
                 if isinstance(self.threshold_func, str)
                 else str(self.threshold_func),
+            threshold_global=self.threshold_global,
+            detect_likelihood=self.detect_likelihood,
+            batch_size=self.batch_size,
         )
         for key, val in state.items():
             if val is None:
