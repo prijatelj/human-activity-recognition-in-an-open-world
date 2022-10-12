@@ -190,7 +190,29 @@ class GMMFINCH(GMMRecognizer):
                 unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
                 recogs = torch.cat([recogs, unknown_log_probs], dim=1)
 
-            return (recogs < self.thresholds).all(1)
+            #return (recogs < self.thresholds).all(1)
+            detects = (recogs < self.thresholds).all(1)
+
+            if detects.any():
+                logger.debug('thresholds = %s', self.thresholds)
+                logger.debug('total detected = %s', detects.sum())
+                logger.debug(
+                    'detected mean log_prob = %s', recogs[detects].mean()
+                )
+                quantiles = torch.linspace(0, 1, 11).to(
+                    recogs.device, recogs.dtype
+                )
+                logger.debug(
+                    'detected quantiles ([%s]) log_prob = %s',
+                    quantiles,
+                    torch.quantile(recogs[detects], quantiles)
+                )
+                logger.debug(
+                    'detected quantiles of max(1) ([%s]) log_prob = %s',
+                    quantiles,
+                    torch.quantile(recogs[detects].max(1).values, quantiles)
+                )
+            return detects
 
         detects = [gmm.detect(features) for gmm in self.known_gmms]
 
