@@ -729,6 +729,7 @@ class OWHARecognizer(OWHAPredictor):
         when writing custom fit_knowns() or overriding any other of these
         methods in children classes.
         """
+        self._increment += 1
         logger.info(
             "Begin call to %s's %s.pre_fit()",
             self.uid,
