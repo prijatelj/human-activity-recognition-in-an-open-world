@@ -675,7 +675,7 @@ class OWHARecognizer(OWHAPredictor):
     @abstractmethod
     def fit_knowns(self, dataset, val_dataset=None):
         """Inheritting classes must handle experience maintence."""
-        if self.skip_fit >= 0 and self._increment >= self.skip_fit:
+        if self.skip_fit >= 0 and self._increment-1 >= self.skip_fit:
             return
         # NOTE This is an unideal hotfix, the predictor should not effect
         # evaluator data, but in this case we need to use recogs as labels, so
@@ -683,7 +683,7 @@ class OWHARecognizer(OWHAPredictor):
         # (dataset).
 
         # NOTE this fit() assumes that dataset is ALL prior experience.
-        self._increment += 1
+        #self._increment += 1
 
         # Ensure the new recogs are used in fitting.
         #   Predictor experience includes the unlabeled recogs, temporairly
