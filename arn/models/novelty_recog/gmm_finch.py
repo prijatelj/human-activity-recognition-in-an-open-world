@@ -220,6 +220,7 @@ class GMMFINCH(GMMRecognizer):
 
             if detects.any():
                 logger.debug('thresholds = %s', self.thresholds)
+                logger.debug('detect_likelihood = %s', self.detect_likelihood)
                 logger.debug('total detected = %s', detects.sum())
                 logger.debug(
                     'detected mean log_prob = %s', recogs[detects].mean()
