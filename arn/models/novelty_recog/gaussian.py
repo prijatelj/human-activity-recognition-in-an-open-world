@@ -370,7 +370,7 @@ class GaussianRecognizer(OWHARecognizer):
                 if min_max <= self.thresholds:
                     logger.debug('min_max < .any() == True')
                     self.set_detect_likelihood(min_max - self.thresholds)
-                    self.thresholds = min_max
+                    self._thresholds = min_max
             logger.debug(
                 'init step, resulting detect_likelihood = %f; thresholds = %s',
                 self.detect_likelihood,
