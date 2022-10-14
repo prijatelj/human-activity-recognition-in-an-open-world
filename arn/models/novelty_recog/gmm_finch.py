@@ -33,6 +33,7 @@ class GMMFINCH(GMMRecognizer):
         List of Gaussian Mixture Model objects per class, where classes consist
         of knowns.
     thresholds : float | torch.Tensor = None
+        Property.
         Global threshold for all distribs involved. If None, use the internal
         distribs thresholding for detection.
     see GMMRecognizer.__init__
@@ -46,7 +47,7 @@ class GMMFINCH(GMMRecognizer):
         # NOTE uses self.known_label_enc and self._label_enc
         super().__init__(*args, **kwargs)
         self.known_gmms = None
-        self.thresholds = None
+        #self.thresholds = None
 
     def reset_recogs(self):
         """Resets the recognized unknown class-clusters, and label_enc"""
@@ -118,7 +119,7 @@ class GMMFINCH(GMMRecognizer):
             self.threshold_global
             and self.threshold_func == 'min_max_threshold'
         ):
-            self.thresholds = min_max_threshold(
+            self._thresholds = min_max_threshold(
                 self.known_gmms,
                 features,
                 self.detect_likelihood,
@@ -227,6 +228,14 @@ class GMMFINCH(GMMRecognizer):
                     'detected quantiles of max(1) log_prob = %s',
                     torch.quantile(recogs[detects].max(1).values, quantiles)
                 )
+                logger.debug(
+                    'detected quantile min error tol (%f) of max(1) log_prob '
+                    '= %s',
+                    torch.quantile(
+                        recogs[detects].max(1).values,
+                        self.min_error_tol,
+                    )
+                )
             return detects
 
         detects = [gmm.detect(features) for gmm in self.known_gmms]
@@ -250,7 +259,7 @@ class GMMFINCH(GMMRecognizer):
             h5 = h5py.File(create_filepath(h5, overwrite), 'w')
 
         # Save known_gmms, but NOT gmm, as it is joined by the 2.
-        h5['thresholds'] = self.thresholds.detach().cpu().numpy()
+        #h5['thresholds'] = self.thresholds.detach().cpu().numpy()
         knowns = h5.create_group('known_gmms')
         for gmm in self.known_gmms:
             gmm.save(knowns.create_group(gmm.label_enc.unknown_key))

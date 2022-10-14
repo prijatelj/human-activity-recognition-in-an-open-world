@@ -214,6 +214,7 @@ class GaussianRecognizer(OWHARecognizer):
         of all the known distributions. Otherwise, assesses each known with
         it own local threshold. For local detection, overall detection of an
         unknown occurs when all known distribs detect a sample as unknown.
+    _thresholds : float = None
     detect_likelihood : float = 0.0
         see min_max_threshold.likelihood
     batch_size : int = None
@@ -278,8 +279,19 @@ class GaussianRecognizer(OWHARecognizer):
         self.min_cov_mag = 1.0
         self.threshold_func = threshold_func
         self.threshold_global = threshold_global
-        self.detect_likelihood = detect_likelihood
+        self._thresholds = None
+        self._detect_likelihood = detect_likelihood
         self.batch_size = int(batch_size) if batch_size else None
+
+    @property
+    def thresholds(self):
+        """Global threshold for all distribs involved. If None, use the
+        internal distribs thresholding for detection.
+        """
+        return self._thresholds
+
+    def set_detect_likelihood(self, value):
+        self._detect_likelihood = value
 
     @abstractmethod
     def fit_knowns(self, features, labels, val_dataset=None):
@@ -298,6 +310,7 @@ class GaussianRecognizer(OWHARecognizer):
             1 dimensional integer tensor of shape (samples,). Contains the
             index encoding of each label per features.
         """
+        self._increment += 1
         logger.info(
             "Begin call to %s's %s.pre_fit()",
             self.uid,
@@ -316,6 +329,36 @@ class GaussianRecognizer(OWHARecognizer):
             type(self).__name__,
         )
         self.post_fit(dset_feedback_mask, features)
+
+        if (
+            self.increment == 1
+            and self.threshold_func == 'min_max_threshold'
+            and self.threshold_global
+        ):
+            # TODO use initial increment val_dataset to  fit the
+            # detect_likelihood as the difference between the self.threhsolds
+            # and the self.min_error_tol quantile of the sample's max log_prob
+            # values.  Able to be done w/o lookig at labels as all are known.
+            val_features = []
+            for feature_tensor, label in val_dataset:
+                val_features.append(feature_tensor)
+            del feature_tensor, label
+            log_probs = self.recognize(
+                torch.stack(val_features)
+            )
+            max_log_probs = (
+                log_probs[log_probs < self.thresholds]
+            ).max(1).values
+            if max_log_probs.any():
+                if self.min_error_tol:
+                    min_max = torch.quantiles(
+                        max_log_probs,
+                        self.min_error_tol,
+                    )
+                else:
+                    min_max = max_log_probs.min()
+                if min_max < self.thresholds:
+                    self.set_detect_likelihood(min_max - self.thresholds)
 
         # NOTE Should fit on the soft labels (output of recognize) for
         # unlabeled data. That way some semblence of info from the recog goes
@@ -361,10 +404,23 @@ class GaussianRecognizer(OWHARecognizer):
                 continue
             h5.attrs[key] = val
 
+        if self._thresholds:
+            h5['_thresholds'] = self._thresholds.detach().cpu().numpy()
+
         super().save(h5)
         if close:
             h5.close()
 
     @staticmethod
     def load(h5):
-        return load_owhar(h5, GaussianRecognizer)
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(h5, 'r')
+
+        loaded = load_owhar(h5, GaussianRecognizer)
+        if '_thresholds' in h5:
+            loaded._thresholds = torch.tensor(h5['_thresholds'])
+
+        if close:
+            h5.close()
+        return loaded
