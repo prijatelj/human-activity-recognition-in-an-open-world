@@ -315,7 +315,6 @@ class GaussianRecognizer(OWHARecognizer):
             1 dimensional integer tensor of shape (samples,). Contains the
             index encoding of each label per features.
         """
-        self._increment += 1
         logger.info(
             "Begin call to %s's %s.pre_fit()",
             self.uid,
@@ -336,10 +335,14 @@ class GaussianRecognizer(OWHARecognizer):
         self.post_fit(dset_feedback_mask, features)
 
         if (
-            self.increment == 1
+            self.increment == 0
             and self.threshold_func == 'min_max_threshold'
             and self.threshold_global
         ):
+            logger.debug(
+                'init step, find detect_threshold, atm = %f',
+                self.detect_threshold,
+            )
             # TODO use initial increment val_dataset to  fit the
             # detect_likelihood as the difference between the self.threhsolds
             # and the self.min_error_tol quantile of the sample's max log_prob
@@ -363,6 +366,10 @@ class GaussianRecognizer(OWHARecognizer):
                     min_max = max_log_probs.min()
                 if min_max < self.thresholds:
                     self.set_detect_likelihood(min_max - self.thresholds)
+            logger.debug(
+                'init step, resulting detect_threshold = %f',
+                self.detect_threshold,
+            )
 
         # NOTE Should fit on the soft labels (output of recognize) for
         # unlabeled data. That way some semblence of info from the recog goes
@@ -383,6 +390,7 @@ class GaussianRecognizer(OWHARecognizer):
             self.uid,
             type(self).__name__,
         )
+        self._increment += 1
 
     def save(self, h5, overwrite=False):
         """Save as an HDF5 file."""

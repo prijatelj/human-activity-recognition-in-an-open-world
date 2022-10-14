@@ -675,7 +675,7 @@ class OWHARecognizer(OWHAPredictor):
     @abstractmethod
     def fit_knowns(self, dataset, val_dataset=None):
         """Inheritting classes must handle experience maintence."""
-        if self.skip_fit >= 0 and self._increment-1 >= self.skip_fit:
+        if self.skip_fit >= 0 and self._increment >= self.skip_fit:
             return
         # NOTE This is an unideal hotfix, the predictor should not effect
         # evaluator data, but in this case we need to use recogs as labels, so
@@ -729,7 +729,6 @@ class OWHARecognizer(OWHAPredictor):
         when writing custom fit_knowns() or overriding any other of these
         methods in children classes.
         """
-        self._increment += 1
         logger.info(
             "Begin call to %s's %s.pre_fit()",
             self.uid,
@@ -753,6 +752,7 @@ class OWHARecognizer(OWHAPredictor):
             self.uid,
             type(self).__name__,
         )
+        self._increment += 1
 
     def pre_recognize_fit(self):
         """Must update experience everytime and handle prior unknowns if any"""
