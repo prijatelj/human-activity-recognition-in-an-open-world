@@ -231,6 +231,7 @@ class GMMFINCH(GMMRecognizer):
                 logger.debug(
                     'detected quantile min error tol (%f) of max(1) log_prob '
                     '= %s',
+                    self.min_error_tol,
                     torch.quantile(
                         recogs[detects].max(1).values,
                         self.min_error_tol,
