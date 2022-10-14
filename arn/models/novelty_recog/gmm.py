@@ -750,6 +750,11 @@ class GMMRecognizer(GaussianRecognizer):
         else:
             self.unknown_likelihood = unknown_likelihood
 
+    def set_detect_likelihood(self, value):
+        if self.unknown_likelihood == self._detect_likelihood:
+            self.unknown_likelihood = value
+        self._detect_likelihood = value
+
     @property
     def n_recog_labels(self):
         """The number of labels in recog_label_enc."""
