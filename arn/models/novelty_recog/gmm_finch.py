@@ -27,7 +27,7 @@ class GMMFINCH(GMMRecognizer):
 
     Attributes
     ----------
-    known_gmms : GMM = None
+    known_gmms : arn.models.novelty_recog.gmm.GMM = None
         List of Gaussian Mixture Model objects per class, where classes consist
         of knowns.
     thresholds : float | torch.Tensor = None
