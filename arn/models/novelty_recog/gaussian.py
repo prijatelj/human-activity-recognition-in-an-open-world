@@ -340,8 +340,8 @@ class GaussianRecognizer(OWHARecognizer):
             and self.threshold_global
         ):
             logger.debug(
-                'init step, find detect_threshold, atm = %f',
-                self.detect_threshold,
+                'init step, find detect_likelihood, atm = %f',
+                self.detect_likelihood,
             )
             # TODO use initial increment val_dataset to  fit the
             # detect_likelihood as the difference between the self.threhsolds
@@ -352,23 +352,27 @@ class GaussianRecognizer(OWHARecognizer):
                 val_features.append(feature_tensor)
             del feature_tensor, label
             log_probs = self.recognize(
-                torch.stack(val_features)
+                torch.stack(val_features),
+                known_only=True,
+                softmax=False,
             )
-            detected_mask = log_probs < self.thresholds
+            detected_mask = (log_probs < self.thresholds).all(1)
             if detected_mask.any():
+                logger.debug('detected_mask.any() == True')
                 max_log_probs = log_probs[detected_mask].max(1).values
                 if self.min_error_tol:
-                    min_max = torch.quantiles(
+                    min_max = torch.quantile(
                         max_log_probs,
                         self.min_error_tol,
                     )
                 else:
                     min_max = max_log_probs.min()
-                if min_max < self.thresholds:
+                if min_max <= self.thresholds:
+                    logger.debug('min_max < .any() == True')
                     self.set_detect_likelihood(min_max - self.thresholds)
             logger.debug(
-                'init step, resulting detect_threshold = %f',
-                self.detect_threshold,
+                'init step, resulting detect_likelihood = %f',
+                self.detect_likelihood,
             )
 
         # NOTE Should fit on the soft labels (output of recognize) for
