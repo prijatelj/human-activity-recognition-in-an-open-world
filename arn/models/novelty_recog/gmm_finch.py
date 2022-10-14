@@ -149,7 +149,7 @@ class GMMFINCH(GMMRecognizer):
         # Update the general knowns + unknown recogs expanded
         self.update_label_enc(False)
 
-    def recognize(self, features, detect=False):
+    def recognize(self, features, detect=False, known_only=False):
         # TODO consider known_only arg.
         # For consistency w/ detect, may have to set it to True, and call it
         # with False in pipeline for current behavior.
@@ -160,7 +160,7 @@ class GMMFINCH(GMMRecognizer):
             dim=1,
         )
 
-        if self.has_recogs:
+        if self.has_recogs and not known_only:
             unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
             recogs = torch.cat([recogs, unknown_log_probs], dim=1)
 
@@ -172,7 +172,7 @@ class GMMFINCH(GMMRecognizer):
                     [gmm.detect(features) for gmm in self.known_gmms],
                     dim=1,
                 )
-                if self.has_recogs:
+                if self.has_recogs and not known_only:
                     detect_unknowns = torch.cat(
                         (
                             detect_unknowns,
