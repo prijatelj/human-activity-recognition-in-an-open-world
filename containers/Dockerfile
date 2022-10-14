@@ -8,6 +8,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=America/New_York
 RUN apt-get update && apt-get install -y python3-opencv
 
+# Because imports break with versions of pytroch_lightning and unneeded.
+pip uninstall torchtext
+
 # Install main project and docstr for CLI
 COPY . .
 RUN pip install -e . -r requirements/arn.txt #dev.txt

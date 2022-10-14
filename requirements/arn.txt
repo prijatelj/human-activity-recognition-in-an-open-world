@@ -16,5 +16,8 @@ exputils==0.1.7rc3
 
 cython
 hdbscan
-opencv-python-headless
-torchmetrics
+# Version is due to circular import issue...
+opencv-python-headless==4.5.5.64
+torchmetrics==0.7.3
+ray==1.12.0
+ray_lightning==0.2.0
