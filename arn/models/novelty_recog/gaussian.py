@@ -215,7 +215,7 @@ class GaussianRecognizer(OWHARecognizer):
         it own local threshold. For local detection, overall detection of an
         unknown occurs when all known distribs detect a sample as unknown.
     _thresholds : float = None
-    detect_likelihood : float = 0.0
+    _detect_likelihood : float = 0.0
         see min_max_threshold.likelihood
     batch_size : int = None
     see OWHARecognizer
@@ -242,7 +242,8 @@ class GaussianRecognizer(OWHARecognizer):
         cov_epsilon : see self
         threshold_func : see self
         threshold_global : see self
-        detect_likelihood : see self
+        detect_likelihood : float = 0.0
+            see min_max_threshold.likelihood
         batch_size : see self
         see OWHARecognizer.__init__
         """
@@ -289,6 +290,10 @@ class GaussianRecognizer(OWHARecognizer):
         internal distribs thresholding for detection.
         """
         return self._thresholds
+
+    @property
+    def detect_likelihood(self):
+        return self._detect_likelihood
 
     def set_detect_likelihood(self, value):
         self._detect_likelihood = value
@@ -346,10 +351,9 @@ class GaussianRecognizer(OWHARecognizer):
             log_probs = self.recognize(
                 torch.stack(val_features)
             )
-            max_log_probs = (
-                log_probs[log_probs < self.thresholds]
-            ).max(1).values
-            if max_log_probs.any():
+            detected_mask = log_probs < self.thresholds
+            if detected_mask.any():
+                max_log_probs = log_probs[detected_mask].max(1).values
                 if self.min_error_tol:
                     min_max = torch.quantiles(
                         max_log_probs,
