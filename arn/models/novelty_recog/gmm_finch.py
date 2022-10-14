@@ -14,9 +14,7 @@ from exputils.io import create_filepath
 
 from arn.models.novelty_recog.gaussian import min_max_threshold
 from arn.models.novelty_recog.gmm import (
-    GMM,
     GMMRecognizer,
-    join_gmms,
     recognize_fit,
 )
 
@@ -220,10 +218,10 @@ class GMMFINCH(GMMRecognizer):
                     recogs.device, recogs.dtype
                 )
                 logger.debug('quantiles for detection: %s', quantiles)
-                logger.debug(
-                    'detected quantiles log_prob = %s',
-                    torch.quantile(recogs[detects], quantiles)
-                )
+                #logger.debug(
+                #    'detected quantiles log_prob = %s',
+                #    torch.quantile(recogs[detects], quantiles)
+                #)
                 logger.debug(
                     'detected quantiles of max(1) log_prob = %s',
                     torch.quantile(recogs[detects].max(1).values, quantiles)
