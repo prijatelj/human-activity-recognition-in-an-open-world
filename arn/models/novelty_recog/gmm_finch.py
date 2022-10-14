@@ -149,7 +149,13 @@ class GMMFINCH(GMMRecognizer):
         # Update the general knowns + unknown recogs expanded
         self.update_label_enc(False)
 
-    def recognize(self, features, detect=False, known_only=False):
+    def recognize(
+        self,
+        features,
+        detect=False,
+        known_only=False,
+        softmax=True,
+    ):
         # TODO consider known_only arg.
         # For consistency w/ detect, may have to set it to True, and call it
         # with False in pipeline for current behavior.
@@ -165,6 +171,8 @@ class GMMFINCH(GMMRecognizer):
             recogs = torch.cat([recogs, unknown_log_probs], dim=1)
 
         if detect:
+            if not softmax:
+                raise ValueErorr('Cannot perform detect w/o softmax!')
             if self.threshold_global:
                 detect_unknowns = (recogs < self.thresholds).all(1)
             else:
@@ -192,20 +200,22 @@ class GMMFINCH(GMMRecognizer):
                 recogs[detect_unknowns, 1:] *= \
                     1 - recogs[detect_unknowns, 0].reshape(-1, 1)
             return recogs
+        if not softmax:
+            return recogs
         return F.softmax(recogs, dim=1)
 
     def detect(self, features, known_only=True):
         if self.threshold_global:
-            recogs = torch.stack(
-                [gmm.log_prob(features) for gmm in self.known_gmms],
-                dim=1
+            recogs = self.recognize(
+                features,
+                known_only=known_only,
+                softmax=False,
             )
 
             if self.has_recogs and not known_only:
                 unknown_log_probs = self.unknown_gmm.comp_log_prob(features)
                 recogs = torch.cat([recogs, unknown_log_probs], dim=1)
 
-            #return (recogs < self.thresholds).all(1)
             detects = (recogs < self.thresholds).all(1)
 
             if detects.any():
