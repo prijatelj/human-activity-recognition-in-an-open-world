@@ -74,13 +74,14 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
   predictor:
     GMMFINCH: # the Open World Agent
       #min_samples: 2
-      detect_error_tol: 1e-5
+      #detect_error_tol: 1e-5
       device: cpu
       #dtype: float64
       #cov_epsilon: 1e-12
       dtype: float32
       cov_epsilon: 1e-4
       threshold_func: min_max_threshold
+      threshold_global: True
       skip_fit: 0 # Does not use the FineTune ANN at all.
       save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/chkpts/
       fine_tune:
