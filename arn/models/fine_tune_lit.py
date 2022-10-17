@@ -382,6 +382,7 @@ class FineTuneFCLit(pl.LightningModule):
         threshold then the class predicted is to be `unknown` rather than
         whatever the highest class predicted is. Defaults to None for no
         threshold to be used.
+    device : str = 'cuda'
 
     Notes
     -----
@@ -400,6 +401,7 @@ class FineTuneFCLit(pl.LightningModule):
         expect_one_hot=True,
         save_hyperparameters=False,
         unk_thresh=None,
+        device='cuda'
         load_state=None,
         *args,
         **kwargs,
@@ -420,6 +422,8 @@ class FineTuneFCLit(pl.LightningModule):
         self.expect_one_hot = expect_one_hot
 
         self.unk_thresh = unk_thresh
+
+        self.device = torch.device(device)
 
         if loss is None:
             self.loss = nn.CrossEntropyLoss()
@@ -546,7 +550,7 @@ class FineTuneFCLit(pl.LightningModule):
         if self.current_epoch == 1:
             self.logger.experiment.add_graph(
                 self.model,
-                torch.rand((1,1, self.model.fcs.fc0.in_features)).to('cuda'),
+                torch.rand((1,1, self.model.fcs.fc0.in_features)).to(self.device),
             )
         for name, params in self.named_parameters():
             # Log Weights
@@ -657,6 +661,7 @@ class FineTuneLit(object):
         Measure function for finding unknown threshold post-prediction using
         scipy.optimize.minimize_scalar. Only performs finding of threshold when
         fit is given a label enc and a validation dataset.
+    device : str = 'cuda'
     """
     def __init__(
         self,
@@ -668,6 +673,7 @@ class FineTuneLit(object):
         num_workers=0,
         pin_memory=False,
         unk_thresh_method='bounded',
+        device='cuda',
     ):
         """Init the FineTune model.
 
@@ -683,6 +689,7 @@ class FineTuneLit(object):
             raise TypeError(
                 'Expected model typed as `torch.nn.Module`, not {type(model)}'
             )
+        self.device = torch.device(device)
         self.batch_size = batch_size
         if predict_batch_size:
             self.predict_batch_size = predict_batch_size
@@ -705,7 +712,7 @@ class FineTuneLit(object):
             and not isinstance(self.trainer._accelerator_connector.strategy, str)
             and self.trainer._accelerator_connector.strategy.use_gpu
         ):
-            self.model.to('cuda')
+            self.model.to(self.device)
         #"""
 
         # Record HParams
