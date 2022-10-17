@@ -76,7 +76,9 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
       cov_epsilon: 1e-6
       #detect_error_tol: 1e-5
       threshold_func: min_max_threshold
+      threshold_global: True
       device: cpu
+      batch_size: 8192
       skip_fit: 0 # Does not use the FineTune ANN at all.
       save_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/gauss-recog/gmm_finch/checkpoints/
       fine_tune:
