@@ -99,7 +99,7 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
           trainer:
             init_trainer:
               max_epochs: 1
-              gpus: 1
+              gpus: 0
               enable_checkpointing: True
               num_sanity_val_steps: 1
               log_every_n_steps: 1
