@@ -1,0 +1,298 @@
+# Incremental learning of the Open World Human Activity Recognition pipeline
+# using simulated data to depict the learning process.
+
+# This loads the pre-fit predictor checkpoint at every call to predictor.fit().
+
+docstr:
+  style: numpy
+  from import:
+    arn.data.docstr_workarounds:
+      - get_steps
+      - kinetics_owl_gmm_finch
+    arn.data.kinetics_owl:
+      - EvalConfig
+      - EvalDataSplitConfig
+      - DataSplits
+      - KineticsOWL
+      - KineticsOWLExperiment
+    arn.data.kinetics_unified:
+      - KineticsUnified
+      - KineticsUnifiedFeatures
+      - KineticsSplitConfig
+      - KineticsUnifiedSubset
+      - LabelConfig
+      - BatchDirs
+    arn.models.fine_tune:
+      - FineTuneFC
+    arn.models.fine_tune_lit:
+      - FineTuneLit
+      - FineTuneFCLit
+      - init_trainer
+      - init_ray_plugin
+      - init_tensorboard_logger
+    arn.models.predictor:
+      - OWHAPredictor
+    arn.models.novelty_recog.gaussian:
+      - GaussianRecognizer
+    arn.models.novelty_recog.gmm_finch:
+      - GMMFINCH
+  main: run
+  log_sink: '/tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/gauss-recog/gmm_finch/logs/log.log'
+  log_level: DEBUG
+
+kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
+  eval_config:
+    EvalConfig:
+      root_dir: '/tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/gauss-recog/gmm_finch/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  post_feedback_eval_config:
+    EvalConfig:
+      root_dir: '/tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/gauss-recog/gmm_finch/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  maintain_experience: True
+  predictor:
+    GMMFINCH: # the Open World Agent
+      #min_samples: 2
+      #detect_error_tol: 1e-5
+      device: cpu
+      #dtype: float64
+      #cov_epsilon: 1e-12
+      dtype: float32
+      cov_epsilon: 1e-4
+      threshold_func: min_max_threshold
+      threshold_global: True
+      skip_fit: 0 # Does not use the FineTune ANN at all.
+      #save_dir: /tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/gauss-recog/gmm_finch/checkpoints/
+      load_inc_paths: /tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/gauss-recog/gmm_finch/checkpoints/recog_chkpt-GMMFINCH/
+      fine_tune:
+        FineTuneLit:
+          model:
+            FineTuneFCLit:
+              lr: 1e-3
+              model:
+                FineTuneFC:
+                  input_size: 2 #512
+                  width: 512
+                  depth: 2
+                  dropout: 0.5
+                  n_classes: 5
+          batch_size: 1000
+          trainer:
+            init_trainer:
+              max_epochs: 1
+              gpus: 0
+              enable_checkpointing: True
+              num_sanity_val_steps: 1
+              log_every_n_steps: 1
+              default_root_dir: /tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/gauss-recog/gmm_finch/chkpts/
+              #strategy:
+              #  init_ray_plugin:
+              #    num_workers: 8
+              #    use_gpu: True
+              logger:
+                init_tensorboard_logger:
+                  save_dir: /tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/gauss-recog/gmm_finch/tb_log/
+  environment:
+    KineticsOWLExperiment:
+      inc_splits_per_dset: 10
+      start:
+        DataSplits:
+          train:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+              sample_dirs:
+                BatchDirs:
+                  batch_col: batch
+                  root_dir: /tmp/har/code/data/sims/
+              device: cpu # cuda
+              dtype: float32
+              split_prefix: False
+              k700_suffix_label: False
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: label_kunified
+                  kinetics400:
+                    KineticsSplitConfig:
+                      train: True
+          validate:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+              split_prefix: False
+              k700_suffix_label: False
+              sample_dirs:
+                BatchDirs:
+                  batch_col: batch
+                  root_dir: /tmp/har/code/data/sims/
+              device: cpu # cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: label_kunified
+                  kinetics400:
+                    KineticsSplitConfig:
+                      validate: True
+          test:
+            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+              annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+              split_prefix: False
+              k700_suffix_label: False
+              sample_dirs:
+                BatchDirs:
+                  batch_col: batch
+                  root_dir: /tmp/har/code/data/sims/
+              device: cpu # cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: label_kunified
+                  kinetics400:
+                    KineticsSplitConfig:
+                      test: True
+      steps:
+        get_steps:
+          step_1: # Kinetics 600
+            DataSplits:
+              train:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+                  sample_dirs:
+                    BatchDirs:
+                      batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
+                  device: cpu # cuda
+                  dtype: float32
+                  split_prefix: False
+                  k700_suffix_label: False
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_kunified'
+                      kinetics600:
+                        KineticsSplitConfig:
+                          train: True
+              validate:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+                  split_prefix: False
+                  k700_suffix_label: False
+                  sample_dirs:
+                    BatchDirs:
+                      batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
+                  device: cpu # cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_kunified'
+                      kinetics600:
+                        KineticsSplitConfig:
+                          validate: True
+              test:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+                  split_prefix: False
+                  k700_suffix_label: False
+                  sample_dirs:
+                    BatchDirs:
+                      batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
+                  device: cpu # cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_kunified'
+                      kinetics600:
+                        KineticsSplitConfig:
+                          test: True
+          step_2: # Kinetics 700_2020
+            DataSplits:
+              train:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+                  sample_dirs:
+                    BatchDirs:
+                      batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
+                  device: cpu # cuda
+                  dtype: float32
+                  split_prefix: False
+                  k700_suffix_label: False
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_kunified'
+                      kinetics700_2020:
+                        KineticsSplitConfig:
+                          train: True
+              validate:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+                  split_prefix: False
+                  k700_suffix_label: False
+                  sample_dirs:
+                    BatchDirs:
+                      batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
+                  device: cpu # cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_kunified'
+                      kinetics700_2020:
+                        KineticsSplitConfig:
+                          validate: True
+              test:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+                  split_prefix: False
+                  k700_suffix_label: False
+                  sample_dirs:
+                    BatchDirs:
+                      batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
+                  device: cpu # cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_kunified'
+                      kinetics700_2020:
+                        KineticsSplitConfig:
+                          test: True
