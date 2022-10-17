@@ -241,7 +241,9 @@ class OWHAPredictor(object):
         if isinstance(load_inc_paths, str) and os.path.isdir(load_inc_paths):
             self.load_inc_paths = get_chkpts_paths(
                 load_inc_paths,
-                re.compile(f'.*{chkpt_file_prefix}-[0-9]+.*\..*'),
+                re.compile(
+                    f'.*{chkpt_file_prefix}-(?P<increment>[0-9]+).*\..*'
+                ),
             )
         else:
             self.load_inc_paths = load_inc_paths
