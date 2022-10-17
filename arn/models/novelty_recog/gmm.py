@@ -322,7 +322,7 @@ def recognize_fit(
     logger.info(
         'Begin fit of FINCH for class %s, samples %d, counter %d, '
         'threshold_func %s, accepted_error %f, max_likely_gmm %s, level %d '
-        'detect_likelihood %f, batch_size %d',
+        'detect_likelihood %f, batch_size %s',
         class_name,
         len(features),
         counter,
