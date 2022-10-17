@@ -401,7 +401,7 @@ class FineTuneFCLit(pl.LightningModule):
         expect_one_hot=True,
         save_hyperparameters=False,
         unk_thresh=None,
-        device='cuda'
+        device='cuda',
         load_state=None,
         *args,
         **kwargs,
