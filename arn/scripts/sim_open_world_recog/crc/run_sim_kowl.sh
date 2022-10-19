@@ -17,6 +17,5 @@ apptainer exec \
     --bind $DATA_PATH:/tmp/har/data \
     --pwd /tmp/har/code \
     $CODE_PATH/data/containers/arn_latest.sif \
-    python -c \
-        docstr arn/arn/scripts/sim_open_world_recog/configs/exp2_gmm_finch.yaml \
-            --feedback_amount $FEEDBACK_AMOUNT
+    docstr arn/arn/scripts/sim_open_world_recog/configs/exp2_gmm_finch.yaml \
+        --feedback_amount $FEEDBACK_AMOUNT
