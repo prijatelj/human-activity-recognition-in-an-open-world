@@ -187,7 +187,7 @@ class OWHAPredictor(object):
     save_dir : str = None
         If given, the filepath to a directory to save all model checkpoints
         after fitting on an increment.
-    load_inc_paths : dict = None
+    load_inc_paths : str = None
         Dictionary of str filepaths which contain the state to be loaded via
         load_state() as the value and the key is the increment to which that
         loaded state was fit on.
@@ -306,7 +306,7 @@ class OWHAPredictor(object):
             if n_classes != self.fine_tune.n_classes:
                 self.fine_tune.set_n_classes(n_classes)
 
-        self._increment += 1
+        # NOTE moved this to end: self._increment += 1
         self.fine_tune.fit(dataset, val_dataset, label_enc=self.label_enc)
 
         if self.save_dir:
@@ -314,6 +314,7 @@ class OWHAPredictor(object):
                 self.save_dir,
                 f'{self.uid}-{self.increment}.ckpt',
             ))
+        self._increment += 1
 
     def predict(self, dataset):
         """Predictor performs the prediction (classification) tasks given
