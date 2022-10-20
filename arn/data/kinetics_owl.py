@@ -789,6 +789,7 @@ class EvalDataSplitConfig(NamedTuple):
                         log_all_ocm_measures(
                             measurements,
                             None if predictor is None
+                                or not isinstance(predictor, OWHARecognizer)
                                 else predictor.known_label_enc,
                         )
                     measurements.save(os.path.join(prefix, 'preds_top-cm.h5'))
