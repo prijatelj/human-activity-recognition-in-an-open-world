@@ -67,6 +67,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
   maintain_experience: True
   predictor:
     OWHAPredictor: # the Open World Agent
+      save_dir: /tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/fine-tune/chkpts/
       fine_tune:
         FineTuneLit:
           model:
