@@ -16,6 +16,7 @@ FEEDBACK_AMOUNT="1.0"
 
 apptainer exec \
     --nv \
+    --env CUDA_VISIBLE_DEVICES=$SGE_HGR_gpu_card \
     --bind $CODE_PATH:/tmp/har/code \
     --bind $DATA_PATH:/tmp/har/data \
     --pwd /tmp/har/code \
