@@ -101,12 +101,12 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
       start:
         DataSplits:
           train:
-            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              annotation_path: /tmp/har/data/sims/sim_kunified.csv
+            KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+              annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
               sample_dirs:
                 BatchDirs:
                   batch_col: batch
-                  root_dir: /tmp/har/data/sims/
+                  root_dir: /tmp/har/code/data/sims/
               device: cuda
               dtype: float32
               split_prefix: False
@@ -120,14 +120,14 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                     KineticsSplitConfig:
                       train: True
           validate:
-            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              annotation_path: /tmp/har/data/sims/sim_kunified.csv
+            KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+              annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
               split_prefix: False
               k700_suffix_label: False
               sample_dirs:
                 BatchDirs:
                   batch_col: batch
-                  root_dir: /tmp/har/data/sims/
+                  root_dir: /tmp/har/code/data/sims/
               device: cuda
               dtype: float32
               subset:
@@ -139,14 +139,14 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                     KineticsSplitConfig:
                       validate: True
           test:
-            KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              annotation_path: /tmp/har/data/sims/sim_kunified.csv
+            KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+              annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
               split_prefix: False
               k700_suffix_label: False
               sample_dirs:
                 BatchDirs:
                   batch_col: batch
-                  root_dir: /tmp/har/data/sims/
+                  root_dir: /tmp/har/code/data/sims/
               device: cuda
               dtype: float32
               subset:
@@ -162,12 +162,12 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           step_1: # Kinetics 600
             DataSplits:
               train:
-                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                  annotation_path: /tmp/har/data/sims/sim_kunified.csv
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
                   sample_dirs:
                     BatchDirs:
                       batch_col: batch
-                      root_dir: /tmp/har/data/sims/
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
                   split_prefix: False
@@ -181,14 +181,14 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                         KineticsSplitConfig:
                           train: True
               validate:
-                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                  annotation_path: /tmp/har/data/sims/sim_kunified.csv
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
                   split_prefix: False
                   k700_suffix_label: False
                   sample_dirs:
                     BatchDirs:
                       batch_col: batch
-                      root_dir: /tmp/har/data/sims/
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
                   subset:
@@ -200,14 +200,14 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                         KineticsSplitConfig:
                           validate: True
               test:
-                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                  annotation_path: /tmp/har/data/sims/sim_kunified.csv
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
                   split_prefix: False
                   k700_suffix_label: False
                   sample_dirs:
                     BatchDirs:
                       batch_col: batch
-                      root_dir: /tmp/har/data/sims/
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
                   subset:
@@ -221,12 +221,12 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           step_2: # Kinetics 700_2020
             DataSplits:
               train:
-                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                  annotation_path: /tmp/har/data/sims/sim_kunified.csv
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
                   sample_dirs:
                     BatchDirs:
                       batch_col: batch
-                      root_dir: /tmp/har/data/sims/
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
                   split_prefix: False
@@ -240,14 +240,14 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                         KineticsSplitConfig:
                           train: True
               validate:
-                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                  annotation_path: /tmp/har/data/sims/sim_kunified.csv
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
                   split_prefix: False
                   k700_suffix_label: False
                   sample_dirs:
                     BatchDirs:
                       batch_col: batch
-                      root_dir: /tmp/har/data/sims/
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
                   subset:
@@ -259,14 +259,14 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                         KineticsSplitConfig:
                           validate: True
               test:
-                KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-                  annotation_path: /tmp/har/data/sims/sim_kunified.csv
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
                   split_prefix: False
                   k700_suffix_label: False
                   sample_dirs:
                     BatchDirs:
                       batch_col: batch
-                      root_dir: /tmp/har/data/sims/
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
                   subset:
