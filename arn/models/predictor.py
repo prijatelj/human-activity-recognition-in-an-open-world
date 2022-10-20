@@ -367,7 +367,7 @@ class OWHAPredictor(object):
         # TODO other attrs of OWHAPredictor?
 
         if self.fine_tune is not None: # and self.increment < self.skip_fit:
-            self.load_from_checkpoint(
+            self.fine_tune.model.load_from_checkpoint(
                 ftune_chkpt,
                 model=self.fine_tune.model.model,
             )
