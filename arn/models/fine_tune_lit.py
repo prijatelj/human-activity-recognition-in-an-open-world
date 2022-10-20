@@ -423,7 +423,7 @@ class FineTuneFCLit(pl.LightningModule):
 
         self.unk_thresh = unk_thresh
 
-        self.device = torch.device(device)
+        #self.device = torch.device(device)
 
         if loss is None:
             self.loss = nn.CrossEntropyLoss()
