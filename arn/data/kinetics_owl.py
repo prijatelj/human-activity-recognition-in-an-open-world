@@ -49,11 +49,20 @@ def log_all_ocm_measures(ocm, known_label_enc=None):
     cm = ocm.get_conf_mat()
     log_cm_measures(cm, 'No Reduction')
 
-    logger.info('knowns total = %d', len(known_label_enc))
-    logger.debug('knowns = %s', list(known_label_enc))
+    logger.info(
+        'knowns total = %d',
+        0 if known_label_enc is None else len(known_label_enc)
+    )
+    logger.debug(
+        'knowns = %s',
+        'None' if known_label_enc is None else list(known_label_enc),
+    )
 
     # Reduce unknowns
-    unknowns = set(cm.label_enc) - set(known_label_enc)
+    unknowns = set(cm.label_enc)
+    if known_label_enc is not None:
+        # TODO update this function s.t. it makes sense when known enc is None
+        unknowns -= set(known_label_enc)
     unknowns.add('unknown')
 
     logger.info('unknowns total = %d', len(unknowns))
@@ -788,9 +797,11 @@ class EvalDataSplitConfig(NamedTuple):
                         # TODO should the above be logger.isEnabledFor?
                         log_all_ocm_measures(
                             measurements,
-                            None if predictor is None
-                                or not isinstance(predictor, OWHARecognizer)
-                                else predictor.known_label_enc,
+                            None if predictor is None else (
+                                label_enc
+                                if not isinstance(predictor, OWHARecognizer)
+                                else predictor.known_label_enc
+                            ),
                         )
                     measurements.save(os.path.join(prefix, 'preds_top-cm.h5'))
                 else:
