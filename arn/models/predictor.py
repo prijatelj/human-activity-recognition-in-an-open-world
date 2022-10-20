@@ -365,12 +365,28 @@ class OWHAPredictor(object):
 
     def load_state(self, ftune_chkpt):
         # TODO other attrs of OWHAPredictor?
-
         if self.fine_tune is not None: # and self.increment < self.skip_fit:
+            return
+        try:
             self.fine_tune.model.load_from_checkpoint(
                 ftune_chkpt,
                 model=self.fine_tune.model.model,
             )
+        except RuntimeError as e:
+            e_msg = str(e)
+            if 'model.classifier.weight' not in e_msg:
+                raise e
+
+            pat = re.compile('torch\.Size\(\[(?P<classes>[0-9]*)')
+            classes = pat.findall(e_msg)
+            if len(classes) < 1:
+                raise e
+            self.fine_tune.set_n_classes(int(classes[0]))
+            self.fine_tune.model.load_from_checkpoint(
+                ftune_chkpt,
+                model=self.fine_tune.model.model,
+            )
+
 
 
 # TODO class OWHAPredictorEVM(OWHAPredictor):
