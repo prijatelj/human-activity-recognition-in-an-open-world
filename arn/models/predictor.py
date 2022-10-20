@@ -1,7 +1,7 @@
 """Open World Human Activity Recognition predictor pipeline classes."""
-from datetime import datetime
 from collections import OrderedDict
 from copy import deepcopy
+from datetime import datetime
 import glob
 import os
 import re
@@ -286,9 +286,18 @@ class OWHAPredictor(object):
         ensuring the class indices are always aligned.
         """
         if self.load_inc_paths and self.increment + 1 in self.load_inc_paths:
-           skip_fit = self.skip_fit
-           self.load_state(self.load_inc_paths[self.increment + 1])
-           self.skip_fit = skip_fit
+            if self.skip_fit >= 0 and self._increment >= self.skip_fit:
+                # NOTE Assumes if loading, you get 100% feedback from the label
+                # enc for fine tune ANNs.
+                self._label_enc = deepcopy(dataset.label_enc)
+
+                n_classes = len(self.label_enc)
+                if n_classes != self.fine_tune.n_classes:
+                    self.fine_tune.set_n_classes(n_classes)
+
+            skip_fit = self.skip_fit
+            self.load_state(self.load_inc_paths[self.increment + 1])
+            self.skip_fit = skip_fit
 
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:
             # for saving checkpoints of state external to fine_tune.
@@ -364,7 +373,12 @@ class OWHAPredictor(object):
         return self.fine_tune.feature_extract(dataset)
 
     def load_state(self, ftune_chkpt):
-        # TODO other attrs of OWHAPredictor?
+        # NOTE this is specific to fine tune ANNs, not any Recognizer
+
+        # TODO other attrs of OWHAPredictor, esp. _label_enc?
+        #   As is w/o update to inherit OWHARecognizer, simply copy dset label
+        #   enc if 100%. and only copy first label enc if 0%.
+
         if self.fine_tune is not None: # and self.increment < self.skip_fit:
             return
         try:
@@ -373,6 +387,10 @@ class OWHAPredictor(object):
                 model=self.fine_tune.model.model,
             )
         except RuntimeError as e:
+            logger.warning(
+                'There was a class size mismatch in checkpoint to current '
+                'model!'
+            )
             e_msg = str(e)
             if 'model.classifier.weight' not in e_msg:
                 raise e
