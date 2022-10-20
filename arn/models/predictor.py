@@ -287,7 +287,7 @@ class OWHAPredictor(object):
         """
         if self.load_inc_paths and self.increment + 1 in self.load_inc_paths:
            skip_fit = self.skip_fit
-           self.load_state(self.load_incs_path[self.increment + 1])
+           self.load_state(self.load_inc_paths[self.increment + 1])
            self.skip_fit = skip_fit
 
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:

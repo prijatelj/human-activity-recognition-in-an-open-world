@@ -25,6 +25,5 @@ apptainer exec \
         --predictor.load_inc_paths "$DATA_PATH/"
         #--feedback_amount $FEEDBACK_AMOUNT \
 
-
-#python -c \
+#   python -c \
 #        'import torch; print(torch.__version__); print(torch.cuda.is_available())'
