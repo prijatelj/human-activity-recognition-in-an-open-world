@@ -5,14 +5,19 @@ h5py>=2.8.0
 pandas>=1.4.4
 tqdm>=4.62.2
 
-pytorch>=1.9.1
+#pytorch>=1.9.1
+torch>=1.12.1
+torchvision>=0.11.1
 torchsummary>=1.5.1
 pytorch-lightning>=1.5.10
-pyro-ppl
+pyro-ppl>=1.8.1
 
 exputils==0.1.7rc3
 
 cython
 hdbscan
-opencv-python-headless
-torchmetrics
+# Version is due to circular import issue...
+opencv-python-headless==4.5.5.64
+torchmetrics==0.7.3
+ray==1.12.0
+ray_lightning==0.2.0

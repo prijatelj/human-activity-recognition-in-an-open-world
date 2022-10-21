@@ -60,7 +60,12 @@ def cred_hyperellipse_thresh(mvn, min_error_tol):
     return mvn.log_prob(mvn.loc + vector)
 
 
-def min_max_threshold(distribs, samples, likelihood=0.0):
+def min_max_threshold(
+    distribs,
+    samples: torch.Tensor,
+    likelihood: float = 0.0,
+    batch_size=None,
+):
     """For all the mvns over the data, find the sample with the minimum of the
     maximum log_probs. This is now the threshold to be used overall
 
@@ -69,34 +74,76 @@ def min_max_threshold(distribs, samples, likelihood=0.0):
     distribs :
     samples : torch.Tensor
     likelihood : float = 0
-        The likelihood scalar to "multiply" the resulting threshold by. Given
-        these are log-probabilities, this likelihood is subtracted from the
-        found threshold. If this likelihood is 2, that means the log_prob
-        threshold is set such that the likelihood of a point being unknowns is
-        if it is less than half as likely as the least likely known point.
+        The likelihood used to specify how likely a sample is unknown to the
+        the minimum maximum log prob sample of a distribution. We recommend
+        zero or negative values as it is added to the log_prob, and subtraction
+        is then saying it is less likely, e.g., likelihood of -1 means the
+        (currnetly static) prior belief is that the unknown samples will be
+        half as likely as the least likely known class any sample was assigned
+        to, assuming base 2. A likelihood of -2 would be 1/4 as likely.
+    batch_size : int = 8192
+        The memory required to calculate the gmm.log_prob per distribution is
+        `memory_required = dims * components * samples * 4 Bytes`. 2**13 = 8192
+        samples which when dims are 768 and max components is 4000, <51GB of
+        RAM is required.
     """
+    if batch_size is None:
+        batch_size = len(samples) #8192
+    logger.debug(
+        'min_max_threshold: '
+        'type(distribs) = %s; '
+        'samples.shape = %s; '
+        'samples.dtype = %s; '
+        'likelihood = %s; ',
+        type(distribs),
+        samples.shape,
+        samples.dtype,
+        likelihood,
+    )
     if (
         isinstance(distribs, list)
-        and all(
-            [isinstance(d, torch.distribution.Distribution) for d in distribs]
-        )
+        and all([hasattr(d, 'log_prob') for d in distribs])
     ):
-        log_probs = torch.stack(
-            [d.log_prob(samples) for d in distribs],
-            dim=1,
-        )
-    elif isinstance(distribs, torch.distribution.Distribution):
+        logger.debug('list: len(distribs) = %s', len(distribs))
+        #log_probs = torch.stack([d.log_prob(samples) for d in distribs], dim=1)
+        #log_probs = []
+        min_maxes = torch.tensor(torch.inf)
+        for idx in range(batch_size, len(samples) + batch_size, batch_size):
+            batch = samples[idx - batch_size:idx]
+            log_probs = torch.tensor(
+                [[-torch.inf]] * len(batch),
+                dtype=samples.dtype,
+            )
+            for i, d in enumerate(distribs):
+                log_probs = torch.max(
+                    log_probs,
+                    d.log_prob(batch).reshape(-1, 1),
+                )
+            min_maxes = torch.min(min_maxes, log_probs.min())
+        #logger.debug(
+        #    'the %d-th distrib, w/ unknown_key = %s; %d components',
+        #    i,
+        #    'No label_enc attr' if not hasattr(d, 'label_enc')
+        #        else d.label_enc.unknown_key,
+        #    1 if not hasattr(d, 'gmm') else
+        #        d.gmm.component_distribution.batch_shape[0],
+        #)
+        #log_probs = torch.stack(log_probs, dim=1)
+        #logger.debug('list: log_probs.shape = %s', log_probs.shape)
+        #log_probs = log_probs.max(1).values
+        #logger.debug('log_probs.max(1).values.shape = %s', log_probs.shape)
+    elif hasattr(distribs, 'log_prob'):
         log_probs = distribs.log_prob(samples)
+        #logger.debug('has log_prob(): log_probs.shape = %s', log_probs.shape)
+        min_maxes = log_probs.min()
     else:
         raise ValueError(
-            'The expected type is a list of distribs or a distrib object.'
+            'Expected either an object or list of objects with .log_prob().'
         )
 
-    # TODO will need to support a single scalar thershold for all distribs.
-
-    min_maxes = log_probs.max(1).values.min()
+    logger.debug('log_probs.min() = %s', min_maxes)
     if likelihood:
-        return min_maxes - likelihood
+        return min_maxes + likelihood
     return min_maxes
 
 
@@ -161,7 +208,16 @@ class GaussianRecognizer(OWHARecognizer):
         will need adde to the diagonal of the resulting covariance matrix to
         avoid being treated as not a positive semi-definite matrix.
     threshold_func : str = 'cred_hyperellipse_thresh'
-        The function to use
+        The function to use for finding the thresold for known to unknown.
+    threshold_global : bool = False
+        If True, applies the threshold of the model globally to the log_probs
+        of all the known distributions. Otherwise, assesses each known with
+        it own local threshold. For local detection, overall detection of an
+        unknown occurs when all known distribs detect a sample as unknown.
+    _thresholds : float = None
+    _detect_likelihood : float = 0.0
+        see min_max_threshold.likelihood
+    batch_size : int = None
     see OWHARecognizer
     """
     def __init__(
@@ -171,6 +227,9 @@ class GaussianRecognizer(OWHARecognizer):
         min_density=None,
         cov_epsilon=None,
         threshold_func='cred_hyperellipse_thresh',
+        threshold_global=False,
+        detect_likelihood : float = 0.0,
+        batch_size : int = None,
         **kwargs,
     ):
         """Initialize the recognizer.
@@ -181,6 +240,11 @@ class GaussianRecognizer(OWHARecognizer):
         detect_error_tol : see self
         min_density : see self
         cov_epsilon : see self
+        threshold_func : see self
+        threshold_global : see self
+        detect_likelihood : float = 0.0
+            see min_max_threshold.likelihood
+        batch_size : see self
         see OWHARecognizer.__init__
         """
         super().__init__(**kwargs)
@@ -215,6 +279,24 @@ class GaussianRecognizer(OWHARecognizer):
 
         self.min_cov_mag = 1.0
         self.threshold_func = threshold_func
+        self.threshold_global = threshold_global
+        self._thresholds = None
+        self._detect_likelihood = detect_likelihood
+        self.batch_size = int(batch_size) if batch_size else None
+
+    @property
+    def thresholds(self):
+        """Global threshold for all distribs involved. If None, use the
+        internal distribs thresholding for detection.
+        """
+        return self._thresholds
+
+    @property
+    def detect_likelihood(self):
+        return self._detect_likelihood
+
+    def set_detect_likelihood(self, value):
+        self._detect_likelihood = value
 
     @abstractmethod
     def fit_knowns(self, features, labels, val_dataset=None):
@@ -233,9 +315,67 @@ class GaussianRecognizer(OWHARecognizer):
             1 dimensional integer tensor of shape (samples,). Contains the
             index encoding of each label per features.
         """
+        logger.info(
+            "Begin call to %s's %s.pre_fit()",
+            self.uid,
+            type(self).__name__,
+        )
         dset_feedback_mask, features, labels = self.pre_fit(dataset)
+        logger.info(
+            "Begin call to %s's %s.fit_knowns()",
+            self.uid,
+            type(self).__name__,
+        )
         self.fit_knowns(features, labels, val_dataset)
+        logger.info(
+            "Begin call to %s's %s.post_fit()",
+            self.uid,
+            type(self).__name__,
+        )
         self.post_fit(dset_feedback_mask, features)
+
+        if (
+            self.increment == 0
+            and self.threshold_func == 'min_max_threshold'
+            and self.threshold_global
+        ):
+            logger.debug(
+                'init step, find detect_likelihood, atm = %f',
+                self.detect_likelihood,
+            )
+            # TODO use initial increment val_dataset to  fit the
+            # detect_likelihood as the difference between the self.threhsolds
+            # and the self.min_error_tol quantile of the sample's max log_prob
+            # values.  Able to be done w/o lookig at labels as all are known.
+            val_features = []
+            for feature_tensor, label in val_dataset:
+                val_features.append(feature_tensor)
+            del feature_tensor, label
+            log_probs = self.recognize(
+                torch.stack(val_features),
+                known_only=True,
+                softmax=False,
+            )
+            detected_mask = (log_probs < self.thresholds).all(1)
+            if detected_mask.any():
+                logger.debug('detected_mask.any() == True')
+                max_log_probs = log_probs[detected_mask].max(1).values
+                if self.min_error_tol:
+                    min_max = torch.quantile(
+                        max_log_probs,
+                        self.min_error_tol,
+                    )
+                else:
+                    min_max = max_log_probs.min()
+                if min_max <= self.thresholds:
+                    logger.debug('min_max < .any() == True')
+                    self.set_detect_likelihood(min_max - self.thresholds)
+                    self._thresholds = min_max
+            logger.debug(
+                'init step, resulting detect_likelihood = %f; thresholds = %s',
+                self.detect_likelihood,
+                self.thresholds,
+            )
 
         # NOTE Should fit on the soft labels (output of recognize) for
         # unlabeled data. That way some semblence of info from the recog goes
@@ -245,7 +385,18 @@ class GaussianRecognizer(OWHARecognizer):
         #   proportional, albeit scaled down, to the recognize output.
 
         # Fit the FineTune ANN if it exists now that the labels are determined.
+        logger.info(
+            "Begin call to %s's super(%s).fit()",
+            self.uid,
+            type(self).__name__,
+        )
         super().fit_knowns(dataset, val_dataset)
+        logger.info(
+            "End call to %s's %s.fit()",
+            self.uid,
+            type(self).__name__,
+        )
+        self._increment += 1
 
     def save(self, h5, overwrite=False):
         """Save as an HDF5 file."""
@@ -262,11 +413,17 @@ class GaussianRecognizer(OWHARecognizer):
             threshold_func=self.threshold_func
                 if isinstance(self.threshold_func, str)
                 else str(self.threshold_func),
+            threshold_global=self.threshold_global,
+            detect_likelihood=self.detect_likelihood,
+            batch_size=self.batch_size,
         )
         for key, val in state.items():
             if val is None:
                 continue
             h5.attrs[key] = val
+
+        if self._thresholds:
+            h5['_thresholds'] = self._thresholds.detach().cpu().numpy()
 
         super().save(h5)
         if close:
@@ -274,4 +431,32 @@ class GaussianRecognizer(OWHARecognizer):
 
     @staticmethod
     def load(h5):
-        return load_owhar(h5, GaussianRecognizer)
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(h5, 'r')
+
+        loaded = type(super()).load(h5)
+
+        if '_thresholds' in h5:
+            loaded._thresholds = torch.tensor(h5['_thresholds'])
+
+        if close:
+            h5.close()
+        return loaded
+
+    def load_state(self, h5, return_tmp=False):
+        tmp = super().load_state(h5, True)
+
+        self.min_error_tol = tmp.min_error_tol
+        self.detect_error_tol = tmp.detect_error_tol
+        self.min_density = tmp.min_density
+        self.cov_epsilon = tmp.cov_epsilon
+        self.threshold_func = tmp.threshold_func
+        self.threshold_global = tmp.threshold_global
+        self.detect_likelihood = tmp.detect_likelihood
+        self.batch_size = tmp.batch_size
+
+        self._thresholds = tmp._thresholds
+
+        if return_tmp:
+            return tmp

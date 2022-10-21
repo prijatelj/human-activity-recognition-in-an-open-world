@@ -28,7 +28,7 @@ docstr:
       - init_tensorboard_logger
     arn.models.novelty_detector:
       - WindowedMeanKLDiv
-    arn.models.owhar:
+    arn.models.predictor:
       - OWHAPredictor
   main: run #KineticsOWL.run
   log_sink: stdout

@@ -178,3 +178,27 @@ def kinetics_owl_gauss_finch(*args, **kwargs):
     labels : str = None
     """
     return KineticsOWL(*args, **kwargs)
+
+
+def kinetics_owl_gmm_finch(*args, **kwargs):
+    """Initialize the KineticsOWL experiment.
+
+    Args
+    ----
+    environment : see KineticsOWL
+    predictor : arn.models.novelty_recog.gmm_finch.GMMFINCH
+    feedback_type : see KineticsOWL
+    feedback_amount : see KineticsOWL
+    rng_state : see KineticsOWL
+    eval_on_start : see KineticsOWL
+    eval_config : see KineticsOWL
+    post_feedback_eval_config : see KineticsOWL
+    tasks : see KineticsOWL
+    maintain_experience : bool = True
+        If False, the default, the past experienced samples are not saved
+        in the simulation for use by the predictor. Otherwise, the
+        experienced samples are saved by concatenating the new data splits
+        to the end of the prior ones.
+    labels : str = None
+    """
+    return KineticsOWL(*args, **kwargs)

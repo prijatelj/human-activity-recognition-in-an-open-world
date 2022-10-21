@@ -26,7 +26,7 @@ from arn.data.kinetics_unified import (
     load_file_list,
     get_filename,
 )
-from arn.models.predictor import OWHAPredictor
+from arn.models.novelty_recog.recognizer import OWHARecognizer
 
 from exputils.data.labels import NominalDataEncoder
 from exputils.data.confusion_matrix import ConfusionMatrix
@@ -35,6 +35,98 @@ from exputils.io import create_filepath
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def log_all_ocm_measures(ocm, known_label_enc=None):
+    logger.info(
+        'OrderedConfusionMatrices: measures over a total of %d classes that '
+        'are unique across predictions and eval labels. The first measures '
+        'have no reductions.',
+        len(ocm.label_enc),
+    )
+
+    log_ocm_measures(ocm, 'No Reduction')
+    cm = ocm.get_conf_mat()
+    log_cm_measures(cm, 'No Reduction')
+
+    logger.info(
+        'knowns total = %d',
+        0 if known_label_enc is None else len(known_label_enc)
+    )
+    logger.debug(
+        'knowns = %s',
+        'None' if known_label_enc is None else list(known_label_enc),
+    )
+
+    # Reduce unknowns
+    unknowns = set(cm.label_enc)
+    if known_label_enc is not None:
+        # TODO update this function s.t. it makes sense when known enc is None
+        unknowns -= set(known_label_enc)
+    unknowns.add('unknown')
+
+    logger.info('unknowns total = %d', len(unknowns))
+    logger.debug('unknowns = %s', unknowns)
+
+    classif_cm = cm.reduce(unknowns, 'unknown', reduced_idx=0)
+
+    log_cm_measures(classif_cm, 'Classification Task')
+
+    # Reduce knowns
+    recog_cm = cm.reduce(unknowns, 'known', reduced_idx=-1, inverse=True)
+
+    log_cm_measures(recog_cm, 'Novelty Recognition')
+
+    # Reduce both knowns and unknowns
+    detect_cm = classif_cm.reduce(
+        ['unknown'],
+        'known',
+        reduced_idx=-1,
+        inverse=True,
+    )
+    log_cm_measures(detect_cm, 'Novelty Detection')
+
+    logger.info(
+        'Detection Confusion Matrix = \n%s\n%s',
+        list(detect_cm.label_enc),
+        detect_cm.mat,
+    )
+
+
+def log_ocm_measures(ocm, prefix):
+    logger.info(
+        '%s: OrderedConfusionMatrices: top-5 Accuracy: %.4f',
+        prefix,
+        ocm.accuracy(5),
+    )
+    logger.debug(
+        'OrderedConfusionMatrices: top-1 Accuracy: %.4f',
+        ocm.accuracy(),
+    )
+
+
+def log_cm_measures(cm, prefix):
+    logger.info(
+        '%s: OrderedConfusionMatrices (CM): top-1 Accuracy: %.4f',
+        prefix,
+        cm.accuracy(),
+    )
+    logger.info(
+        '%s: OrderedConfusionMatrices (CM): top-1 MCC: %.4f',
+        prefix,
+        cm.mcc(),
+    )
+    logger.info(
+        '%s: OrderedConfusionMatrices (CM): top-1 Mutual Information: %.4f',
+        prefix,
+        cm.mutual_information(),
+    )
+    logger.info(
+        '%s: OrderedConfusionMatrices (CM): top-1 '
+        'Arithmetic Normalized Mutual Information: %.4f',
+        prefix,
+        cm.mutual_information('arithmetic'),
+    )
 
 
 def get_known_and_unknown_dfs(
@@ -526,7 +618,7 @@ class EvalDataSplitConfig(NamedTuple):
                     np.zeros([preds.shape[0], len(missing_labels)]),
                 ))
             label_enc = data_split.label_enc
-        else:
+        elif isinstance(predictor, OWHARecognizer):
             label_enc = deepcopy(predictor.label_enc)
             # TODO If these are changing cuz new unknown_# from recognize_fit()
             # then the state needs updated correctly after recognize_fit()! The
@@ -558,6 +650,8 @@ class EvalDataSplitConfig(NamedTuple):
                     'constant',
                     constant_values=0,
                 )
+        else:
+            label_enc = deepcopy(predictor.label_enc)
 
         if self.pred_dir:
             if self.save_preds_with_labels:
@@ -700,33 +794,14 @@ class EvalDataSplitConfig(NamedTuple):
                         5,
                     )
                     if logging.root.isEnabledFor(logging.DEBUG):
-                        logger.debug(
-                            'OrderedConfusionMatrices: top-5 accuracy: %.4f',
-                            measurements.accuracy(5),
-                        )
-                        logger.debug(
-                            'OrderedConfusionMatrices: top-1 accuracy: %.4f',
-                            measurements.accuracy(),
-                        )
-                        cm = measurements.get_conf_mat()
-                        logger.debug(
-                            'OrderedConfusionMatrices (CM): top-1 '
-                            'accuracy: %.4f',
-                            cm.accuracy(),
-                        )
-                        logger.debug(
-                            'OrderedConfusionMatrices (CM): top-1 MCC: %.4f',
-                            cm.mcc(),
-                        )
-                        logger.debug(
-                            'OrderedConfusionMatrices (CM): top-1 '
-                            'Mutual Information: %.4f',
-                            cm.mutual_information(),
-                        )
-                        logger.debug(
-                            'OrderedConfusionMatrices (CM): top-1 '
-                            'Arithmetic Normalized Mutual Information: %.4f',
-                            cm.mutual_information('arithmetic'),
+                        # TODO should the above be logger.isEnabledFor?
+                        log_all_ocm_measures(
+                            measurements,
+                            None if predictor is None else (
+                                label_enc
+                                if not isinstance(predictor, OWHARecognizer)
+                                else predictor.known_label_enc
+                            ),
                         )
                     measurements.save(os.path.join(prefix, 'preds_top-cm.h5'))
                 else:
@@ -1012,7 +1087,7 @@ class KineticsOWL(object):
     Attributes
     ----------
     environment : KineticsOWLExperiment
-    predictor : OWHAPredictor
+    predictor : arn.models.predictor.OWHAPredictor
         predictor : arn.models.predictor.EVMPredictor
         arn.models.predictor.load_evm_predictor
         TODO docstr: support at least basic checking of multiple configurable
@@ -1174,7 +1249,8 @@ class KineticsOWL(object):
                 #    if not self.eval_config.save_features
                 #    else self.predictor.extract_predict,
                 f'{eval_prefix}_new-data_predict',
-                experience=self.experience,
+                experience=self.experience
+                    if isinstance(self.predictor, OWHARecognizer) else None,
             )
             if self.experience:
                 self.experience.train.return_label = True
@@ -1290,7 +1366,8 @@ class KineticsOWL(object):
                 #    if not self.eval_config.save_features
                 #    else self.predictor.extract_predict,
                 f'{eval_prefix}_post-feedback_predict',
-                experience=self.experience,
+                experience=self.experience
+                    if isinstance(self.predictor, OWHARecognizer) else None,
             )
             if self.experience:
                 self.experience.train.return_label = True

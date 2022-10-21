@@ -1,6 +1,5 @@
-# The Open World Human Activity Recognition pipeline from given features
-# extracted from a feature representaiton model to the end. This will probably
-# be broken down into smaller chunks for convenience.
+# Incremental learning of the Open World Human Activity Recognition pipeline
+# using simulated data to depict the learning process.
 
 docstr:
   style: numpy
@@ -31,13 +30,13 @@ docstr:
     arn.models.predictor:
       - OWHAPredictor
   main: run
-  log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/logs/log.log'
+  log_sink: '/tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/fine-tune/logs/log.log'
   log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:
-    EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/'
+    EvalConfig:
+      root_dir: '/tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/fine-tune/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -52,7 +51,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/'
+      root_dir: '/tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/fine-tune/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -68,91 +67,96 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
   maintain_experience: True
   predictor:
     OWHAPredictor: # the Open World Agent
-      save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/chkpts/
+      #save_dir: /tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/fine-tune/chkpts/
+      load_inc_paths: /tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/fine-tune/chkpts/
+      skip_fit: 0
       fine_tune:
         FineTuneLit:
           model:
             FineTuneFCLit:
-              #unk_thresh: 0.0
               lr: 1e-3
               model:
                 FineTuneFC:
-                  input_size: 768
-                  width: 768
-                  depth: 1
-                  dropout: 0.75
-                  n_classes: 410
+                  input_size: 2 #512
+                  width: 512
+                  depth: 2
+                  dropout: 0.5
+                  n_classes: 5
           batch_size: 1000
           trainer:
             init_trainer:
               max_epochs: 1
-              log_every_n_steps: 1
-              track_grad_norm: 2
-              num_sanity_val_steps: 1
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/chkpts/
+              num_sanity_val_steps: 1
+              log_every_n_steps: 1
+              default_root_dir: /tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/fine-tune/chkpts/
+              #strategy:
+              #  init_ray_plugin:
+              #    num_workers: 8
+              #    use_gpu: True
               logger:
                 init_tensorboard_logger:
-                  save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/tb_log/
-      #novelty_detector: None # Classification + Clustering
+                  save_dir: /tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/fine-tune/tb_log/
   environment:
     KineticsOWLExperiment:
-      inc_splits_per_dset: 5
-      intro_freq_first: True
+      inc_splits_per_dset: 10
       start:
         DataSplits:
           train:
-            KineticsUnifiedFeatures:
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+            KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+              annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
+                  root_dir: /tmp/har/code/data/sims/
               device: cuda
               dtype: float32
+              split_prefix: False
+              k700_suffix_label: False
               subset:
                 KineticsUnifiedSubset:
                   labels:
                     LabelConfig:
-                      name: label_recent_first
+                      name: label_kunified
                   kinetics400:
                     KineticsSplitConfig:
                       train: True
           validate:
-            KineticsUnifiedFeatures:
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+            KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+              annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+              split_prefix: False
+              k700_suffix_label: False
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
+                  root_dir: /tmp/har/code/data/sims/
               device: cuda
               dtype: float32
               subset:
                 KineticsUnifiedSubset:
                   labels:
                     LabelConfig:
-                      name: label_recent_first
+                      name: label_kunified
                   kinetics400:
                     KineticsSplitConfig:
                       validate: True
           test:
-            KineticsUnifiedFeatures:
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+            KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+              annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+              split_prefix: False
+              k700_suffix_label: False
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
+                  root_dir: /tmp/har/code/data/sims/
               device: cuda
               dtype: float32
               subset:
                 KineticsUnifiedSubset:
                   labels:
                     LabelConfig:
-                      name: label_recent_first
+                      name: label_kunified
                   kinetics400:
                     KineticsSplitConfig:
                       test: True
@@ -161,95 +165,118 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           step_1: # Kinetics 600
             DataSplits:
               train:
-                KineticsUnifiedFeatures:
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
+                  split_prefix: False
+                  k700_suffix_label: False
                   subset:
                     KineticsUnifiedSubset:
                       labels:
                         LabelConfig:
-                          name: label_recent_first
+                          name: 'label_kunified'
                       kinetics600:
                         KineticsSplitConfig:
                           train: True
               validate:
-                KineticsUnifiedFeatures:
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+                  split_prefix: False
+                  k700_suffix_label: False
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
                   subset:
                     KineticsUnifiedSubset:
                       labels:
                         LabelConfig:
-                          name: label_recent_first
+                          name: 'label_kunified'
                       kinetics600:
                         KineticsSplitConfig:
                           validate: True
               test:
-                KineticsUnifiedFeatures:
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+                  split_prefix: False
+                  k700_suffix_label: False
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
                   subset:
                     KineticsUnifiedSubset:
                       labels:
                         LabelConfig:
-                          name: label_recent_first
+                          name: 'label_kunified'
                       kinetics600:
                         KineticsSplitConfig:
                           test: True
-
-          step_2: # Kinetics 700-2020
+          step_2: # Kinetics 700_2020
             DataSplits:
               train:
-                KineticsUnifiedFeatures:
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
+                  split_prefix: False
+                  k700_suffix_label: False
                   subset:
                     KineticsUnifiedSubset:
                       labels:
                         LabelConfig:
-                          name: label_recent_first
+                          name: 'label_kunified'
                       kinetics700_2020:
                         KineticsSplitConfig:
                           train: True
-              test:
-                KineticsUnifiedFeatures:
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              validate:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+                  split_prefix: False
+                  k700_suffix_label: False
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
                   device: cuda
                   dtype: float32
                   subset:
                     KineticsUnifiedSubset:
                       labels:
                         LabelConfig:
-                          name: label_recent_first
+                          name: 'label_kunified'
                       kinetics700_2020:
                         KineticsSplitConfig:
                           validate: True
+              test:
+                KineticsUnifiedFeatures: #!docstr.configs:shared_code/data_kwargs
+                  annotation_path: /tmp/har/code/data/sims/sim_kunified.csv
+                  split_prefix: False
+                  k700_suffix_label: False
+                  sample_dirs:
+                    BatchDirs:
+                      batch_col: batch
+                      root_dir: /tmp/har/code/data/sims/
+                  device: cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: 'label_kunified'
+                      kinetics700_2020:
+                        KineticsSplitConfig:
+                          test: True

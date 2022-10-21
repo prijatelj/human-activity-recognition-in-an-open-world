@@ -27,7 +27,7 @@ docstr:
       - init_trainer
       - init_ray_plugin
       - init_tensorboard_logger
-    arn.models.owhar:
+    arn.models.predictor:
       - OWHAPredictor
   main: run
   log_sink: '/mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/fine-tune/logs/log.log'

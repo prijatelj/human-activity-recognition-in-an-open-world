@@ -27,7 +27,7 @@ docstr:
       - init_trainer
       - init_ray_plugin
       - init_tensorboard_logger
-    arn.models.owhar:
+    arn.models.predictor:
       - OWHAPredictor
   main: run
   log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/skip-fit-1/fine-tune/label_recent_first/logs/log.log'

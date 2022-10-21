@@ -1,7 +1,7 @@
 """Open World Human Activity Recognition predictor pipeline classes."""
-from datetime import datetime
 from collections import OrderedDict
 from copy import deepcopy
+from datetime import datetime
 import glob
 import os
 import re
@@ -187,7 +187,7 @@ class OWHAPredictor(object):
     save_dir : str = None
         If given, the filepath to a directory to save all model checkpoints
         after fitting on an increment.
-    load_inc_paths : dict = None
+    load_inc_paths : str = None
         Dictionary of str filepaths which contain the state to be loaded via
         load_state() as the value and the key is the increment to which that
         loaded state was fit on.
@@ -241,7 +241,9 @@ class OWHAPredictor(object):
         if isinstance(load_inc_paths, str) and os.path.isdir(load_inc_paths):
             self.load_inc_paths = get_chkpts_paths(
                 load_inc_paths,
-                re.compile(f'.*{chkpt_file_prefix}-[0-9]+.*\..*'),
+                re.compile(
+                    f'.*{chkpt_file_prefix}-(?P<increment>[0-9]+).*\..*'
+                ),
             )
         else:
             self.load_inc_paths = load_inc_paths
@@ -268,7 +270,7 @@ class OWHAPredictor(object):
     # TODO feedback request for ANN batching fun times
     #   If fitting a torch ANN w/ batching, will need to tmp rm all
     #   samples w/o a label before fitting and then restore after.
-    def feedback_request(self, available_uids=None, amount=1.0):
+    def feedback_request(self, features, available_uids=None, amount=1.0):
         """The predictor's method of requesting feedback."""
         if available_uids is None:
             raise NotImplementedError('available_uids is necessary for ANNs.')
@@ -284,9 +286,18 @@ class OWHAPredictor(object):
         ensuring the class indices are always aligned.
         """
         if self.load_inc_paths and self.increment + 1 in self.load_inc_paths:
-           skip_fit = self.skip_fit
-           self.load_state(self.load_incs_path[self.increment + 1])
-           self.skip_fit = skip_fit
+            if self.skip_fit >= 0 and self._increment >= self.skip_fit:
+                # NOTE Assumes if loading, you get 100% feedback from the label
+                # enc for fine tune ANNs.
+                self._label_enc = deepcopy(dataset.label_enc)
+
+                n_classes = len(self.label_enc)
+                if n_classes != self.fine_tune.n_classes:
+                    self.fine_tune.set_n_classes(n_classes)
+
+            skip_fit = self.skip_fit
+            self.load_state(self.load_inc_paths[self.increment + 1])
+            self.skip_fit = skip_fit
 
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:
             # for saving checkpoints of state external to fine_tune.
@@ -304,7 +315,7 @@ class OWHAPredictor(object):
             if n_classes != self.fine_tune.n_classes:
                 self.fine_tune.set_n_classes(n_classes)
 
-        self._increment += 1
+        # NOTE moved this to end: self._increment += 1
         self.fine_tune.fit(dataset, val_dataset, label_enc=self.label_enc)
 
         if self.save_dir:
@@ -312,6 +323,7 @@ class OWHAPredictor(object):
                 self.save_dir,
                 f'{self.uid}-{self.increment}.ckpt',
             ))
+        self._increment += 1
 
     def predict(self, dataset):
         """Predictor performs the prediction (classification) tasks given
@@ -361,13 +373,38 @@ class OWHAPredictor(object):
         return self.fine_tune.feature_extract(dataset)
 
     def load_state(self, ftune_chkpt):
-        # TODO other attrs of OWHAPredictor?
+        # NOTE this is specific to fine tune ANNs, not any Recognizer
+
+        # TODO other attrs of OWHAPredictor, esp. _label_enc?
+        #   As is w/o update to inherit OWHARecognizer, simply copy dset label
+        #   enc if 100%. and only copy first label enc if 0%.
 
         if self.fine_tune is not None: # and self.increment < self.skip_fit:
-            self.load_from_checkpoint(
+            return
+        try:
+            self.fine_tune.model.load_from_checkpoint(
                 ftune_chkpt,
                 model=self.fine_tune.model.model,
             )
+        except RuntimeError as e:
+            logger.warning(
+                'There was a class size mismatch in checkpoint to current '
+                'model!'
+            )
+            e_msg = str(e)
+            if 'model.classifier.weight' not in e_msg:
+                raise e
+
+            pat = re.compile('torch\.Size\(\[(?P<classes>[0-9]*)')
+            classes = pat.findall(e_msg)
+            if len(classes) < 1:
+                raise e
+            self.fine_tune.set_n_classes(int(classes[0]))
+            self.fine_tune.model.load_from_checkpoint(
+                ftune_chkpt,
+                model=self.fine_tune.model.model,
+            )
+
 
 
 # TODO class OWHAPredictorEVM(OWHAPredictor):

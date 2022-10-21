@@ -248,13 +248,15 @@ def gen_sim_dataset(
         labels=[f'k400-{i}' for i in range(1, 5)],
     )
 
+    data_splits = ['train', 'validate', 'test']
+
     start_inc_samples = []
     start_inc_labels = []
     start_inc_youtube_id = []
     start_inc_split = []
     start_inc_time_end = []
     start_inc_time_start = []
-    for split_idx, split in enumerate(['train', 'validate', 'test']):
+    for split_idx, split in enumerate(data_splits):
         samples, labels = start_sim.eq_sample_n(samples_per_class)
         start_inc_samples.append(samples)
         start_inc_labels.append(labels)
@@ -286,6 +288,11 @@ def gen_sim_dataset(
         )
     else:
         dir_name = create_filepath(os.path.join(root_dir, 'sim_k400/'))
+        # ensuring the validation data dirs exist.
+        for dsplit in data_splits:
+            split_path = os.path.join(dir_name, dsplit)
+            if not os.path.exists(split_path):
+                os.mkdir(split_path)
         save_dset = []
         for i, filename in enumerate(get_filename(df, ext='_feat.pt')):
             save_dset.append(
@@ -345,6 +352,11 @@ def gen_sim_dataset(
         torch.save(k6_sim_samples, os.path.join(root_dir, 'sim_k600_feats.pt'))
     else:
         dir_name = create_filepath(os.path.join(root_dir, 'sim_k600/'))
+        # ensuring the validation data dirs exist.
+        for dsplit in data_splits:
+            split_path = os.path.join(dir_name, dsplit)
+            if not os.path.exists(split_path):
+                os.mkdir(split_path)
         save_dset = []
         for i, filename in enumerate(get_filename(k6df, ext='_feat.pt')):
             save_dset.append(
@@ -416,6 +428,11 @@ def gen_sim_dataset(
         torch.save(k7_sim_samples, os.path.join(root_dir, 'sim_k700_feats.pt'))
     else:
         dir_name = create_filepath(os.path.join(root_dir, 'sim_k700/'))
+        # ensuring the validation data dirs exist.
+        for dsplit in data_splits:
+            split_path = os.path.join(dir_name, dsplit)
+            if not os.path.exists(split_path):
+                os.mkdir(split_path)
         save_dset = []
         for i, filename in enumerate(get_filename(k7df, ext='_feat.pt')):
             save_dset.append(

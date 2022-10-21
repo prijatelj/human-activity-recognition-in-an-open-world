@@ -28,7 +28,7 @@ docstr:
       - init_trainer
       - init_ray_plugin
       - init_tensorboard_logger
-    arn.models.owhar:
+    arn.models.predictor:
       - EVMPredictor
   main: run
   log_sink: '/mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/logs/log.log'

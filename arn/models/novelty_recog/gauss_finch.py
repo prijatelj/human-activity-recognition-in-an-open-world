@@ -55,6 +55,13 @@ class GaussFINCH(GMMRecognizer):
         self.gmm = None
 
     @property
+    def thresholds(self):
+        return self.known_gmm.thresholds
+
+    def set_detect_likelihood(self, value):
+        self.known_gmm.detect_likelihood = value
+
+    @property
     def known_label_enc(self):
         if self.known_gmm is not None:
             return self.known_gmm.label_enc

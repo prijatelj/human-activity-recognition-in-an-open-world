@@ -1,6 +1,6 @@
 ## Containerize with Docker and Apptainer
 
-This directory contains the configuration files to containerize this project using, first Docker, and then Apptainer.
+This directory contains the configuration files to containers this project using, first Docker, and then Apptainer.
 The Docker container depends on NVIDIA provided container.
 
 ### Install the Docker Image
@@ -22,13 +22,13 @@ nix-build containers/arn_docker.nix
 
 When your active directory is the root of this repository, run the following command to build the docker container:
 ```
-docker build -t arn:latest -f containerize/Dockerfile .
+docker build -t arn:latest -f containers/Dockerfile .
 ```
 
 If you run into an error where you cannot connect to the internet, for example, downloading the git repositories or pip intsalling does not work,
 you can give the docker build full network access as host.
 ```
-docker build --network host -t arn:latest -f containerize/Dockerfile .
+docker build --network host -t arn:latest -f containers/Dockerfile .
 ```
 
 #### Install the Apptainer Image
@@ -37,9 +37,9 @@ If you prefer to use apptainer, this work ran the apptainer container by creatin
 You must obtain the Docker image as specified above either through downloading it from docker hub or building it from the source.
 After you have the Docker image, you run the following command to obtain the apptainer image named as `arn_latest.sif` using the docker-daemon:
 ```
-sudo apptainer build arn_latest.sif docker-daemon://arn:latest
+apptainer build arn_latest.sif docker-daemon://arn:latest
 ```
-Note that this may take a while.
+Note that depending on the user executing the command, you may need to prefix with `sudo`, and that this command may take a while to complete.
 
 ### Run the Docker Image
 To run the Docker container:

@@ -1,12 +1,13 @@
 # The Open World Human Activity Recognition pipeline from given features
-# extracted from a feature representaiton model to the end. This will probably
-# be broken down into smaller chunks for convenience.
+# extracted from a feature representaiton model to the end.
+# This will probably be broken down into smaller chunks for convenience.
 
 docstr:
   style: numpy
   from import:
     arn.data.docstr_workarounds:
       - get_steps
+      - kinetics_owl_gmm_finch
     arn.data.kinetics_owl:
       - EvalConfig
       - EvalDataSplitConfig
@@ -30,14 +31,18 @@ docstr:
       - init_tensorboard_logger
     arn.models.predictor:
       - OWHAPredictor
+    arn.models.novelty_recog.gaussian:
+      - GaussianRecognizer
+    arn.models.novelty_recog.gmm_finch:
+      - GMMFINCH
   main: run
-  log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/logs/log.log'
+  log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/logs/log.log'
   log_level: DEBUG
 
-KineticsOWL: # Pipeline for the Open World Learning Data process
+kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -52,7 +57,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/'
+      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -67,13 +72,22 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   maintain_experience: True
   predictor:
-    OWHAPredictor: # the Open World Agent
-      save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/chkpts/
+    GMMFINCH: # the Open World Agent
+      #min_samples: 2
+      #detect_error_tol: 1e-5
+      device: cpu
+      #dtype: float64
+      #cov_epsilon: 1e-12
+      dtype: float32
+      cov_epsilon: 1e-4
+      threshold_func: min_max_threshold
+      threshold_global: True
+      skip_fit: 0 # Does not use the FineTune ANN at all.
+      save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/chkpts/
       fine_tune:
         FineTuneLit:
           model:
             FineTuneFCLit:
-              #unk_thresh: 0.0
               lr: 1e-3
               model:
                 FineTuneFC:
@@ -91,11 +105,10 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               num_sanity_val_steps: 1
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/chkpts/
+              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/test-run/label_recent_first/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/fine-tune/label_recent_first/tb_log/
-      #novelty_detector: None # Classification + Clustering
+                  save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/tb_log/
   environment:
     KineticsOWLExperiment:
       inc_splits_per_dset: 5
@@ -110,7 +123,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
-              device: cuda
+              device: cpu # cuda
               dtype: float32
               subset:
                 KineticsUnifiedSubset:
@@ -128,7 +141,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
-              device: cuda
+              device: cpu # cuda
               dtype: float32
               subset:
                 KineticsUnifiedSubset:
@@ -146,7 +159,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                   batch_col: batch
-              device: cuda
+              device: cpu # cuda
               dtype: float32
               subset:
                 KineticsUnifiedSubset:
@@ -168,7 +181,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                     BatchDirs:
                       root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
-                  device: cuda
+                  device: cpu # cuda
                   dtype: float32
                   subset:
                     KineticsUnifiedSubset:
@@ -186,7 +199,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                     BatchDirs:
                       root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
-                  device: cuda
+                  device: cpu # cuda
                   dtype: float32
                   subset:
                     KineticsUnifiedSubset:
@@ -204,7 +217,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                     BatchDirs:
                       root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
-                  device: cuda
+                  device: cpu # cuda
                   dtype: float32
                   subset:
                     KineticsUnifiedSubset:
@@ -225,7 +238,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                     BatchDirs:
                       root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
-                  device: cuda
+                  device: cpu # cuda
                   dtype: float32
                   subset:
                     KineticsUnifiedSubset:
@@ -243,7 +256,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                     BatchDirs:
                       root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
                       batch_col: batch
-                  device: cuda
+                  device: cpu # cuda
                   dtype: float32
                   subset:
                     KineticsUnifiedSubset:

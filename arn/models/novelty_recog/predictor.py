@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 F = torch.nn.functional
 
-from arn.models.owhar import OWHAPredictor
+from arn.models.predictor import OWHAPredictor
 
 import logging
 logger = logging.getLogger(__name__)

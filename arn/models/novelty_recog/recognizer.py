@@ -20,6 +20,30 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def join_label_encs(left, right, use_right_key=True):
+    label_enc = deepcopy(left)
+    if use_right_key:
+        if right.unknown_key is None:
+            raise ValueError(
+                'right unknown key is None when use_right_key is True'
+            )
+        key = right.unknown_key
+    else:
+        if left.unknown_key is None:
+            raise ValueError(
+                'left unknown key is None when use_right_key is False'
+            )
+        key = left.unknown_key
+    if right.unknown_key is None:
+        right = iter(right)
+    else:
+        right = iter(right)
+        next(right)
+    label_enc.append(list(right))
+    label_enc.inv[0] = key
+    return label_enc
+
+
 def load_owhar(h5, class_type=None):
     """Load the class instance from the HDF5 file."""
     if class_type is None:
@@ -49,6 +73,11 @@ def load_owhar(h5, class_type=None):
             ),
             columns=['uid', 'sample_path', 'labels', 'oracle'],
         ).convert_dtypes([int, str, str, bool])
+
+    if '_known_label_enc' in h5:
+        self._known_label_enc.load(h5['_known_label_enc'])
+    if '_recog_label_enc' in h5:
+        self._recog_label_enc.load(h5['_recog_label_enc'])
 
     if close:
         h5.close()
@@ -191,6 +220,19 @@ class OWHARecognizer(OWHAPredictor):
         else:
             self._known_label_enc.append(new_knowns)
 
+        self.update_label_enc(False)
+
+    def update_label_enc(self, use_right_key=False):
+        # Update the label encoder given new knowns
+        if self.has_recogs:
+            self._label_enc = join_label_encs(
+                self._known_label_enc,
+                self.recog_label_enc,
+                use_right_key=use_right_key,
+            )
+        else:
+            self._label_enc = deepcopy(self._known_label_enc)
+
     def reset_recogs(self):
         """Resets the recognized unknown class-clusters, and label_enc"""
         self._recog_label_enc = None
@@ -301,9 +343,10 @@ class OWHARecognizer(OWHAPredictor):
             detects = self.detect(features)
             update_detects = detects.any() and detects.sum() >=self.min_samples
             if update_detects:
+                # Only recognize_fit on those detected as unknown.
                 features = features[detects]
                 if experience:
-                    # Get the experience features of orcale == False and
+                    # Get the experience features of orcale == False AND
                     # unknown predictions to be added to the detected here as
                     # all unknowns/unlabeled should be fit together
                     unlabeled = self.experience[~self.experience['oracle']]
@@ -431,10 +474,25 @@ class OWHARecognizer(OWHAPredictor):
         #   recogs is not entirely ignored? Hmm...
         #preds = super().predict(dataset)
 
+        logger.info(
+            "Begin call to %s's %s.pre_predict()",
+            self.uid,
+            type(self).__name__,
+        )
         unseen_mask, update_detects = self.pre_predict(dataset, experience)
+        logger.info(
+            "Begin call to %s's %s.recognize()",
+            self.uid,
+            type(self).__name__,
+        )
         preds = self.recognize(
             torch.stack(list(dataset)).to(self.device),
             detect=True,
+        )
+        logger.info(
+            "Begin call to %s's %s.oost_predict()",
+            self.uid,
+            type(self).__name__,
         )
         self.post_predict(
             dataset,
@@ -442,6 +500,11 @@ class OWHARecognizer(OWHAPredictor):
             preds,
             unseen_mask,
             update_detects,
+        )
+        logger.info(
+            "End call to %s's %s.predict()",
+            self.uid,
+            type(self).__name__,
         )
         return preds
 
@@ -625,7 +688,7 @@ class OWHARecognizer(OWHAPredictor):
         # (dataset).
 
         # NOTE this fit() assumes that dataset is ALL prior experience.
-        self._increment += 1
+        #self._increment += 1
 
         # Ensure the new recogs are used in fitting.
         #   Predictor experience includes the unlabeled recogs, temporairly
@@ -671,9 +734,30 @@ class OWHARecognizer(OWHAPredictor):
         when writing custom fit_knowns() or overriding any other of these
         methods in children classes.
         """
+        logger.info(
+            "Begin call to %s's %s.pre_fit()",
+            self.uid,
+            type(self).__name__,
+        )
         dset_feedback_mask, features, labels = self.pre_fit(dataset)
+        logger.info(
+            "Begin call to %s's %s.fit_knowns()",
+            self.uid,
+            type(self).__name__,
+        )
         self.fit_knowns(dataset, val_dataset=val_dataset)
+        logger.info(
+            "Begin call to %s's %s.post_fit()",
+            self.uid,
+            type(self).__name__,
+        )
         self.post_fit(dset_feedback_mask, features)
+        logger.info(
+            "End call to %s's %s.fit()",
+            self.uid,
+            type(self).__name__,
+        )
+        self._increment += 1
 
     def pre_recognize_fit(self):
         """Must update experience everytime and handle prior unknowns if any"""
@@ -737,6 +821,11 @@ class OWHARecognizer(OWHAPredictor):
             h5_exp['labels'] = self.experience['labels'].astype(np.string_)
             h5_exp['oracle'] = self.experience['oracle'].values.astype(bool)
 
+        if self._known_label_enc is not None:
+            self._known_label_enc.save(h5.create_group('_known_label_enc'))
+        if self._recog_label_enc is not None:
+            self._recog_label_enc.save(h5.create_group('_recog_label_enc'))
+
         if close:
             h5.close()
 
@@ -744,7 +833,30 @@ class OWHARecognizer(OWHAPredictor):
     def load(h5):
         return load_owhar(h5, OWHARecognizer)
 
-    def load_state(h5):
-        raise NotImplementedError
+    def load_state(self, h5, return_tmp=False, overwrite_uid=False):
+        """Update state inplace by extracting it from the loaded predictor."""
+        # TODO this won't work with inheritance calls. Need to chain
         tmp = type(self).load(h5)
-        # TODO update state inplace by extracting it from the loaded predictor.
+
+        #self.fine_tune = tmp.fine_tune
+        if overwrite_uid:
+            self.uid = tmp.uid
+        self.skip_fit = tmp.skip_fit
+        self.save_dir = tmp.save_dir
+        self.increment = tmp.increment
+        self.min_samples = tmp.min_samples
+        self.dtype = tmp.dtype
+        self.device = tmp.device
+        self.feedback_request_method = tmp.feedback_request_method
+
+        self.experience = tmp.experience
+
+        self._known_label_enc = tmp._known_label_enc
+        self._recog_label_enc = tmp._recog_label_enc
+        if self._known_label_enc is None:
+            self._label_enc = None
+        else:
+            self.update_label_enc()
+
+        if return_tmp:
+            return tmp
