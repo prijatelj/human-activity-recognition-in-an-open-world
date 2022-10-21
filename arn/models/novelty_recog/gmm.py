@@ -827,11 +827,7 @@ class GMMRecognizer(GaussianRecognizer):
         if close:
             h5 = h5py.File(h5, 'r')
 
-
-        # TODO load parent things...
-        #loaded = load_owhar(h5, GMMRecognizer)
-        loaded = type(super(self)).load(h5)
-
+        loaded = type(super()).load(h5)
 
         if 'unknown_gmm' in h5:
             loaded.unknown_gmm = GMM.load(h5['unknown_gmm'])

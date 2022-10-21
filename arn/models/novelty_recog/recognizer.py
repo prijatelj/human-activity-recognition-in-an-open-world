@@ -74,6 +74,11 @@ def load_owhar(h5, class_type=None):
             columns=['uid', 'sample_path', 'labels', 'oracle'],
         ).convert_dtypes([int, str, str, bool])
 
+    if '_known_label_enc' in h5:
+        self._known_label_enc.load(h5['_known_label_enc'])
+    if '_recog_label_enc' in h5:
+        self._recog_label_enc.load(h5['_recog_label_enc'])
+
     if close:
         h5.close()
     return loaded
@@ -816,6 +821,11 @@ class OWHARecognizer(OWHAPredictor):
             h5_exp['labels'] = self.experience['labels'].astype(np.string_)
             h5_exp['oracle'] = self.experience['oracle'].values.astype(bool)
 
+        if self._known_label_enc is not None:
+            self._known_label_enc.save(h5.create_group('_known_label_enc'))
+        if self._recog_label_enc is not None:
+            self._recog_label_enc.save(h5.create_group('_recog_label_enc'))
+
         if close:
             h5.close()
 
@@ -825,7 +835,8 @@ class OWHARecognizer(OWHAPredictor):
 
     def load_state(self, h5, return_tmp=False, overwrite_uid=False):
         """Update state inplace by extracting it from the loaded predictor."""
-        tmp = OWHARecognizer.load(h5)
+        # TODO this won't work with inheritance calls. Need to chain
+        tmp = type(self).load(h5)
 
         #self.fine_tune = tmp.fine_tune
         if overwrite_uid:
@@ -839,6 +850,13 @@ class OWHARecognizer(OWHAPredictor):
         self.feedback_request_method = tmp.feedback_request_method
 
         self.experience = tmp.experience
+
+        self._known_label_enc = tmp._known_label_enc
+        self._recog_label_enc = tmp._recog_label_enc
+        if self._known_label_enc is None:
+            self._label_enc = None
+        else:
+            self.update_label_enc()
 
         if return_tmp:
             return tmp

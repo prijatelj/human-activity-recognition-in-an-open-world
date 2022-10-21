@@ -14,6 +14,7 @@ from exputils.io import create_filepath
 
 from arn.models.novelty_recog.gaussian import min_max_threshold
 from arn.models.novelty_recog.gmm import (
+    GMM,
     GMMRecognizer,
     recognize_fit,
 )
@@ -172,7 +173,7 @@ class GMMFINCH(GMMRecognizer):
 
         if detect:
             if not softmax:
-                raise ValueErorr('Cannot perform detect w/o softmax!')
+                raise ValueError('Cannot perform detect w/o softmax!')
             if self.threshold_global:
                 detect_unknowns = (recogs < self.thresholds).all(1)
             else:
@@ -273,11 +274,6 @@ class GMMFINCH(GMMRecognizer):
         for gmm in self.known_gmms:
             gmm.save(knowns.create_group(gmm.label_enc.unknown_key))
 
-        # TODO label encs?
-        #    self._recog_label_enc = None
-        #    self._known_label_enc = None
-        #    self._label_enc = None
-
         super().save(h5)
         if close:
             h5.close()
@@ -288,22 +284,11 @@ class GMMFINCH(GMMRecognizer):
         if close:
             h5 = h5py.File(h5, 'r')
 
-        #loaded = load_owhar(h5, GMMFINCH)
-        # TODO load parent things
-        loaded = type(super(self)).load(h5)
+        loaded = type(super()).load(h5)
 
         loaded.known_gmms = [
             GMM.load(h5['known_gmms'][key]) for key in h5['known_gmms'].keys()
         ]
-
-        # TODO create gmm from knowns and unknown
-
-        # TODO label encs?
-        #    self._recog_label_enc = None
-        #    self._known_label_enc = None
-        #    self._label_enc = None
-
-        # TODO load parent things...
 
         if close:
             h5.close()
