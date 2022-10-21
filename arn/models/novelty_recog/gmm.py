@@ -38,6 +38,7 @@ from arn.models.novelty_recog.gaussian import (
     min_max_threshold,
 )
 
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -815,9 +816,40 @@ class GMMRecognizer(GaussianRecognizer):
         # Save unknown_gmm
         if self.unknown_gmm:
             self.unknown_gmm.save(h5.create_group('unknown_gmm'))
-            # TODO will have to ensure unknown_likelihood is reset in loaded
-            # instance
 
         super().save(h5)
         if close:
             h5.close()
+
+    @staticmethod
+    def load(h5):
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(h5, 'r')
+
+
+        # TODO load parent things...
+        #loaded = load_owhar(h5, GMMRecognizer)
+        loaded = type(super(self)).load(h5)
+
+
+        if 'unknown_gmm' in h5:
+            loaded.unknown_gmm = GMM.load(h5['unknown_gmm'])
+            loaded.unknown_likelihood = loaded.unknown_gmm.detect_likelihood
+        else:
+            loaded.unknown_gmm = None
+            loaded.unknown_likelihood = loaded.detect_likelihood
+
+        if close:
+            h5.close()
+        return loaded
+
+    def load_state(self, h5, return_tmp=False):
+        tmp = super().load_state(h5, True)
+
+        self.level = tmp.level
+        self.unknown_gmm = tmp.unknown_gmm
+        self.unknown_likelihood = tmp.unknown_likelihood
+
+        if return_tmp:
+            return tmp

@@ -823,7 +823,22 @@ class OWHARecognizer(OWHAPredictor):
     def load(h5):
         return load_owhar(h5, OWHARecognizer)
 
-    def load_state(h5):
-        raise NotImplementedError
-        tmp = type(self).load(h5)
-        # TODO update state inplace by extracting it from the loaded predictor.
+    def load_state(self, h5, return_tmp=False, overwrite_uid=False):
+        """Update state inplace by extracting it from the loaded predictor."""
+        tmp = OWHARecognizer.load(h5)
+
+        #self.fine_tune = tmp.fine_tune
+        if overwrite_uid:
+            self.uid = tmp.uid
+        self.skip_fit = tmp.skip_fit
+        self.save_dir = tmp.save_dir
+        self.increment = tmp.increment
+        self.min_samples = tmp.min_samples
+        self.dtype = tmp.dtype
+        self.device = tmp.device
+        self.feedback_request_method = tmp.feedback_request_method
+
+        self.experience = tmp.experience
+
+        if return_tmp:
+            return tmp

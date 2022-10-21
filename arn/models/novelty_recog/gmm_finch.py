@@ -269,10 +269,14 @@ class GMMFINCH(GMMRecognizer):
             h5 = h5py.File(create_filepath(h5, overwrite), 'w')
 
         # Save known_gmms, but NOT gmm, as it is joined by the 2.
-        #h5['thresholds'] = self.thresholds.detach().cpu().numpy()
         knowns = h5.create_group('known_gmms')
         for gmm in self.known_gmms:
             gmm.save(knowns.create_group(gmm.label_enc.unknown_key))
+
+        # TODO label encs?
+        #    self._recog_label_enc = None
+        #    self._known_label_enc = None
+        #    self._label_enc = None
 
         super().save(h5)
         if close:
@@ -280,4 +284,35 @@ class GMMFINCH(GMMRecognizer):
 
     @staticmethod
     def load(h5):
-        raise NotImplementedError
+        close = isinstance(h5, str)
+        if close:
+            h5 = h5py.File(h5, 'r')
+
+        #loaded = load_owhar(h5, GMMFINCH)
+        # TODO load parent things
+        loaded = type(super(self)).load(h5)
+
+        loaded.known_gmms = [
+            GMM.load(h5['known_gmms'][key]) for key in h5['known_gmms'].keys()
+        ]
+
+        # TODO create gmm from knowns and unknown
+
+        # TODO label encs?
+        #    self._recog_label_enc = None
+        #    self._known_label_enc = None
+        #    self._label_enc = None
+
+        # TODO load parent things...
+
+        if close:
+            h5.close()
+        return loaded
+
+    def load_state(self, h5, return_tmp=False):
+        tmp = super().load_state(h5, True)
+
+        self.known_gmms = tmp.known_gmms
+
+        if return_tmp:
+            return tmp
