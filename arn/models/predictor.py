@@ -285,6 +285,8 @@ class OWHAPredictor(object):
         dataset contains all prior classes. This deep copy is convenient for
         ensuring the class indices are always aligned.
         """
+        # Note this +1 is for loading older version, no longer current versions
+        # fix this after first sub.
         if self.load_inc_paths and self.increment + 1 in self.load_inc_paths:
             if self.skip_fit >= 0 and self._increment >= self.skip_fit:
                 # NOTE Assumes if loading, you get 100% feedback from the label
