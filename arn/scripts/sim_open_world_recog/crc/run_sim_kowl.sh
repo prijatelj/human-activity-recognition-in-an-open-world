@@ -9,6 +9,11 @@
 CODE_PATH="/scratch365/dprijate/osr/har"
 DATA_PATH="/afs/crc.nd.edu/group/cvrl/scratch_21/dprijate/har"
 
+# When in the container, first thing in container is to pip install arn repo.
+# TODO add this to apptainer executed command prior to call to docstr.
+#    pip install -e ./arn/; \
+# but really, this is all to avoid remaking the image, which after all dev
+# needs done anyways.
 apptainer exec \
     --nv \
     --env CUDA_VISIBLE_DEVICES=$SGE_HGR_gpu_card \
