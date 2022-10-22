@@ -705,7 +705,7 @@ class GMM(object):
             torch.tensor(h5['locs']),
             torch.tensor(h5['covariance_matrices']),
             torch.tensor(h5['thresholds']),
-            np.array(h5['mix']),
+            torch.tensor(np.array(h5['mix'])),
             # Everything else!
             **dict(h5.attrs.items())
         )
