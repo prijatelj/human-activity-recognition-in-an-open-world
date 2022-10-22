@@ -62,18 +62,26 @@ def load_owhar(h5, class_type=None):
 
     if h5['experience']:
         loaded.experience = pd.DataFrame(
-            np.stack(
-                [
+            {
+                'uid': pd.Series(
                     np.array(h5['experience']['uid']).astype(int),
+                    dtype=int,
+                ),
+                'sample_path': pd.Series(
                     np.array(h5['experience']['sample_path'], dtype=str),
+                    dtype=str,
+                ),
+                'labels': pd.Series(
                     np.array(h5['experience']['labels'], dtype=str),
+                    dtype=str,
+                ),
+                'oracle': pd.Series(
                     np.array(h5['experience']['oracle'], dtype=bool),
-                ],
-                axis=1,
-            ),
-            columns=['uid', 'sample_path', 'labels', 'oracle'],
-        ).convert_dtypes([int, str, str, bool])
-        loaded.experience.index = loaded.experience['sample_index']
+                    dtype=bool,
+                ),
+            },
+            index=loaded.experience['uid'],
+        )
 
     if '_known_label_enc' in h5:
         loaded._known_label_enc = NominalDataEncoder.load_h5(
@@ -171,10 +179,12 @@ class OWHARecognizer(OWHAPredictor):
             self.device = device
 
         super().__init__(**kwargs)
-        self.experience = pd.DataFrame(
-            [],
-            columns=['uid', 'sample_path', 'labels', 'oracle'],
-        ).convert_dtypes([int, str, str, bool])
+        self.experience = pd.DataFrame({
+            'uid': pd.Series(dtype=int),
+            'sample_path': pd.Series(dtype=str),
+            'labels': pd.Series(dtype=str),
+            'oracle': pd.Series(dtype=bool),
+        })
         self._recog_label_enc = None
         self._known_label_enc = None
         self._label_enc = None
@@ -268,18 +278,14 @@ class OWHARecognizer(OWHAPredictor):
         """Updates the experience dataframe with the given data."""
         self.experience = self.experience.append(
             pd.DataFrame(
-                np.stack(
-                    [
-                        dataset_df['sample_index'],
-                        dataset_df['sample_path'],
-                        labels,
-                        oracle_feedback,
-                    ],
-                    axis=1,
-                ),
-                columns=self.experience.columns,
+                {
+                    'uid': dataset_df['sample_index'].astype(int),
+                    'sample_path': dataset_df['sample_path'].astype(str),
+                    'labels': pd.Series(labels, dtype=str),
+                    'oracle': pd.Series(oracle_feedback, dtype=bool),
+                },
                 index=dataset_df['sample_index'],
-            ).convert_dtypes([int, str, str, bool])
+            ).convert_dtypes()
         )
 
     def feedback_request(self, features, available_uids, amount=1.0):
@@ -540,7 +546,7 @@ class OWHARecognizer(OWHAPredictor):
             self.experience.loc[exp_feedback_mask, 'labels'] = \
                 dataset.labels[dset_feedback_mask].loc[
                     self.experience[exp_feedback_mask]['uid']
-                ].convert_dtypes(str)
+                ].astype(str).convert_dtypes()
 
             # NOTE For each uniquely removed labeled recog sample, check if
             # that recognized cluster still has enough samples, if yes keep
@@ -710,7 +716,7 @@ class OWHARecognizer(OWHAPredictor):
             # TODO probably perform check that the UID is not in exp[uid]
             dataset.data = dataset.data.append(
                 self.experience[
-                    ~self.experience['oracle'].convert_dtypes(bool)
+                    ~self.experience['oracle'].astype(bool).convert_dtypes()
                 ]
             )
             dataset.label_enc = self.label_enc
