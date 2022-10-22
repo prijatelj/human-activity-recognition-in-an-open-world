@@ -847,7 +847,7 @@ class OWHARecognizer(OWHAPredictor):
             self.uid = tmp.uid
         self.skip_fit = tmp.skip_fit
         self.save_dir = tmp.save_dir
-        self._increment = tmp.increment
+        self._increment = tmp._increment
         self.min_samples = tmp.min_samples
         self.dtype = tmp.dtype
         self.device = tmp.device
