@@ -442,7 +442,7 @@ class GaussianRecognizer(OWHARecognizer):
             loaded = load_owhar(h5, class_type)
 
         if '_thresholds' in h5:
-            loaded._thresholds = torch.tensor(h5['_thresholds'])
+            loaded._thresholds = torch.tensor(np.array(h5['_thresholds']))
 
         if close:
             h5.close()
