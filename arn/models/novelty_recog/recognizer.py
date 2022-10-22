@@ -285,7 +285,7 @@ class OWHARecognizer(OWHAPredictor):
                     'oracle': pd.Series(oracle_feedback, dtype=bool),
                 },
                 index=dataset_df['sample_index'],
-            ).convert_dtypes()
+            )
         )
 
     def feedback_request(self, features, available_uids, amount=1.0):
@@ -546,7 +546,7 @@ class OWHARecognizer(OWHAPredictor):
             self.experience.loc[exp_feedback_mask, 'labels'] = \
                 dataset.labels[dset_feedback_mask].loc[
                     self.experience[exp_feedback_mask]['uid']
-                ].astype(str).convert_dtypes()
+                ].astype(str)
 
             # NOTE For each uniquely removed labeled recog sample, check if
             # that recognized cluster still has enough samples, if yes keep
@@ -716,7 +716,7 @@ class OWHARecognizer(OWHAPredictor):
             # TODO probably perform check that the UID is not in exp[uid]
             dataset.data = dataset.data.append(
                 self.experience[
-                    ~self.experience['oracle'].astype(bool).convert_dtypes()
+                    ~self.experience['oracle'].astype(bool))
                 ]
             )
             dataset.label_enc = self.label_enc
