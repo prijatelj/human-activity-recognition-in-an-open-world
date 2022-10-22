@@ -182,7 +182,7 @@ class OWHARecognizer(OWHAPredictor):
             'sample_path': pd.Series(dtype=str),
             'labels': pd.Series(dtype=str),
             'oracle': pd.Series(dtype=bool),
-        })
+        }).convert_dtypes()
         self._recog_label_enc = None
         self._known_label_enc = None
         self._label_enc = None
@@ -274,16 +274,18 @@ class OWHARecognizer(OWHAPredictor):
 
     def set_concat_exp(self, dataset_df, labels, oracle_feedback):
         """Updates the experience dataframe with the given data."""
+        oracle_feedback = pd.Series(oracle_feedback, dtype=bool)
+        oracle_feedback[oracle_feedback.isna()] = False
         self.experience = self.experience.append(
             pd.DataFrame(
                 {
                     'uid': dataset_df['sample_index'].astype(int),
                     'sample_path': dataset_df['sample_path'].astype(str),
                     'labels': pd.Series(labels, dtype=str),
-                    'oracle': pd.Series(oracle_feedback, dtype=bool),
+                    'oracle': oracle_feedback,
                 },
                 index=dataset_df['sample_index'],
-            )
+            ).convert_dtypes()
         )
 
     def feedback_request(self, features, available_uids, amount=1.0):
