@@ -292,7 +292,7 @@ class GMMFINCH(GMMRecognizer):
         if close:
             h5 = h5py.File(h5, 'r')
 
-        loaded = type(super()).load(h5)
+        loaded = GMMRecognizer.load(h5)
 
         loaded.known_gmms = [
             GMM.load(h5['known_gmms'][key]) for key in h5['known_gmms'].keys()
