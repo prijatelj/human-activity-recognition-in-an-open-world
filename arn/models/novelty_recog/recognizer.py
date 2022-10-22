@@ -61,27 +61,25 @@ def load_owhar(h5, class_type=None):
     loaded = class_type(fine_tune=None, **attrs)
 
     if 'experience' in h5:
-        loaded.experience = pd.DataFrame(
-            {
-                'uid': pd.Series(
-                    np.array(h5['experience']['uid']).astype(int),
-                    dtype=int,
-                ),
-                'sample_path': pd.Series(
-                    np.array(h5['experience']['sample_path'], dtype=str),
-                    dtype=str,
-                ),
-                'labels': pd.Series(
-                    np.array(h5['experience']['labels'], dtype=str),
-                    dtype=str,
-                ),
-                'oracle': pd.Series(
-                    np.array(h5['experience']['oracle'], dtype=bool),
-                    dtype=bool,
-                ),
-            },
-            index=loaded.experience['uid'],
-        )
+        loaded.experience = pd.DataFrame({
+            'uid': pd.Series(
+                np.array(h5['experience']['uid']).astype(int),
+                dtype=int,
+            ),
+            'sample_path': pd.Series(
+                np.array(h5['experience']['sample_path'], dtype=str),
+                dtype=str,
+            ),
+            'labels': pd.Series(
+                np.array(h5['experience']['labels'], dtype=str),
+                dtype=str,
+            ),
+            'oracle': pd.Series(
+                np.array(h5['experience']['oracle'], dtype=bool),
+                dtype=bool,
+            ),
+        })
+        loaded.experience.index = loaded.experience['uid']
 
     if '_known_label_enc' in h5:
         loaded._known_label_enc = NominalDataEncoder.load_h5(
