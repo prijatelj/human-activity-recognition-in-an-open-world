@@ -78,7 +78,7 @@ def load_owhar(h5, class_type=None):
                 np.array(h5['experience']['oracle'], dtype=bool),
                 dtype=bool,
             ),
-        })
+        }).convert_dtypes()
         loaded.experience.index = loaded.experience['uid']
 
     if '_known_label_enc' in h5:
@@ -182,7 +182,7 @@ class OWHARecognizer(OWHAPredictor):
             'sample_path': pd.Series(dtype=str),
             'labels': pd.Series(dtype=str),
             'oracle': pd.Series(dtype=bool),
-        }).convert_dtypes()
+        })
         self._recog_label_enc = None
         self._known_label_enc = None
         self._label_enc = None
