@@ -286,6 +286,10 @@ class OWHARecognizer(OWHAPredictor):
                 },
                 index=dataset_df['sample_index'],
             ).convert_dtypes()
+        ).convert_dtypes()
+        logger.debug(
+            'predictor experience col dtypes = %s',
+            self.experience.dtypes,
         )
 
     def feedback_request(self, features, available_uids, amount=1.0):
