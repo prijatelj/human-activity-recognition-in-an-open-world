@@ -844,8 +844,8 @@ class GMMRecognizer(GaussianRecognizer):
             h5.close()
         return loaded
 
-    def load_state(self, h5, return_tmp=False):
-        tmp = super().load_state(h5, True)
+    def load_state(self, h5, return_tmp=False, **kwargs):
+        tmp = super().load_state(h5, True, **kwargs)
 
         self.level = tmp.level
         self.unknown_gmm = tmp.unknown_gmm
