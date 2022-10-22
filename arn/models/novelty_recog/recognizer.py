@@ -75,9 +75,9 @@ def load_owhar(h5, class_type=None):
         ).convert_dtypes([int, str, str, bool])
 
     if '_known_label_enc' in h5:
-        self._known_label_enc.load_h5(h5['_known_label_enc'])
+        loaded._known_label_enc.load_h5(h5['_known_label_enc'])
     if '_recog_label_enc' in h5:
-        self._recog_label_enc.load_h5(h5['_recog_label_enc'])
+        loaded._recog_label_enc.load_h5(h5['_recog_label_enc'])
 
     if close:
         h5.close()
