@@ -21,5 +21,6 @@ apptainer exec \
     --bind $DATA_PATH:/tmp/har/data \
     --pwd /tmp/har/code \
     $CODE_PATH/data/containers/arn_latest.sif \
-    docstr arn/arn/scripts/sim_open_world_recog/configs/container_test-run_exp2_2d_sim.yaml \
-        --predictor.load_inc_paths "$DATA_PATH/"
+    docstr arn/arn/scripts/sim_open_world_recog/configs/container_test-run_exp2_2d_sim.yaml
+
+#        --predictor.load_inc_paths "$DATA_PATH/"
