@@ -73,6 +73,7 @@ def load_owhar(h5, class_type=None):
             ),
             columns=['uid', 'sample_path', 'labels', 'oracle'],
         ).convert_dtypes([int, str, str, bool])
+        loaded.experience.index = loaded.experience['sample_index']
 
     if '_known_label_enc' in h5:
         loaded._known_label_enc = NominalDataEncoder.load_h5(
