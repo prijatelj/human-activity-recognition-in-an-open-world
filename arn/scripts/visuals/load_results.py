@@ -36,37 +36,45 @@ def load_ocm_step(
     if steps:
         # Collapse unknowns if steps
         # NOTE: OCM.reduce DNE, so discard ocm, get cm
-
-        # TODO train.label_enc is only applicable for val and test of same
-        # split post-feedback. Otherwise, needs to be the last steps' train
-        # label_enc.
-        if ocm.step_num > 0 and ocm.pre_feedback:
-            step = steps[ocm.step_num - 1]
-        else:
-            step = steps[ocm.step_num]
-
         step_num = ocm.step_num
         pre_feedback = ocm.pre_feedback
-        ocm = ocm.get_conf_mat()
 
-        unknowns = set(ocm.label_enc) - set(step.train.label_enc)
+        # train.label_enc is only applicable for val and test of same
+        # split post-feedback. Otherwise, needs to be the last steps' train
+        # label_enc.
+        if step_num > 0 and pre_feedback:
+            step = steps[step_num - 1]
+        else:
+            step = steps[step_num]
 
-        if ocm.label_enc.unknown_key is None:
-            if 'unknown' in ocm.label_enc:
-                ocm.label_enc._unknown_key = 'unknown'
-                if not ocm.label_enc.are_keys_sorted:
-                    ocm.label_enc._update_argsorted_keys(ocm.label_enc.encoder)
+        cm = ocm.get_conf_mat()
+
+        # TODO finetune anns 0% feedback have slight increase in post-feedback
+        # perf in NMI (arithmetic) while accuracy and MCC remain the same. What
+        # is exact cause? The difference would be the train label enc used from
+        # the dataset to inform what is known at this time step. for 0%
+        # feedback, the very first step's train label enc should ALWAYS be
+        # used.
+        # TODO Furthermore, this means the GMM label enc used for knowns is
+        # also wrong! This is ONLY good for 100% feedback knowns.
+        unknowns = set(cm.label_enc) - set(step.train.label_enc)
+
+        if cm.label_enc.unknown_key is None:
+            if 'unknown' in cm.label_enc:
+                cm.label_enc._unknown_key = 'unknown'
+                if not cm.label_enc.are_keys_sorted:
+                    cm.label_enc._update_argsorted_keys(cm.label_enc.encoder)
             else:
                 label_enc = NDE(['unknown'], unknown_key='unknown')
-                label_enc.append(list(ocm.label_enc))
-                ocm.label_enc = label_enc
+                label_enc.append(list(cm.label_enc))
+                cm.label_enc = label_enc
 
         if unknowns:
             if 'unknown' not in unknowns:
                 unknowns.add('unknown')
 
             unknowns = np.array(list(unknowns))
-            logging.debug(
+            logger.debug(
                 '%d unknowns at step %d',
                 len(unknowns), # 0 if not unknowns else len(unknowns),
                 step_num,
@@ -74,34 +82,34 @@ def load_ocm_step(
 
             # if collapse unknowns
             if reduce_unknown:
-                ocm.reduce(
+                cm.reduce(
                     unknowns,
-                    'unknown', #ocm.label_enc.unknown_key,
-                    reduced_idx=0, #ocm.label_enc.unknown_idx,
+                    'unknown', #cm.label_enc.unknown_key,
+                    reduced_idx=0, #cm.label_enc.unknown_idx,
                     inplace=True,
                 )
                 if reduce_known:
                     # Collapse knowns if steps and reduce_known
-                    ocm.reduce(
+                    cm.reduce(
                         ['unknown'],
-                        'known', #ocm.label_enc.unknown_key,
-                        reduced_idx=-1, #ocm.label_enc.unknown_idx,
+                        'known', #cm.label_enc.unknown_key,
+                        reduced_idx=-1, #cm.label_enc.unknown_idx,
                         inverse=True,
                         inplace=True,
                     )
             elif reduce_known:
                 # Collapse knowns, preserving unknowns.
-                ocm.reduce(
+                cm.reduce(
                     unknowns,
-                    'known', #ocm.label_enc.unknown_key,
-                    reduced_idx=-1, #ocm.label_enc.unknown_idx,
+                    'known', #cm.label_enc.unknown_key,
+                    reduced_idx=-1, #cm.label_enc.unknown_idx,
                     inverse=True,
                     inplace=True,
                 )
 
-        ocm.step_num = step_num
-        ocm.pre_feedback = pre_feedback
-    return ocm
+        cm.step_num = step_num
+        cm.pre_feedback = pre_feedback
+    return cm
 
 
 def load_inplace_results_tree(
