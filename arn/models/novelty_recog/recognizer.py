@@ -291,6 +291,7 @@ class OWHARecognizer(OWHAPredictor):
             'predictor experience col dtypes = %s',
             self.experience.dtypes,
         )
+        assert (~pd.isna(self.experience['oracle'])).all()
 
     def feedback_request(self, features, available_uids, amount=1.0):
         """The predictor's method of requesting feedback.
