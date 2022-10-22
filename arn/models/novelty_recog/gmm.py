@@ -663,7 +663,8 @@ class GMM(object):
             if key in  h5:
                 raise ValueError(f'{key} already in given h5 dataset!')
 
-        h5['label_enc'] = np.array(self.label_enc).astype(np.string_)
+        #h5['label_enc'] = np.array(self.label_enc).astype(np.string_)
+        self.label_enc.save(h5.create_group('label_enc'))
         h5['locs'] = self.gmm.component_distribution.loc.detach().cpu().numpy()
         h5['covariance_matrices'] = (
             self.gmm.component_distribution.covariance_matrix
@@ -671,7 +672,6 @@ class GMM(object):
         h5['thresholds'] = self.thresholds.detach().cpu().numpy()
         h5['mix'] = self.gmm.mixture_distribution.probs.detach().cpu().numpy()
 
-        # TODO what about these?
         state = dict(
             counter=self.counter,
             cov_epsilon=self.cov_epsilon,
@@ -697,10 +697,11 @@ class GMM(object):
         if close:
             h5 = h5py.File(h5, 'r')
         loaded = GMM(
-            NominalDataEncoder(
-                np.array(h5['label_enc'], dtype=str),
-                unknown_idx=0,
-            ),
+            #NominalDataEncoder(
+            #    np.array(h5['label_enc'], dtype=str),
+            #    unknown_idx=0,
+            #),
+            NominalDataEncoder.load_h5(h5['label_enc']),
             torch.tensor(h5['locs']),
             torch.tensor(h5['covariance_matrices']),
             torch.tensor(h5['thresholds']),
