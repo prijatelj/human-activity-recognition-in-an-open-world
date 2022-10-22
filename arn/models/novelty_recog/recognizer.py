@@ -715,9 +715,7 @@ class OWHARecognizer(OWHAPredictor):
         if len(self.experience) > 0:
             # TODO probably perform check that the UID is not in exp[uid]
             dataset.data = dataset.data.append(
-                self.experience[
-                    ~self.experience['oracle'].astype(bool))
-                ]
+                self.experience[~self.experience['oracle'].astype(bool)]
             )
             dataset.label_enc = self.label_enc
 
