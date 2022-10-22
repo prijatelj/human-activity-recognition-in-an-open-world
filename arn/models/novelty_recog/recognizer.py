@@ -274,14 +274,22 @@ class OWHARecognizer(OWHAPredictor):
 
     def set_concat_exp(self, dataset_df, labels, oracle_feedback):
         """Updates the experience dataframe with the given data."""
-        oracle_feedback = pd.Series(oracle_feedback, dtype=bool)
+        oracle_feedback = pd.Series(
+            oracle_feedback,
+            dtype=bool,
+            index=dataset_df['sample_index'],
+        )
         oracle_feedback[oracle_feedback.isna()] = False
         self.experience = self.experience.append(
             pd.DataFrame(
                 {
                     'uid': dataset_df['sample_index'].astype(int),
                     'sample_path': dataset_df['sample_path'].astype(str),
-                    'labels': pd.Series(labels, dtype=str),
+                    'labels': pd.Series(
+                        labels,
+                        dtype=str,
+                        index=dataset_df['sample_index'],
+                    ),
                     'oracle': oracle_feedback,
                 },
                 index=dataset_df['sample_index'],
