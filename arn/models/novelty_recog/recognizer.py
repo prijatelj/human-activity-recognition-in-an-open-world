@@ -842,17 +842,27 @@ class OWHARecognizer(OWHAPredictor):
     def load(h5):
         return load_owhar(h5, OWHARecognizer)
 
-    def load_state(self, h5, return_tmp=False, overwrite_uid=False):
+    def load_state(
+        self,
+        h5,
+        return_tmp=False,
+        load_uid=False,
+        load_save_dir=False,
+        load_increment=False,
+    ):
         """Update state inplace by extracting it from the loaded predictor."""
         # TODO this won't work with inheritance calls. Need to chain
         tmp = type(self).load(h5)
 
         #self.fine_tune = tmp.fine_tune
-        if overwrite_uid:
+        if load_uid:
             self.uid = tmp.uid
         self.skip_fit = tmp.skip_fit
-        self.save_dir = tmp.save_dir
-        self._increment = tmp._increment
+        if load_save_dir:
+            self.save_dir = tmp.save_dir
+        if load_increment:
+            self._increment = tmp._increment
+
         self.min_samples = tmp.min_samples
         self.dtype = tmp.dtype
         self.device = tmp.device

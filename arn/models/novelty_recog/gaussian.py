@@ -448,8 +448,8 @@ class GaussianRecognizer(OWHARecognizer):
             h5.close()
         return loaded
 
-    def load_state(self, h5, return_tmp=False):
-        tmp = super().load_state(h5, True)
+    def load_state(self, h5, return_tmp=False, **kwargs):
+        tmp = super().load_state(h5, True, **kwargs)
 
         self.min_error_tol = tmp.min_error_tol
         self.detect_error_tol = tmp.detect_error_tol

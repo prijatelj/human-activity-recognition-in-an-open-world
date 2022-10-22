@@ -305,8 +305,8 @@ class GMMFINCH(GMMRecognizer):
             h5.close()
         return loaded
 
-    def load_state(self, h5, return_tmp=False):
-        tmp = super().load_state(h5, True)
+    def load_state(self, h5, return_tmp=False, **kwargs):
+        tmp = super().load_state(h5, True, **kwargs)
 
         self.known_gmms = tmp.known_gmms
 
