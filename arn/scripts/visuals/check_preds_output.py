@@ -38,10 +38,19 @@ def check_preds_ocms(prefix, orig, load):
 
             print('  labels match = ', (orig_ocm.labels == load_ocm.labels).all())
 
+            orig_ocm = orig_ocm.get_conf_mat()
+            load_ocm = load_ocm.get_conf_mat()
+            orig_acc = orig_ocm.accuracy()
+            load_acc = load_ocm.accuracy()
+            print('Accuracy check: ', orig_acc == load_acc, orig_acc, load_acc)
 
-            orig_nmi = orig_ocm.get_conf_mat().mutual_information('arithmetic')
-            load_nmi = load_ocm.get_conf_mat().mutual_information('arithmetic')
-            print('  NMI check: ', orig_nmi == load_nmi, orig_nmi, load_nmi)
+            orig_mcc = orig_ocm.mcc()
+            load_mcc = load_ocm.mcc()
+            print('MCC check: ', orig_mcc == load_mcc, orig_mcc, load_mcc)
+
+            orig_nmi = orig_ocm.mutual_information('arithmetic')
+            load_nmi = load_ocm.mutual_information('arithmetic')
+            print('NMI check: ', orig_nmi == load_nmi, orig_nmi, load_nmi)
 
 
 # To see whose csvs are identical or not
@@ -54,12 +63,20 @@ check_preds_ocms(prefix, 'version_3', 'version_7')
 # the resulting ordered confusion matrices. Perhaps would be fixed by using
 # float64.
 
+# NOTE that when looking at acc, mcc, etc. the NMI is always matching, but acc
+# and mcc on the loaded is worse than original. Labels match... but, possible
+# this is either a label misalignment due to loading OR the floating point
+# issue as above.
+
+
 # To see whose csvs are identical or not for the fine tune ANNs
 prefix = '/tmp/har/data/results/sim_owr/exp2_2d_sim/test-run/fine-tune/'
 check_preds_csvs(prefix, 'version_8', 'version_16')
 check_preds_ocms(prefix, 'version_8', 'version_16')
 
-# Same happens for the fine tune anns on sims...
+# The loaded fine tune alos does not match the original and performance is far
+# worse, except that the NMIs do not match either in this case, unlike the GMM
+# FINCH.
 
 
 
@@ -81,8 +98,18 @@ def check_pre_is_post_preds_ocms(prefix):
             else:
                 print(i, match.all())
 
-            pre_nmi = pre.get_conf_mat().mutual_information('arithmetic')
-            post_nmi = post.get_conf_mat().mutual_information('arithmetic')
+            pre = pre.get_conf_mat()
+            post = post.get_conf_mat()
+            pre_acc = pre.accuracy()
+            post_acc = post.accuracy()
+            print('Accuracy check: ', pre_acc == post_acc, pre_acc, post_acc)
+
+            pre_mcc = pre.mcc()
+            post_mcc = post.mcc()
+            print('MCC check: ', pre_mcc == post_mcc, pre_mcc, post_mcc)
+
+            pre_nmi = pre.mutual_information('arithmetic')
+            post_nmi = post.mutual_information('arithmetic')
             print('NMI check: ', pre_nmi == post_nmi, pre_nmi, post_nmi)
 
 # The above passes? How? The charts indicate a raise in post for everything!
