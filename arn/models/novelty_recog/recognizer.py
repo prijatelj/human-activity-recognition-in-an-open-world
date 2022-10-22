@@ -60,7 +60,7 @@ def load_owhar(h5, class_type=None):
     # NOTE Does not load the fine_tune objects yet.
     loaded = class_type(fine_tune=None, **attrs)
 
-    if h5['experience']:
+    if 'experience' in h5:
         loaded.experience = pd.DataFrame(
             {
                 'uid': pd.Series(
@@ -368,7 +368,7 @@ class OWHARecognizer(OWHAPredictor):
 
                     # Get the features for unknowns w/in given experience
                     unk_mask = experience.train.data['sample_index'].isin(
-                        unknowns['uid'],
+                        unknowns['uid']
                     )
 
                     if np.any(unk_mask):
