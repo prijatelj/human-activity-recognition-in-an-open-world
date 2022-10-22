@@ -58,6 +58,14 @@ class GMMFINCH(GMMRecognizer):
         logger.info('%s.reset_recogs() finished', type(self))
 
     def fit_knowns(self, features, labels, val_dataset=None):
+        if self.load_inc_paths and self.increment in self.load_inc_paths:
+            skip_fit = self.skip_fit
+            self.load_state(self.load_inc_paths[self.increment])
+            self.skip_fit = skip_fit
+
+            # Never refits given loaded state
+            return
+
         # For each known class with labels, fit the GMM.
         knowns = iter(self.known_label_enc.items())
         next(knowns)
