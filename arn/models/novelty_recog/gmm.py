@@ -823,12 +823,15 @@ class GMMRecognizer(GaussianRecognizer):
             h5.close()
 
     @staticmethod
-    def load(h5):
+    def load(h5, class_type=None):
         close = isinstance(h5, str)
         if close:
             h5 = h5py.File(h5, 'r')
 
-        loaded = GaussianRecognizer.load(h5)
+        if class_type is None:
+            loaded = GaussianRecognizer.load(h5, GMMRecognizer)
+        else:
+            loaded = GaussianRecognizer.load(h5, class_type)
 
         if 'unknown_gmm' in h5:
             loaded.unknown_gmm = GMM.load(h5['unknown_gmm'])

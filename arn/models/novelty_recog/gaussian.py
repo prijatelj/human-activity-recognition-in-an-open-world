@@ -430,12 +430,16 @@ class GaussianRecognizer(OWHARecognizer):
             h5.close()
 
     @staticmethod
-    def load(h5):
+    def load(h5, class_type=None):
         close = isinstance(h5, str)
         if close:
             h5 = h5py.File(h5, 'r')
 
-        loaded = OWHARecognizer.load(h5)
+        #loaded = OWHARecognizer.load(h5)
+        if class_type is None:
+            loaded = load_owhar(h5, GaussianRecognizer)
+        else:
+            loaded = load_owhar(h5, class_type)
 
         if '_thresholds' in h5:
             loaded._thresholds = torch.tensor(h5['_thresholds'])
