@@ -457,7 +457,7 @@ class GaussianRecognizer(OWHARecognizer):
         self.cov_epsilon = tmp.cov_epsilon
         self.threshold_func = tmp.threshold_func
         self.threshold_global = tmp.threshold_global
-        self.detect_likelihood = tmp.detect_likelihood
+        self._detect_likelihood = tmp._detect_likelihood
         self.batch_size = tmp.batch_size
 
         self._thresholds = tmp._thresholds
