@@ -28,6 +28,7 @@ def load_ocm_step(
     reduce_known=False,
     reduce_unknown=True,
     finetune_skip_fit='skip_fit-1',
+    predictors=None,
 ):
     """Loads the OrderedConfusionMatrices and if steps given, returns the
     ConfusionMatrix with any desired reductions.
@@ -309,7 +310,7 @@ def get_ocm_measures(ocm, measures, prefix_col, col_names, known_labels=None):
 
 
 def add_uid_col(df, cols=None, uid_col_name='uid'):
-    """Inplace add of uid col."""
+    """Inplace add of unique identifier column."""
     if cols is None:
         cols = ['Feature Repr.', 'Classifier']
 
@@ -444,6 +445,14 @@ def load_incremental_ocms_df(
     cumulative=None,
     get_ocms=False,
 ):
+    """Convenience function for loading the yaml config that defines the
+    measure objects to load and calculate using above functions.
+
+    Returns
+    -------
+    list
+        The resulting contents of the measure objects loaded and calculated.
+    """
     # Load in yaml config file
     with open(yaml_path) as openf:
         config = yaml.load(openf, Loader=yaml.CLoader)
