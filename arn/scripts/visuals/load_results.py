@@ -27,88 +27,128 @@ def load_ocm_step(
     steps=None,
     reduce_known=False,
     reduce_unknown=True,
+    finetune_skip_fit='skip_fit-1',
 ):
+    """Loads the OrderedConfusionMatrices and if steps given, returns the
+    ConfusionMatrix with any desired reductions.
+
+    Args
+    ----
+    path: str
+        The path to the OrderedConfusionMatrices to load.
+    regex: re.Pattern
+        The regex pattern used to obtain the step number and if pre- or post-
+        feedback from the filepath.
+    re_groups: dict
+        The expected named patterns being matched to extract int(step_num) and
+        bool(pre-feedback). A dict of key pattern group name to the typer
+        casting to use.
+    steps: list =None
+        A list of DataSplits containing the train KineticsUnified datasets.
+    reduce_known: bool = False
+        If True, reduces all knowns based on known label enc to 'known'.
+    reduce_unknown: bool = True
+        If True, reduces all unknowns based on known label enc to 'unknown'.
+    finetune_skip_fit: str = 'skip_fit-1*fine-tune'
+        The str pattern to use to check if the path contains a 0% feedback ANN
+        that thus needs to use the first step's train label enc.
+
+        TODO
+
+    predictors_known: list = None
+        A list of predictors' known label encoders that corresponds to the
+        steps. When provided, will use these label encoders as the known label
+        enc for calculating any reductions on the confusion matrix.
+
+        TODO
+
+    Returns
+    -------
+    Confusion
+    """
     ocm = OrderedConfusionMatrices.load(path)
     matched = regex.match(path)
     for re_group, dtype in re_groups.items():
         setattr(ocm, re_group, dtype(matched.group(re_group)))
 
-    if steps:
-        # Collapse unknowns if steps
-        # NOTE: OCM.reduce DNE, so discard ocm, get cm
-        step_num = ocm.step_num
-        pre_feedback = ocm.pre_feedback
+    if not steps:
+        return ocm
 
-        # train.label_enc is only applicable for val and test of same
-        # split post-feedback. Otherwise, needs to be the last steps' train
-        # label_enc.
-        if step_num > 0 and pre_feedback:
-            step = steps[step_num - 1]
+    # Collapse unknowns if steps
+    # NOTE: OCM.reduce DNE, so discard ocm, get cm
+    step_num = ocm.step_num
+    pre_feedback = ocm.pre_feedback
+
+    # train.label_enc is only applicable for val and test of same
+    # split post-feedback. Otherwise, needs to be the last steps' train
+    # label_enc.
+    if step_num > 0 and pre_feedback:
+        step = steps[step_num - 1]
+    else:
+        step = steps[step_num]
+
+    cm = ocm.get_conf_mat()
+
+    # TODO finetune anns 0% feedback have slight increase in post-feedback
+    # perf in NMI (arithmetic) while accuracy and MCC remain the same. What
+    # is exact cause? The difference would be the train label enc used from
+    # the dataset to inform what is known at this time step. for 0%
+    # feedback, the very first step's train label enc should ALWAYS be
+    # used.
+    # TODO Furthermore, this means the GMM label enc used for knowns is
+    # also wrong! This is ONLY good for 100% feedback knowns.
+    unknowns = set(cm.label_enc) - set(step.train.label_enc)
+
+    if cm.label_enc.unknown_key is None:
+        if 'unknown' in cm.label_enc:
+            cm.label_enc._unknown_key = 'unknown'
+            if not cm.label_enc.are_keys_sorted:
+                cm.label_enc._update_argsorted_keys(cm.label_enc.encoder)
         else:
-            step = steps[step_num]
+            label_enc = NDE(['unknown'], unknown_key='unknown')
+            label_enc.append(list(cm.label_enc))
+            cm.label_enc = label_enc
 
-        cm = ocm.get_conf_mat()
+    if unknowns:
+        if 'unknown' not in unknowns:
+            unknowns.add('unknown')
 
-        # TODO finetune anns 0% feedback have slight increase in post-feedback
-        # perf in NMI (arithmetic) while accuracy and MCC remain the same. What
-        # is exact cause? The difference would be the train label enc used from
-        # the dataset to inform what is known at this time step. for 0%
-        # feedback, the very first step's train label enc should ALWAYS be
-        # used.
-        # TODO Furthermore, this means the GMM label enc used for knowns is
-        # also wrong! This is ONLY good for 100% feedback knowns.
-        unknowns = set(cm.label_enc) - set(step.train.label_enc)
+        unknowns = np.array(list(unknowns))
+        logger.debug(
+            '%d unknowns at step %d',
+            len(unknowns), # 0 if not unknowns else len(unknowns),
+            step_num,
+        )
 
-        if cm.label_enc.unknown_key is None:
-            if 'unknown' in cm.label_enc:
-                cm.label_enc._unknown_key = 'unknown'
-                if not cm.label_enc.are_keys_sorted:
-                    cm.label_enc._update_argsorted_keys(cm.label_enc.encoder)
-            else:
-                label_enc = NDE(['unknown'], unknown_key='unknown')
-                label_enc.append(list(cm.label_enc))
-                cm.label_enc = label_enc
-
-        if unknowns:
-            if 'unknown' not in unknowns:
-                unknowns.add('unknown')
-
-            unknowns = np.array(list(unknowns))
-            logger.debug(
-                '%d unknowns at step %d',
-                len(unknowns), # 0 if not unknowns else len(unknowns),
-                step_num,
+        # if collapse unknowns
+        if reduce_unknown:
+            cm.reduce(
+                unknowns,
+                'unknown', #cm.label_enc.unknown_key,
+                reduced_idx=0, #cm.label_enc.unknown_idx,
+                inplace=True,
             )
-
-            # if collapse unknowns
-            if reduce_unknown:
+            if reduce_known:
+                # Collapse knowns if steps and reduce_known
                 cm.reduce(
-                    unknowns,
-                    'unknown', #cm.label_enc.unknown_key,
-                    reduced_idx=0, #cm.label_enc.unknown_idx,
-                    inplace=True,
-                )
-                if reduce_known:
-                    # Collapse knowns if steps and reduce_known
-                    cm.reduce(
-                        ['unknown'],
-                        'known', #cm.label_enc.unknown_key,
-                        reduced_idx=-1, #cm.label_enc.unknown_idx,
-                        inverse=True,
-                        inplace=True,
-                    )
-            elif reduce_known:
-                # Collapse knowns, preserving unknowns.
-                cm.reduce(
-                    unknowns,
+                    ['unknown'],
                     'known', #cm.label_enc.unknown_key,
                     reduced_idx=-1, #cm.label_enc.unknown_idx,
                     inverse=True,
                     inplace=True,
                 )
+        elif reduce_known:
+            # Collapse knowns, preserving unknowns.
+            cm.reduce(
+                unknowns,
+                'known', #cm.label_enc.unknown_key,
+                reduced_idx=-1, #cm.label_enc.unknown_idx,
+                inverse=True,
+                inplace=True,
+            )
 
-        cm.step_num = step_num
-        cm.pre_feedback = pre_feedback
+    cm.step_num = step_num
+    cm.pre_feedback = pre_feedback
     return cm
 
 
