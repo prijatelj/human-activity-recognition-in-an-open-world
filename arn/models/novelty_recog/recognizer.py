@@ -60,24 +60,35 @@ def load_owhar(h5, class_type=None):
     # NOTE Does not load the fine_tune objects yet.
     loaded = class_type(fine_tune=None, **attrs)
 
-    if h5['experience']:
-        loaded.experience = pd.DataFrame(
-            np.stack(
-                [
-                    np.array(h5['experience']['uid']).astype(int),
-                    np.array(h5['experience']['sample_path'], dtype=str),
-                    np.array(h5['experience']['labels'], dtype=str),
-                    np.array(h5['experience']['oracle'], dtype=bool),
-                ],
-                axis=1,
+    if 'experience' in h5:
+        loaded.experience = pd.DataFrame({
+            'uid': pd.Series(
+                np.array(h5['experience']['uid']).astype(int),
+                dtype=int,
             ),
-            columns=['uid', 'sample_path', 'labels', 'oracle'],
-        ).convert_dtypes([int, str, str, bool])
+            'sample_path': pd.Series(
+                np.array(h5['experience']['sample_path'], dtype=str),
+                dtype=str,
+            ),
+            'labels': pd.Series(
+                np.array(h5['experience']['labels'], dtype=str),
+                dtype=str,
+            ),
+            'oracle': pd.Series(
+                np.array(h5['experience']['oracle'], dtype=bool),
+                dtype=bool,
+            ),
+        }).convert_dtypes()
+        loaded.experience.index = loaded.experience['uid']
 
     if '_known_label_enc' in h5:
-        self._known_label_enc.load(h5['_known_label_enc'])
+        loaded._known_label_enc = NominalDataEncoder.load_h5(
+            h5['_known_label_enc']
+        )
     if '_recog_label_enc' in h5:
-        self._recog_label_enc.load(h5['_recog_label_enc'])
+        loaded._recog_label_enc = NominalDataEncoder.load_h5(
+            h5['_recog_label_enc']
+        )
 
     if close:
         h5.close()
@@ -166,10 +177,12 @@ class OWHARecognizer(OWHAPredictor):
             self.device = device
 
         super().__init__(**kwargs)
-        self.experience = pd.DataFrame(
-            [],
-            columns=['uid', 'sample_path', 'labels', 'oracle'],
-        ).convert_dtypes([int, str, str, bool])
+        self.experience = pd.DataFrame({
+            'uid': pd.Series(dtype=int),
+            'sample_path': pd.Series(dtype=str),
+            'labels': pd.Series(dtype=str),
+            'oracle': pd.Series(dtype=bool),
+        })
         self._recog_label_enc = None
         self._known_label_enc = None
         self._label_enc = None
@@ -261,21 +274,32 @@ class OWHARecognizer(OWHAPredictor):
 
     def set_concat_exp(self, dataset_df, labels, oracle_feedback):
         """Updates the experience dataframe with the given data."""
+        oracle_feedback = pd.Series(
+            oracle_feedback,
+            dtype=bool,
+            index=dataset_df['sample_index'],
+        )
+        oracle_feedback[oracle_feedback.isna()] = False
         self.experience = self.experience.append(
             pd.DataFrame(
-                np.stack(
-                    [
-                        dataset_df['sample_index'],
-                        dataset_df['sample_path'],
+                {
+                    'uid': dataset_df['sample_index'].astype(int),
+                    'sample_path': dataset_df['sample_path'].astype(str),
+                    'labels': pd.Series(
                         labels,
-                        oracle_feedback,
-                    ],
-                    axis=1,
-                ),
-                columns=self.experience.columns,
+                        dtype=str,
+                        index=dataset_df['sample_index'],
+                    ),
+                    'oracle': oracle_feedback,
+                },
                 index=dataset_df['sample_index'],
-            ).convert_dtypes([int, str, str, bool])
+            ).convert_dtypes()
+        ).convert_dtypes()
+        logger.debug(
+            'predictor experience col dtypes = %s',
+            self.experience.dtypes,
         )
+        assert (~pd.isna(self.experience['oracle'])).all()
 
     def feedback_request(self, features, available_uids, amount=1.0):
         """The predictor's method of requesting feedback.
@@ -357,7 +381,7 @@ class OWHARecognizer(OWHAPredictor):
 
                     # Get the features for unknowns w/in given experience
                     unk_mask = experience.train.data['sample_index'].isin(
-                        unknowns['uid'],
+                        unknowns['uid']
                     )
 
                     if np.any(unk_mask):
@@ -535,7 +559,7 @@ class OWHARecognizer(OWHAPredictor):
             self.experience.loc[exp_feedback_mask, 'labels'] = \
                 dataset.labels[dset_feedback_mask].loc[
                     self.experience[exp_feedback_mask]['uid']
-                ].convert_dtypes(str)
+                ].astype(str)
 
             # NOTE For each uniquely removed labeled recog sample, check if
             # that recognized cluster still has enough samples, if yes keep
@@ -704,9 +728,7 @@ class OWHARecognizer(OWHAPredictor):
         if len(self.experience) > 0:
             # TODO probably perform check that the UID is not in exp[uid]
             dataset.data = dataset.data.append(
-                self.experience[
-                    ~self.experience['oracle'].convert_dtypes(bool)
-                ]
+                self.experience[~self.experience['oracle'].astype(bool)]
             )
             dataset.label_enc = self.label_enc
 
@@ -833,17 +855,27 @@ class OWHARecognizer(OWHAPredictor):
     def load(h5):
         return load_owhar(h5, OWHARecognizer)
 
-    def load_state(self, h5, return_tmp=False, overwrite_uid=False):
+    def load_state(
+        self,
+        h5,
+        return_tmp=False,
+        load_uid=False,
+        load_save_dir=False,
+        load_increment=False,
+    ):
         """Update state inplace by extracting it from the loaded predictor."""
         # TODO this won't work with inheritance calls. Need to chain
         tmp = type(self).load(h5)
 
         #self.fine_tune = tmp.fine_tune
-        if overwrite_uid:
+        if load_uid:
             self.uid = tmp.uid
         self.skip_fit = tmp.skip_fit
-        self.save_dir = tmp.save_dir
-        self.increment = tmp.increment
+        if load_save_dir:
+            self.save_dir = tmp.save_dir
+        if load_increment:
+            self._increment = tmp._increment
+
         self.min_samples = tmp.min_samples
         self.dtype = tmp.dtype
         self.device = tmp.device

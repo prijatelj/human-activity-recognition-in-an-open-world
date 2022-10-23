@@ -74,12 +74,13 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
   predictor:
     GMMFINCH: # the Open World Agent
       #min_samples: 2
-      detect_error_tol: 1e-5
+      #detect_error_tol: 1e-5
+      min_error_tol: 0.05
       device: cpu
-      #dtype: float64
-      #cov_epsilon: 1e-12
-      dtype: float32
-      cov_epsilon: 1e-4
+      dtype: float64
+      cov_epsilon: 1e-12
+      #dtype: float32
+      #cov_epsilon: 1e-4
       threshold_func: min_max_threshold
       skip_fit: 0 # Does not use the FineTune ANN at all.
       save_dir: /tmp/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/chkpts/
@@ -134,7 +135,7 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
                       train: True
           validate:
             KineticsUnifiedFeatures:
-              blacklist: /tmp/har/data/blacklists/blacklist-timesformer-kuni-uid.log
+              blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
               annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
@@ -152,7 +153,7 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
                       validate: True
           test:
             KineticsUnifiedFeatures:
-              blacklist: /tmp/har/data/blacklists/blacklist-timesformer-kuni-uid.log
+              blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
               annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
@@ -174,7 +175,7 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
             DataSplits:
               train:
                 KineticsUnifiedFeatures:
-                  blacklist: /tmp/har/data/blacklists/blacklist-timesformer-kuni-uid.log
+                  blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
                   annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
@@ -192,7 +193,7 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
                           train: True
               validate:
                 KineticsUnifiedFeatures:
-                  blacklist: /tmp/har/data/blacklists/blacklist-timesformer-kuni-uid.log
+                  blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
                   annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
@@ -210,7 +211,7 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
                           validate: True
               test:
                 KineticsUnifiedFeatures:
-                  blacklist: /tmp/har/data/blacklists/blacklist-timesformer-kuni-uid.log
+                  blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
                   annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
@@ -231,7 +232,7 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
             DataSplits:
               train:
                 KineticsUnifiedFeatures:
-                  blacklist: /tmp/har/data/blacklists/blacklist-timesformer-kuni-uid.log
+                  blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
                   annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
@@ -249,7 +250,7 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
                           train: True
               test:
                 KineticsUnifiedFeatures:
-                  blacklist: /tmp/har/data/blacklists/blacklist-timesformer-kuni-uid.log
+                  blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
                   annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:

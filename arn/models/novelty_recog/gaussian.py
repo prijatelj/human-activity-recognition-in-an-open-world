@@ -430,22 +430,26 @@ class GaussianRecognizer(OWHARecognizer):
             h5.close()
 
     @staticmethod
-    def load(h5):
+    def load(h5, class_type=None):
         close = isinstance(h5, str)
         if close:
             h5 = h5py.File(h5, 'r')
 
-        loaded = type(super()).load(h5)
+        #loaded = OWHARecognizer.load(h5)
+        if class_type is None:
+            loaded = load_owhar(h5, GaussianRecognizer)
+        else:
+            loaded = load_owhar(h5, class_type)
 
         if '_thresholds' in h5:
-            loaded._thresholds = torch.tensor(h5['_thresholds'])
+            loaded._thresholds = torch.tensor(np.array(h5['_thresholds']))
 
         if close:
             h5.close()
         return loaded
 
-    def load_state(self, h5, return_tmp=False):
-        tmp = super().load_state(h5, True)
+    def load_state(self, h5, return_tmp=False, **kwargs):
+        tmp = super().load_state(h5, True, **kwargs)
 
         self.min_error_tol = tmp.min_error_tol
         self.detect_error_tol = tmp.detect_error_tol
@@ -453,7 +457,7 @@ class GaussianRecognizer(OWHARecognizer):
         self.cov_epsilon = tmp.cov_epsilon
         self.threshold_func = tmp.threshold_func
         self.threshold_global = tmp.threshold_global
-        self.detect_likelihood = tmp.detect_likelihood
+        self._detect_likelihood = tmp._detect_likelihood
         self.batch_size = tmp.batch_size
 
         self._thresholds = tmp._thresholds

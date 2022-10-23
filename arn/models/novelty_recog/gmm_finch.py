@@ -58,6 +58,14 @@ class GMMFINCH(GMMRecognizer):
         logger.info('%s.reset_recogs() finished', type(self))
 
     def fit_knowns(self, features, labels, val_dataset=None):
+        if self.load_inc_paths and self.increment in self.load_inc_paths:
+            skip_fit = self.skip_fit
+            self.load_state(self.load_inc_paths[self.increment])
+            self.skip_fit = skip_fit
+
+            # Never refits given loaded state
+            return
+
         # For each known class with labels, fit the GMM.
         knowns = iter(self.known_label_enc.items())
         next(knowns)
@@ -279,12 +287,15 @@ class GMMFINCH(GMMRecognizer):
             h5.close()
 
     @staticmethod
-    def load(h5):
+    def load(h5, class_type=None):
         close = isinstance(h5, str)
         if close:
             h5 = h5py.File(h5, 'r')
 
-        loaded = type(super()).load(h5)
+        if class_type is None:
+            loaded = GMMRecognizer.load(h5, GMMFINCH)
+        else:
+            loaded = GMMRecognizer.load(h5, class_type)
 
         loaded.known_gmms = [
             GMM.load(h5['known_gmms'][key]) for key in h5['known_gmms'].keys()
@@ -294,8 +305,8 @@ class GMMFINCH(GMMRecognizer):
             h5.close()
         return loaded
 
-    def load_state(self, h5, return_tmp=False):
-        tmp = super().load_state(h5, True)
+    def load_state(self, h5, return_tmp=False, **kwargs):
+        tmp = super().load_state(h5, True, **kwargs)
 
         self.known_gmms = tmp.known_gmms
 
