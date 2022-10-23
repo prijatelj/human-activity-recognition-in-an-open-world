@@ -27,8 +27,8 @@ def load_ocm_step(
     steps=None,
     reduce_known=False,
     reduce_unknown=True,
+    known_label_encs=None,
     finetune_skip_fit='skip_fit-1',
-    predictors=None,
 ):
     """Loads the OrderedConfusionMatrices and if steps given, returns the
     ConfusionMatrix with any desired reductions.
@@ -50,18 +50,16 @@ def load_ocm_step(
         If True, reduces all knowns based on known label enc to 'known'.
     reduce_unknown: bool = True
         If True, reduces all unknowns based on known label enc to 'unknown'.
-    finetune_skip_fit: str = 'skip_fit-1*fine-tune'
-        The str pattern to use to check if the path contains a 0% feedback ANN
-        that thus needs to use the first step's train label enc.
-
-        TODO
-
-    predictors_known: list = None
+    known_label_encs: list = None
         A list of predictors' known label encoders that corresponds to the
         steps. When provided, will use these label encoders as the known label
         enc for calculating any reductions on the confusion matrix.
 
-        TODO
+        This is recommended over steps and finetune_skip_fit.
+    finetune_skip_fit: str = 'skip_fit-1*fine-tune'
+        The str pattern to use to check if the path contains a 0% feedback ANN
+        that thus needs to use the first step's train label enc.
+
 
     Returns
     -------
@@ -72,21 +70,30 @@ def load_ocm_step(
     for re_group, dtype in re_groups.items():
         setattr(ocm, re_group, dtype(matched.group(re_group)))
 
-    if not steps:
-        return ocm
-
     # Collapse unknowns if steps
     # NOTE: OCM.reduce DNE, so discard ocm, get cm
     step_num = ocm.step_num
     pre_feedback = ocm.pre_feedback
 
-    # train.label_enc is only applicable for val and test of same
-    # split post-feedback. Otherwise, needs to be the last steps' train
-    # label_enc.
-    if step_num > 0 and pre_feedback:
-        step = steps[step_num - 1]
+    if known_label_encs:
+        known_label_enc = known_label_encs[step_num]
+    elif steps:
+        if finetune_skip_fit:
+            regex_0feedback = re.compile(finetune_skip_fit)
+            match = regex_0feedback.findall(path)
+            known_label_enc = steps[0].train.label_enc
+        else:
+            match = False
+
+        if not match:
+            if step_num > 0 and pre_feedback:
+                # Assumes the known label enc is prior step's train label enc
+                known_label_enc = steps[step_num - 1].train.label_enc
+            else:
+                # Assumes the known label enc is current step's train label enc
+                known_label_enc = steps[step_num].train.label_enc
     else:
-        step = steps[step_num]
+        return ocm
 
     cm = ocm.get_conf_mat()
 
@@ -98,7 +105,7 @@ def load_ocm_step(
     # used.
     # TODO Furthermore, this means the GMM label enc used for knowns is
     # also wrong! This is ONLY good for 100% feedback knowns.
-    unknowns = set(cm.label_enc) - set(step.train.label_enc)
+    unknowns = set(cm.label_enc) - set(known_label_enc)
 
     if cm.label_enc.unknown_key is None:
         if 'unknown' in cm.label_enc:
