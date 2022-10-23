@@ -1,8 +1,16 @@
 #!/bin/bash
 
 # TODO The CRC things for qsub
+#$ -M jhuang24@nd.edu
+#$ -m abe
+#$ -q gpu -l gpu=1
+#$ -l h=!qa-rtx6k-044
+#$ -N test_sim_kowl
 
 # CRC script to run the simulated KOWL experiment.
+module load conda
+conda init bash
+source activate base
 
 # Assign the code and data paths appropriately and bind them to their
 # respective expected paths within the used config
@@ -16,5 +24,4 @@ apptainer exec \
     --bind $DATA_PATH:/tmp/har/data \
     --pwd /tmp/har/code \
     $CODE_PATH/data/containers/arn_latest.sif \
-    docstr arn/arn/scripts/sim_open_world_recog/configs/container_test-run_exp2_2d_sim.yaml \
-        --predictor.load_inc_paths "$DATA_PATH/"
+    arn/apptainer_exec.sh
