@@ -191,6 +191,11 @@ class OWHAPredictor(object):
         Dictionary of str filepaths which contain the state to be loaded via
         load_state() as the value and the key is the increment to which that
         loaded state was fit on.
+    load_inc_adjust: int = 0
+        Adjustment to use, if any, to the checkpoint increments that correspond
+        to the current increment. Most of the time you'll want this to stay
+        zero, but in case of any older checkpoints for the FineTune ANN, they
+        start at index 1 and you want this to be set to 1 then.
     """
     def __init__(
         self,
@@ -203,6 +208,7 @@ class OWHAPredictor(object):
         start_increment=0,
         load_inc_paths=None,
         chkpt_file_prefix='version_[0-9]+',
+        load_inc_adjust=0,
     ):
         """Initializes the OWHAR.
 
@@ -223,6 +229,7 @@ class OWHAPredictor(object):
         chkpt_file_prefix : str = 'version_[0-9]+'
             The file prefix to use to match to chkpt files in the chkpt
             director given by load_inc_paths, if given as a directory filepath.
+        load_inc_adjust: see self
         """
         self.fine_tune = fine_tune
         self._increment = int(start_increment)
@@ -237,6 +244,8 @@ class OWHAPredictor(object):
             self._label_enc = label_enc
 
         # TODO add predictor.experience, default None.
+
+        self.load_inc_adjust = load_inc_adjust
 
         if isinstance(load_inc_paths, str) and os.path.isdir(load_inc_paths):
             self.load_inc_paths = get_chkpts_paths(
@@ -285,7 +294,12 @@ class OWHAPredictor(object):
         dataset contains all prior classes. This deep copy is convenient for
         ensuring the class indices are always aligned.
         """
-        if self.load_inc_paths and self.increment + 1 in self.load_inc_paths:
+        # Note this +1 is for loading older version, no longer current versions
+        # fix this after first sub.
+        if (
+            self.load_inc_paths
+            and self.increment + self.load_inc_adjust in self.load_inc_paths
+        ):
             if self.skip_fit >= 0 and self._increment >= self.skip_fit:
                 # NOTE Assumes if loading, you get 100% feedback from the label
                 # enc for fine tune ANNs.

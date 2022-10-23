@@ -27,81 +27,137 @@ def load_ocm_step(
     steps=None,
     reduce_known=False,
     reduce_unknown=True,
+    known_label_encs=None,
+    finetune_skip_fit='skip_fit-1',
 ):
+    """Loads the OrderedConfusionMatrices and if steps given, returns the
+    ConfusionMatrix with any desired reductions.
+
+    Args
+    ----
+    path: str
+        The path to the OrderedConfusionMatrices to load.
+    regex: re.Pattern
+        The regex pattern used to obtain the step number and if pre- or post-
+        feedback from the filepath.
+    re_groups: dict
+        The expected named patterns being matched to extract int(step_num) and
+        bool(pre-feedback). A dict of key pattern group name to the typer
+        casting to use.
+    steps: list =None
+        A list of DataSplits containing the train KineticsUnified datasets.
+    reduce_known: bool = False
+        If True, reduces all knowns based on known label enc to 'known'.
+    reduce_unknown: bool = True
+        If True, reduces all unknowns based on known label enc to 'unknown'.
+    known_label_encs: list = None
+        A list of predictors' known label encoders that corresponds to the
+        steps. When provided, will use these label encoders as the known label
+        enc for calculating any reductions on the confusion matrix.
+
+        This is recommended over steps and finetune_skip_fit.
+    finetune_skip_fit: str = 'skip_fit-1*fine-tune'
+        The str pattern to use to check if the path contains a 0% feedback ANN
+        that thus needs to use the first step's train label enc.
+
+
+    Returns
+    -------
+    Confusion
+    """
     ocm = OrderedConfusionMatrices.load(path)
     matched = regex.match(path)
     for re_group, dtype in re_groups.items():
         setattr(ocm, re_group, dtype(matched.group(re_group)))
 
-    if steps:
-        # Collapse unknowns if steps
-        # NOTE: OCM.reduce DNE, so discard ocm, get cm
+    # Collapse unknowns if steps
+    # NOTE: OCM.reduce DNE, so discard ocm, get cm
+    step_num = ocm.step_num
+    pre_feedback = ocm.pre_feedback
 
-        # TODO train.label_enc is only applicable for val and test of same
-        # split post-feedback. Otherwise, needs to be the last steps' train
-        # label_enc.
-        if ocm.step_num > 0 and ocm.pre_feedback:
-            step = steps[ocm.step_num - 1]
+    if known_label_encs:
+        known_label_enc = known_label_encs[step_num]
+    elif steps:
+        if finetune_skip_fit:
+            regex_0feedback = re.compile(finetune_skip_fit)
+            match = regex_0feedback.findall(path)
+            known_label_enc = steps[0].train.label_enc
         else:
-            step = steps[ocm.step_num]
+            match = False
 
-        step_num = ocm.step_num
-        pre_feedback = ocm.pre_feedback
-        ocm = ocm.get_conf_mat()
-
-        unknowns = set(ocm.label_enc) - set(step.train.label_enc)
-
-        if ocm.label_enc.unknown_key is None:
-            if 'unknown' in ocm.label_enc:
-                ocm.label_enc._unknown_key = 'unknown'
-                if not ocm.label_enc.are_keys_sorted:
-                    ocm.label_enc._update_argsorted_keys(ocm.label_enc.encoder)
+        if not match:
+            if step_num > 0 and pre_feedback:
+                # Assumes the known label enc is prior step's train label enc
+                known_label_enc = steps[step_num - 1].train.label_enc
             else:
-                label_enc = NDE(['unknown'], unknown_key='unknown')
-                label_enc.append(list(ocm.label_enc))
-                ocm.label_enc = label_enc
+                # Assumes the known label enc is current step's train label enc
+                known_label_enc = steps[step_num].train.label_enc
+    else:
+        return ocm
 
-        if unknowns:
-            if 'unknown' not in unknowns:
-                unknowns.add('unknown')
+    cm = ocm.get_conf_mat()
 
-            unknowns = np.array(list(unknowns))
-            logging.debug(
-                '%d unknowns at step %d',
-                len(unknowns), # 0 if not unknowns else len(unknowns),
-                step_num,
+    # TODO finetune anns 0% feedback have slight increase in post-feedback
+    # perf in NMI (arithmetic) while accuracy and MCC remain the same. What
+    # is exact cause? The difference would be the train label enc used from
+    # the dataset to inform what is known at this time step. for 0%
+    # feedback, the very first step's train label enc should ALWAYS be
+    # used.
+    # TODO Furthermore, this means the GMM label enc used for knowns is
+    # also wrong! This is ONLY good for 100% feedback knowns.
+    unknowns = set(cm.label_enc) - set(known_label_enc)
+
+    if cm.label_enc.unknown_key is None:
+        if 'unknown' in cm.label_enc:
+            cm.label_enc._unknown_key = 'unknown'
+            if not cm.label_enc.are_keys_sorted:
+                cm.label_enc._update_argsorted_keys(cm.label_enc.encoder)
+        else:
+            label_enc = NDE(['unknown'], unknown_key='unknown')
+            label_enc.append(list(cm.label_enc))
+            cm.label_enc = label_enc
+
+    if unknowns:
+        if 'unknown' not in unknowns:
+            unknowns.add('unknown')
+
+        unknowns = np.array(list(unknowns))
+        logger.debug(
+            '%d unknowns at step %d',
+            len(unknowns), # 0 if not unknowns else len(unknowns),
+            step_num,
+        )
+
+        # if collapse unknowns
+        if reduce_unknown:
+            cm.reduce(
+                unknowns,
+                'unknown', #cm.label_enc.unknown_key,
+                reduced_idx=0, #cm.label_enc.unknown_idx,
+                inplace=True,
             )
-
-            # if collapse unknowns
-            if reduce_unknown:
-                ocm.reduce(
-                    unknowns,
-                    'unknown', #ocm.label_enc.unknown_key,
-                    reduced_idx=0, #ocm.label_enc.unknown_idx,
-                    inplace=True,
-                )
-                if reduce_known:
-                    # Collapse knowns if steps and reduce_known
-                    ocm.reduce(
-                        ['unknown'],
-                        'known', #ocm.label_enc.unknown_key,
-                        reduced_idx=-1, #ocm.label_enc.unknown_idx,
-                        inverse=True,
-                        inplace=True,
-                    )
-            elif reduce_known:
-                # Collapse knowns, preserving unknowns.
-                ocm.reduce(
-                    unknowns,
-                    'known', #ocm.label_enc.unknown_key,
-                    reduced_idx=-1, #ocm.label_enc.unknown_idx,
+            if reduce_known:
+                # Collapse knowns if steps and reduce_known
+                cm.reduce(
+                    ['unknown'],
+                    'known', #cm.label_enc.unknown_key,
+                    reduced_idx=-1, #cm.label_enc.unknown_idx,
                     inverse=True,
                     inplace=True,
                 )
+        elif reduce_known:
+            # Collapse knowns, preserving unknowns.
+            cm.reduce(
+                unknowns,
+                'known', #cm.label_enc.unknown_key,
+                reduced_idx=-1, #cm.label_enc.unknown_idx,
+                inverse=True,
+                inplace=True,
+            )
 
-        ocm.step_num = step_num
-        ocm.pre_feedback = pre_feedback
-    return ocm
+    cm.step_num = step_num
+    cm.pre_feedback = pre_feedback
+    return cm
 
 
 def load_inplace_results_tree(
@@ -114,6 +170,8 @@ def load_inplace_results_tree(
     steps=None,
     reduce_known=False,
     reduce_unknown=True,
+    known_label_encs=None,
+    finetune_skip_fit='skip_fit-1',
 ):
     """Inplace update of paths at leaves. Load either the
     OrderedConfusionMatrices or pandas DataFrame given the paths of prediction
@@ -139,15 +197,26 @@ def load_inplace_results_tree(
         If True, and steps given, reduces known classes into 'known'
     reduce_unknown : bool = True
         If True, and steps given, reduces unknown classes into 'unknown'
+    known_label_encs: list = None
+        A list of predictors' known label encoders that corresponds to the
+        steps. When provided, will use these label encoders as the known label
+        enc for calculating any reductions on the confusion matrix.
+
+        This is recommended over steps and finetune_skip_fit.
+    finetune_skip_fit: str = 'skip_fit-1*fine-tune'
+        The str pattern to use to check if the path contains a 0% feedback ANN
+        that thus needs to use the first step's train label enc.
     """
     logger.debug('Begin `load_inplace_results_tree`')
-    if reduce_known and not steps:
+    if reduce_known and not known_label_encs and not steps:
         raise ValueError(
-            '`reduce_known` is True and steps is None! Cannot compute'
+            '`reduce_known` is True and known_label encs and steps are None! '
+            'Cannot compute'
         )
-    if reduce_unknown and not steps:
+    if reduce_unknown and not known_label_encs and not steps:
         raise ValueError(
-            '`reduce_unknown` is True and steps is None! Cannot compute'
+            '`reduce_unknown` is True and known_label encs and steps are '
+            'None! Cannot compute'
         )
     regex = re.compile(
         '.*step-(?P<step_num>\d+)_(?P<pre_feedback>.*)_predict.*'
@@ -162,6 +231,8 @@ def load_inplace_results_tree(
         steps=steps,
         reduce_known=reduce_known,
         reduce_unknown=reduce_unknown,
+        known_label_encs=known_label_encs,
+        finetune_skip_fit=finetune_skip_fit,
     ) if get_ocm else pd.read_csv
 
     def regex_cast(x):
@@ -261,7 +332,7 @@ def get_ocm_measures(ocm, measures, prefix_col, col_names, known_labels=None):
 
 
 def add_uid_col(df, cols=None, uid_col_name='uid'):
-    """Inplace add of uid col."""
+    """Inplace add of unique identifier column."""
     if cols is None:
         cols = ['Feature Repr.', 'Classifier']
 
@@ -392,10 +463,20 @@ def load_incremental_ocms_df(
     reduce_known=None,
     reduce_unknown=None,
     pred_dir_path=None,
-    kowl=None,
+    kowl=True,
     cumulative=None,
     get_ocms=False,
+    known_label_encs=None,
+    finetune_skip_fit='skip_fit-1',
 ):
+    """Convenience function for loading the yaml config that defines the
+    measure objects to load and calculate using above functions.
+
+    Returns
+    -------
+    list
+        The resulting contents of the measure objects loaded and calculated.
+    """
     # Load in yaml config file
     with open(yaml_path) as openf:
         config = yaml.load(openf, Loader=yaml.CLoader)
@@ -417,9 +498,15 @@ def load_incremental_ocms_df(
     if reduce_unknown is None:
         reduce_unknown = config.pop('reduce_unknown', True)
 
-
-    # Give kowl=False to avoid loading this if in config.
-    if kowl is None or kowl is True:
+    if isinstance(known_label_encs, str):
+        raise NotImplementedError('str, run load on dir from str.')
+        kowl = None
+    elif not isinstance(known_label_encs, list) and known_label_encs:
+        raise NotImplementedError('True, load from config')
+        kowl = None
+    elif not isinstance(known_label_encs, list) and kowl:
+        # NOTE give kowl True if you want it from the config.
+        #   kowl=None to this function sets it to None.
         # Load for getting knowns and unknowns at time steps
         kowl = config.pop('kowl', None)
         if kowl is not None:
@@ -428,6 +515,8 @@ def load_incremental_ocms_df(
 
             # Otherwise, causes errors as is
             config['measures'].pop('Top-5 Accuracy', None)
+    else:
+        kowl = None
 
     load_inplace_results_tree(
         config['ocms'],
@@ -438,6 +527,8 @@ def load_incremental_ocms_df(
         steps=kowl,
         reduce_known=reduce_known,
         reduce_unknown=reduce_unknown,
+        known_label_encs=known_label_encs,   # TODO config/args
+        finetune_skip_fit=finetune_skip_fit, # TODO config/args
     )
 
     # TODO When calculating novelty, need to look at pre-novlety.

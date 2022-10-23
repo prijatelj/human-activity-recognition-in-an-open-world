@@ -663,7 +663,8 @@ class GMM(object):
             if key in  h5:
                 raise ValueError(f'{key} already in given h5 dataset!')
 
-        h5['label_enc'] = np.array(self.label_enc).astype(np.string_)
+        #h5['label_enc'] = np.array(self.label_enc).astype(np.string_)
+        self.label_enc.save(h5.create_group('label_enc'))
         h5['locs'] = self.gmm.component_distribution.loc.detach().cpu().numpy()
         h5['covariance_matrices'] = (
             self.gmm.component_distribution.covariance_matrix
@@ -671,7 +672,6 @@ class GMM(object):
         h5['thresholds'] = self.thresholds.detach().cpu().numpy()
         h5['mix'] = self.gmm.mixture_distribution.probs.detach().cpu().numpy()
 
-        # TODO what about these?
         state = dict(
             counter=self.counter,
             cov_epsilon=self.cov_epsilon,
@@ -697,14 +697,15 @@ class GMM(object):
         if close:
             h5 = h5py.File(h5, 'r')
         loaded = GMM(
-            NominalDataEncoder(
-                np.array(h5['label_enc'], dtype=str),
-                unknown_idx=0,
-            ),
+            #NominalDataEncoder(
+            #    np.array(h5['label_enc'], dtype=str),
+            #    unknown_idx=0,
+            #),
+            NominalDataEncoder.load_h5(h5['label_enc']),
             torch.tensor(h5['locs']),
             torch.tensor(h5['covariance_matrices']),
             torch.tensor(h5['thresholds']),
-            np.array(h5['mix']),
+            torch.tensor(np.array(h5['mix'])),
             # Everything else!
             **dict(h5.attrs.items())
         )
@@ -822,12 +823,15 @@ class GMMRecognizer(GaussianRecognizer):
             h5.close()
 
     @staticmethod
-    def load(h5):
+    def load(h5, class_type=None):
         close = isinstance(h5, str)
         if close:
             h5 = h5py.File(h5, 'r')
 
-        loaded = type(super()).load(h5)
+        if class_type is None:
+            loaded = GaussianRecognizer.load(h5, GMMRecognizer)
+        else:
+            loaded = GaussianRecognizer.load(h5, class_type)
 
         if 'unknown_gmm' in h5:
             loaded.unknown_gmm = GMM.load(h5['unknown_gmm'])
@@ -840,8 +844,8 @@ class GMMRecognizer(GaussianRecognizer):
             h5.close()
         return loaded
 
-    def load_state(self, h5, return_tmp=False):
-        tmp = super().load_state(h5, True)
+    def load_state(self, h5, return_tmp=False, **kwargs):
+        tmp = super().load_state(h5, True, **kwargs)
 
         self.level = tmp.level
         self.unknown_gmm = tmp.unknown_gmm
