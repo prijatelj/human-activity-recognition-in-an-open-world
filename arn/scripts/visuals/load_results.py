@@ -170,6 +170,8 @@ def load_inplace_results_tree(
     steps=None,
     reduce_known=False,
     reduce_unknown=True,
+    known_label_encs=None,
+    finetune_skip_fit='skip_fit-1',
 ):
     """Inplace update of paths at leaves. Load either the
     OrderedConfusionMatrices or pandas DataFrame given the paths of prediction
@@ -195,15 +197,26 @@ def load_inplace_results_tree(
         If True, and steps given, reduces known classes into 'known'
     reduce_unknown : bool = True
         If True, and steps given, reduces unknown classes into 'unknown'
+    known_label_encs: list = None
+        A list of predictors' known label encoders that corresponds to the
+        steps. When provided, will use these label encoders as the known label
+        enc for calculating any reductions on the confusion matrix.
+
+        This is recommended over steps and finetune_skip_fit.
+    finetune_skip_fit: str = 'skip_fit-1*fine-tune'
+        The str pattern to use to check if the path contains a 0% feedback ANN
+        that thus needs to use the first step's train label enc.
     """
     logger.debug('Begin `load_inplace_results_tree`')
-    if reduce_known and not steps:
+    if reduce_known and not known_label_encs and not steps:
         raise ValueError(
-            '`reduce_known` is True and steps is None! Cannot compute'
+            '`reduce_known` is True and known_label encs and steps are None! '
+            'Cannot compute'
         )
-    if reduce_unknown and not steps:
+    if reduce_unknown and not known_label_encs and not steps:
         raise ValueError(
-            '`reduce_unknown` is True and steps is None! Cannot compute'
+            '`reduce_unknown` is True and known_label encs and steps are '
+            'None! Cannot compute'
         )
     regex = re.compile(
         '.*step-(?P<step_num>\d+)_(?P<pre_feedback>.*)_predict.*'
@@ -218,6 +231,8 @@ def load_inplace_results_tree(
         steps=steps,
         reduce_known=reduce_known,
         reduce_unknown=reduce_unknown,
+        known_label_encs=known_label_encs,
+        finetune_skip_fit=finetune_skip_fit,
     ) if get_ocm else pd.read_csv
 
     def regex_cast(x):
@@ -448,9 +463,11 @@ def load_incremental_ocms_df(
     reduce_known=None,
     reduce_unknown=None,
     pred_dir_path=None,
-    kowl=None,
+    kowl=True,
     cumulative=None,
     get_ocms=False,
+    known_label_encs=None,
+    finetune_skip_fit='skip_fit-1',
 ):
     """Convenience function for loading the yaml config that defines the
     measure objects to load and calculate using above functions.
@@ -481,9 +498,15 @@ def load_incremental_ocms_df(
     if reduce_unknown is None:
         reduce_unknown = config.pop('reduce_unknown', True)
 
-
-    # Give kowl=False to avoid loading this if in config.
-    if kowl is None or kowl is True:
+    if isinstance(known_label_encs, str):
+        raise NotImplementedError('str, run load on dir from str.')
+        kowl = None
+    elif not isinstance(known_label_encs, list) and known_label_encs:
+        raise NotImplementedError('True, load from config')
+        kowl = None
+    elif not isinstance(known_label_encs, list) and kowl:
+        # NOTE give kowl True if you want it from the config.
+        #   kowl=None to this function sets it to None.
         # Load for getting knowns and unknowns at time steps
         kowl = config.pop('kowl', None)
         if kowl is not None:
@@ -492,6 +515,8 @@ def load_incremental_ocms_df(
 
             # Otherwise, causes errors as is
             config['measures'].pop('Top-5 Accuracy', None)
+    else:
+        kowl = None
 
     load_inplace_results_tree(
         config['ocms'],
@@ -502,6 +527,8 @@ def load_incremental_ocms_df(
         steps=kowl,
         reduce_known=reduce_known,
         reduce_unknown=reduce_unknown,
+        known_label_encs=known_label_encs,   # TODO config/args
+        finetune_skip_fit=finetune_skip_fit, # TODO config/args
     )
 
     # TODO When calculating novelty, need to look at pre-novlety.
