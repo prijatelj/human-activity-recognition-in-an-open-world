@@ -1,0 +1,28 @@
+KineticsUnifiedFeatures:
+  blacklist: /afs/crc.nd.edu/user/j/jhuang24/Public/darpa_sail_on/blacklists/blur_blacklist.log # TODO replace blacklist
+  annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
+  sample_dirs:
+    BatchDirs:
+      root_dir: /afs/crc.nd.edu/group/cvrl/scratch_31/sgrieggs/dumps/ # TODO replace features dir
+      batch_col: batch
+  device: cpu # cuda
+  dtype: float32
+  subset:
+    KineticsUnifiedSubset:
+      labels:
+        LabelConfig:
+          name: label_recent_first
+      kinetics400:
+        KineticsSplitConfig:
+          train: True
+          validate: True
+          test: True
+      kinetics600:
+        KineticsSplitConfig:
+          train: True
+          validate: True
+          test: True
+      kinetics700_2020:
+        KineticsSplitConfig:
+          train: True
+          validate: True

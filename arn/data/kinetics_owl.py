@@ -1513,6 +1513,8 @@ class KineticsOWLExperiment(object):
         self._inc_splits_per_dset = inc_splits_per_dset
         self.start = start
 
+        print("*" * 30)
+
         # NOTE possible that experience should be in the environment/experiment
         # rather than the simulation, but this is an abstraction/semantics
         # issue that doesn't affect practical end result.
