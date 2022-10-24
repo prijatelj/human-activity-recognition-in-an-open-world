@@ -9,6 +9,8 @@ Actuators: Feedback request system
     - Oracle feedback budgeted amount overall
     - Feedback Translation?
 """
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 from copy import deepcopy
 from dataclasses import dataclass, InitVar
 import os
@@ -1492,6 +1494,7 @@ class KineticsOWLExperiment(object):
         intro_freq_first=False,
         seed=0,
         repeat_samples=False,
+        visual_transforms_data=None
     ):
         """Initialize the Kinetics Open World Learning Experiment.
 
@@ -1508,6 +1511,8 @@ class KineticsOWLExperiment(object):
             If False, the default, the loading of future datasets removes prior
             seen samples based on their unique identifier. If True, no checking
             or removal of samples is done.
+        visual_transforms_data: KineticsUnifiedFeatures=None
+            todo docs
         """
         self._increment = 0
         self._inc_splits_per_dset = inc_splits_per_dset
@@ -1595,9 +1600,14 @@ class KineticsOWLExperiment(object):
                     #label_col=step.label_col,
                 )
 
+        if visual_transforms_data is None:
+            return
+
+
         # TODO given resulting steps, split up a list of DataSplits into the
         # same order, and then concat to end of DataFrame, such that it will
         # load the different files as visual transforms of those samples.
+        # Using: self.start, s¥loop thru self.steps, visual transforms data
 
         # TODO For simplicity and to avoid re-evaluating the original data,
         # replace the orignal with the visual transforms.

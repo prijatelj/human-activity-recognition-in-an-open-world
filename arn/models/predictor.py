@@ -245,7 +245,8 @@ class OWHAPredictor(object):
 
         # TODO add predictor.experience, default None.
 
-        self.load_inc_adjust = load_inc_adjust
+        # self.load_inc_adjust = load_inc_adjust
+        self.load_inc_adjust = int(load_inc_adjust)
 
         if isinstance(load_inc_paths, str) and os.path.isdir(load_inc_paths):
             self.load_inc_paths = get_chkpts_paths(
@@ -298,7 +299,7 @@ class OWHAPredictor(object):
         # fix this after first sub.
         if (
             self.load_inc_paths
-            and self.increment + self.load_inc_adjust in self.load_inc_paths
+            and (self.increment + self.load_inc_adjust) in self.load_inc_paths
         ):
             if self.skip_fit >= 0 and self._increment >= self.skip_fit:
                 # NOTE Assumes if loading, you get 100% feedback from the label
