@@ -28,7 +28,7 @@ apptainer exec \
         ls /arn
         pip install --no-deps -e ./arn/ &&
         pip install --no-deps -e ./exputils/ &&
-        docstr arn/arn/scripts/exp2/configs/container_kowl_tsf_gmmfinch_load_inc_paths.yaml \
+        docstr arn/arn/scripts/exp2/configs/tsf_gmmfinch_blur.yaml \
             --feedback_amount 1.0 \
             --predictor.min_error_tol 0.05
     "
