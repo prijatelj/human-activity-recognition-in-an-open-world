@@ -13,9 +13,9 @@ import os.path
 from tqdm import tqdm
 
 tfs_data_yaml_path = "/afs/crc.nd.edu/user/j/jhuang24/Public/darpa_sail_on/" \
-                     "arn/arn/scripts/exp2/configs/test-run_kowl_tsf_ftune.yaml"
+                     "arn/arn/scripts/exp2/configs/test-run_kowl_tsf_ftune_jin.yaml"
 x3d_data_yaml_path = "/afs/crc.nd.edu/user/j/jhuang24/Public/darpa_sail_on/" \
-                     "arn/arn/scripts/exp2/configs/test-run_kowl_x3d_ftune.yaml"
+                     "arn/arn/scripts/exp2/configs/test-run_kowl_x3d_ftune_jin.yaml"
 
 visual_trans_base_dir = "/afs/crc.nd.edu/group/cvrl/scratch_31/sgrieggs/dumps/"
 

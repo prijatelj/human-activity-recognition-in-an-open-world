@@ -21,6 +21,7 @@ apptainer exec \
     --env CUDA_VISIBLE_DEVICES=$SGE_HGR_gpu_card \
     --bind $CODE_PATH:/tmp/har/code \
     --bind $DATA_PATH:/tmp/har/data \
+    --bind /afs/crc.nd.edu/group/cvrl/scratch_31:/tmp/har/scratch_31 \
     --pwd /tmp/har/code \
     $CODE_PATH/arn/arn/data/arn_latest.sif \
     bash -c "ls -lh ./ &&
@@ -28,6 +29,6 @@ apptainer exec \
         ls /arn
         pip install --no-deps -e ./arn/ &&
         pip install --no-deps -e ./exputils/ &&
-        docstr arn/arn/scripts/exp2/configs/ \
+        docstr arn/arn/scripts/exp2/configs/visual_transforms/tsf_ann_blur.yaml \
             --feedback_amount 1.0 \
     "

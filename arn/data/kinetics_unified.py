@@ -819,6 +819,8 @@ class KineticsUnified(torch.utils.data.Dataset):
                     f'Unexpected type sample_dirs: {type(sample_dirs)}'
                 )
 
+        self.sample_dirs = sample_dirs
+
         # Add empty column for labels given as feedback.
         self.data['feedback'] = None
 

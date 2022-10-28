@@ -10,7 +10,7 @@ Actuators: Feedback request system
     - Feedback Translation?
 """
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore')
 from copy import deepcopy
 from dataclasses import dataclass, InitVar
 import os
@@ -34,6 +34,8 @@ from exputils.data.labels import NominalDataEncoder
 from exputils.data.confusion_matrix import ConfusionMatrix
 from exputils.data.ordered_confusion_matrix import OrderedConfusionMatrices
 from exputils.io import create_filepath
+
+from arn.data.kinetics_unified import KineticsUnifiedFeatures
 
 import logging
 logger = logging.getLogger(__name__)
@@ -845,6 +847,7 @@ class EvalConfig:
     measures: InitVar[list] = 'ordered_confusion_matrix'
     save_features: bool = False
 
+
     def __post_init__(self, measures):
         """Handles init of measures when a single str.
 
@@ -1511,14 +1514,14 @@ class KineticsOWLExperiment(object):
             If False, the default, the loading of future datasets removes prior
             seen samples based on their unique identifier. If True, no checking
             or removal of samples is done.
-        visual_transforms_data: KineticsUnifiedFeatures=None
+        visual_transforms_data: arn.data.kinetics_unified.KineticsUnifiedFeatures = None
             todo docs
         """
         self._increment = 0
         self._inc_splits_per_dset = inc_splits_per_dset
         self.start = start
 
-        print("*" * 30)
+        print("*" * 60)
 
         # NOTE possible that experience should be in the environment/experiment
         # rather than the simulation, but this is an abstraction/semantics
@@ -1603,14 +1606,72 @@ class KineticsOWLExperiment(object):
         if visual_transforms_data is None:
             return
 
+        # print(self.start) # The first data split
+        # print("*" * 60)
+        # print(self.steps) # The rest 10 data split
+        # print("*" * 60)
+        # print(visual_transforms_data)
+        # print(visual_transforms_data.sample_dirs)
+        # print(visual_transforms_data.sample_dirs.root_dir)
 
-        # TODO given resulting steps, split up a list of DataSplits into the
-        # same order, and then concat to end of DataFrame, such that it will
-        # load the different files as visual transforms of those samples.
-        # Using: self.start, s¥loop thru self.steps, visual transforms data
-
-        # TODO For simplicity and to avoid re-evaluating the original data,
+        # TODO: Using self.start, loop thru self.steps, visual transforms data
+        # For simplicity and to avoid re-evaluating the original data,
         # replace the orignal with the visual transforms.
+        # Directly swap the path for all samples
+
+        ###############################################################################
+        # Process self.start
+        ###############################################################################
+        phases = [self.start.train.data,
+                  self.start.validate.data,
+                  self.start.test.data]
+
+        for one_phase_data in phases:
+            # Add columns for youtube id and stuff
+            one_phase_data["folder_ind"] = one_phase_data["sample_path"].str.split('/').str[-2]
+            one_phase_data["video_name"] = one_phase_data["sample_path"].str.split('/').str[-1]
+            one_phase_data["visual_trans_dir"] = visual_transforms_data.sample_dirs.root_dir
+
+            # Combine them into a new column with the transform path
+            one_phase_data['sample_path'] = one_phase_data['visual_trans_dir'].astype(str) + '/' + \
+                                               one_phase_data['folder_ind'] + '/' + \
+                                               one_phase_data['video_name']
+
+        print("Finished swapping paths for start")
+
+        ###############################################################################
+        # Loop thru the self.steps
+        ###############################################################################
+        for i in range(len(self.steps)):
+            step_phases = []
+            try:
+                step_phases.append(self.steps[i].train.data)
+            except:
+                pass
+
+            try:
+                step_phases.append(self.steps[i].validate.data)
+            except:
+                pass
+
+            try:
+                step_phases.append(self.steps[i].test.data)
+            except:
+                pass
+
+            for one_phase_data in step_phases:
+                # Add columns for youtube id and stuff
+                one_phase_data["folder_ind"] = one_phase_data["sample_path"].str.split('/').str[-2]
+                one_phase_data["video_name"] = one_phase_data["sample_path"].str.split('/').str[-1]
+                one_phase_data["visual_trans_dir"] = visual_transforms_data.sample_dirs.root_dir
+
+                # Combine them into a new column with the transform path
+                one_phase_data['sample_path'] = one_phase_data['visual_trans_dir'].astype(str) + '/' + \
+                                                one_phase_data['folder_ind'] + '/' + \
+                                                one_phase_data['video_name']
+
+            print("Finished swapping paths for step: ", i)
+
 
     @property
     def increment(self):

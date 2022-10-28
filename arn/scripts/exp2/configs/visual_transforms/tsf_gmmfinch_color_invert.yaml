@@ -111,7 +111,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
       intro_freq_first:
       visual_transforms_data:
         KineticsUnifiedFeatures:
-          blacklist: /afs/crc.nd.edu/user/j/jhuang24/Public/darpa_sail_on/blacklists/blur_blacklist.log # TODO replace blacklist
+          blacklist: /afs/crc.nd.edu/user/j/jhuang24/Public/darpa_sail_on/blacklists/invert_blacklist.log # TODO replace blacklist
           annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
           sample_dirs:
             BatchDirs:
