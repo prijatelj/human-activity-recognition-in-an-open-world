@@ -574,7 +574,7 @@ class EvalDataSplitConfig(NamedTuple):
         prefix = os.path.join(prefix, self.file_prefix)
         labels = None
 
-        if predictor is None:
+        if predictor is None or predictor.label_enc is None:
             n_classes = len(data_split.label_enc)
             if preds.shape[1] < n_classes:
                 # TODO the mismatch in test to the predictor.label_enc will
@@ -596,7 +596,7 @@ class EvalDataSplitConfig(NamedTuple):
             else:
                 preds = preds.numpy()
 
-        if predictor is None:
+        if predictor is None or predictor.label_enc is None:
             n_classes = len(data_split.label_enc)
             if preds.shape[-1] < n_classes:
                 missing_labels = list(data_split.label_enc.keys())[
