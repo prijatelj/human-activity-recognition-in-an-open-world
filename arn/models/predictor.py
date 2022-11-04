@@ -255,8 +255,16 @@ class OWHAPredictor(object):
                     f'.*{chkpt_file_prefix}-(?P<increment>[0-9]+).*\..*'
                 ),
             )
+
+            # check whether model folder is empty
+            print(self.load_inc_paths)
+
+            if len(self.load_inc_paths) == 0:
+                raise ValueError("No models found in provided directory")
+
         else:
-            self.load_inc_paths = load_inc_paths
+            raise ValueError("No such path for load_inc_paths")
+            # self.load_inc_paths = load_inc_paths
 
         logger.info('Predictor UID `%s` init finished.', self.uid)
 

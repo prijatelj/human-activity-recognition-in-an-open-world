@@ -33,13 +33,13 @@ docstr:
     arn.models.predictor:
       - OWHAPredictor
   main: run
-  log_sink: '/tmp/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/logs/log.log'
+  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/logs/log.log'
   log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
-      root_dir: '/tmp/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/'
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -54,7 +54,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/tmp/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/'
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -70,7 +70,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
   maintain_experience: True
   predictor:
     OWHAPredictor: # the Open World Agent
-      load_inc_path: /tmp/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/chkpts/
+      load_inc_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/chkpts/
       skip_fit: 0
       load_inc_adjust: 1
       fine_tune:
@@ -95,21 +95,21 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               num_sanity_val_steps: 1
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /tmp/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/chkpts/
+              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /tmp/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/tb_log/
+                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/tb_log/
   environment:
     KineticsOWLExperiment:
       inc_splits_per_dset: 5
       intro_freq_first:
       visual_transforms_data:
         KineticsUnifiedFeatures:
-          blacklist: /tmp/har/code/blacklists/blur_blacklist.log # TODO replace blacklist
-          annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
+          blacklist: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/dumps/blacklists/blurtimesformer_blacklist.log # TODO replace blacklist
+          annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
           sample_dirs:
             BatchDirs:
-              root_dir: /tmp/har/scratch_31/sgrieggs/dumps/blurtimesformer # TODO replace features dir
+              root_dir: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/dumps/blurtimesformer # TODO replace features dir
               batch_col: batch
           device: cpu # cuda
           dtype: float32
@@ -136,11 +136,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
         DataSplits:
           train:
             KineticsUnifiedFeatures:
-              blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
-              annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
+              blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+              annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /tmp/har/data/kinetics/features/timesformer/
+                  root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
                   batch_col: batch
               device: cpu # cuda
               dtype: float32
@@ -154,11 +154,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       train: True
           validate:
             KineticsUnifiedFeatures:
-              blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
-              annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
+              blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+              annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /tmp/har/data/kinetics/features/timesformer/
+                  root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
                   batch_col: batch
               device: cpu # cuda
               dtype: float32
@@ -172,11 +172,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                       validate: True
           test:
             KineticsUnifiedFeatures:
-              blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
-              annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
+              blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+              annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /tmp/har/data/kinetics/features/timesformer/
+                  root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
                   batch_col: batch
               device: cpu # cuda
               dtype: float32
@@ -194,11 +194,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             DataSplits:
               train:
                 KineticsUnifiedFeatures:
-                  blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /tmp/har/data/kinetics/features/timesformer/
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
                       batch_col: batch
                   device: cpu # cuda
                   dtype: float32
@@ -212,11 +212,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                           train: True
               validate:
                 KineticsUnifiedFeatures:
-                  blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /tmp/har/data/kinetics/features/timesformer/
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
                       batch_col: batch
                   device: cpu # cuda
                   dtype: float32
@@ -230,11 +230,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                           validate: True
               test:
                 KineticsUnifiedFeatures:
-                  blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /tmp/har/data/kinetics/features/timesformer/
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
                       batch_col: batch
                   device: cpu # cuda
                   dtype: float32
@@ -251,11 +251,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             DataSplits:
               train:
                 KineticsUnifiedFeatures:
-                  blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /tmp/har/data/kinetics/features/timesformer/
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
                       batch_col: batch
                   device: cpu # cuda
                   dtype: float32
@@ -269,11 +269,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                           train: True
               test:
                 KineticsUnifiedFeatures:
-                  blacklist: /tmp/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
-                  annotation_path: /tmp/har/data/kinetics/kinetics_unified.csv
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /tmp/har/data/kinetics/features/timesformer/
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
                       batch_col: batch
                   device: cpu # cuda
                   dtype: float32
