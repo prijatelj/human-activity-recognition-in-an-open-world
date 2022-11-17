@@ -29,7 +29,7 @@ apptainer exec -B /afs --no-home \
         ls /arn
         pip install -e ./arn/ &&
         pip install exputils==0.1.7 &&
-        docstr arn/arn/scripts/exp2/configs/visual_transforms/x3d_gmmfinch_blur.yaml \
+        docstr arn/arn/scripts/exp2/configs/visual_transforms/tsf_gmmfinch_blur.yaml \
             --feedback_amount 1.0 \
             --predictor.min_error_tol 0.05
     "
