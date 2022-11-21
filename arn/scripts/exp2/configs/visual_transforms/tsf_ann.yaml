@@ -39,7 +39,7 @@ docstr:
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
-      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/'
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -54,7 +54,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/'
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -70,7 +70,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
   maintain_experience: True
   predictor:
     OWHAPredictor: # the Open World Agent
-      load_inc_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/chkpts/
+      load_inc_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/models/exp2_test-run_5inc-per-dset/kowl_tsf_test-run_fine-tune_label_recent_first_5inc-per-dset/version_72/chkpts
       skip_fit: 0
       load_inc_adjust: 1
       fine_tune:
@@ -105,11 +105,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
       intro_freq_first:
       visual_transforms_data:
         KineticsUnifiedFeatures:
-          blacklist: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/dumps/blacklists/blurtimesformer_blacklist.log # TODO replace blacklist
+          blacklist: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/blacklists/multi_aug_blacklist.log # TODO replace blacklist
           annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
           sample_dirs:
             BatchDirs:
-              root_dir: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/dumps/blurtimesformer # TODO replace features dir
+              root_dir: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/timesformer_multi_augs_fix # TODO replace features dir
               batch_col: batch
           device: cpu # cuda
           dtype: float32

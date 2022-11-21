@@ -31,13 +31,13 @@ docstr:
     arn.models.predictor:
       - OWHAPredictor
   main: run
-  log_sink: '/mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/logs/log.log'
+  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/x3d/test-run/fine-tune/label_recent_first/blur/logs/log.log'
   log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/'
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -52,7 +52,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/'
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -68,7 +68,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
   maintain_experience: True
   predictor:
     OWHAPredictor: # the Open World Agent
-      save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/chkpts/
+      save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/chkpts/
       fine_tune:
         FineTuneLit:
           model:
@@ -91,25 +91,54 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               num_sanity_val_steps: 1
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/chkpts/
+              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/tb_log/
+                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/tb_log/
       #novelty_detector: None # Classification + Clustering
   environment:
     KineticsOWLExperiment:
       inc_splits_per_dset: 5
       intro_freq_first: True
+      visual_transforms_data:
+        KineticsUnifiedFeatures:
+          blacklist: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/blacklists/multi_aug_blacklist.log # TODO replace blacklist
+          annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
+          sample_dirs:
+            BatchDirs:
+              root_dir: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/x3d_multi_augs_fix # TODO replace features dir
+              batch_col: batch
+          device: cpu # cuda
+          dtype: float32
+          subset:
+            KineticsUnifiedSubset:
+              labels:
+                LabelConfig:
+                  name: label_recent_first
+              kinetics400:
+                KineticsSplitConfig:
+                  train: True
+                  validate: True
+                  test: True
+              kinetics600:
+                KineticsSplitConfig:
+                  train: True
+                  validate: True
+                  test: True
+              kinetics700_2020:
+                KineticsSplitConfig:
+                  train: True
+                  validate: True
       start:
         DataSplits:
           train:
             KineticsUnifiedFeatures:
               post_load: flatten
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/x3d/blacklist-x3d-kuni-uid.log
+              annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/x3d/
                   batch_col: batch
               device: cuda
               dtype: float32
@@ -124,11 +153,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           validate:
             KineticsUnifiedFeatures:
               post_load: flatten
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/x3d/blacklist-x3d-kuni-uid.log
+              annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/x3d/
                   batch_col: batch
               device: cuda
               dtype: float32
@@ -143,11 +172,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           test:
             KineticsUnifiedFeatures:
               post_load: flatten
-              blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/x3d/blacklist-x3d-kuni-uid.log
+              annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
-                  root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                  root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/x3d/
                   batch_col: batch
               device: cuda
               dtype: float32
@@ -166,11 +195,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               train:
                 KineticsUnifiedFeatures:
                   post_load: flatten
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/x3d/blacklist-x3d-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/x3d/
                       batch_col: batch
                   device: cuda
                   dtype: float32
@@ -185,11 +214,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               validate:
                 KineticsUnifiedFeatures:
                   post_load: flatten
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/x3d/blacklist-x3d-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/x3d/
                       batch_col: batch
                   device: cuda
                   dtype: float32
@@ -204,11 +233,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               test:
                 KineticsUnifiedFeatures:
                   post_load: flatten
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/x3d/blacklist-x3d-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/x3d/
                       batch_col: batch
                   device: cuda
                   dtype: float32
@@ -226,11 +255,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               train:
                 KineticsUnifiedFeatures:
                   post_load: flatten
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/x3d/blacklist-x3d-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/x3d/
                       batch_col: batch
                   device: cuda
                   dtype: float32
@@ -245,11 +274,11 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               test:
                 KineticsUnifiedFeatures:
                   post_load: flatten
-                  blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-                  annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/x3d/blacklist-x3d-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/kinetics_unified.csv
                   sample_dirs:
                     BatchDirs:
-                      root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/x3d/
                       batch_col: batch
                   device: cuda
                   dtype: float32
