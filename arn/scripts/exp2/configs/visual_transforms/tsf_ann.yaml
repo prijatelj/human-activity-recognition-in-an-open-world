@@ -102,14 +102,14 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
   environment:
     KineticsOWLExperiment:
       inc_splits_per_dset: 5
-      intro_freq_first:
+      intro_freq_first: True
       visual_transforms_data:
         KineticsUnifiedFeatures:
           blacklist: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/blacklists/multi_aug_blacklist.log # TODO replace blacklist
           annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
           sample_dirs:
             BatchDirs:
-              root_dir: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/timesformer_multi_augs_fix # TODO replace features dir
+              root_dir: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/timesformer_multi_augs_fix_final_plz # TODO replace features dir
               batch_col: batch
           device: cpu # cuda
           dtype: float32

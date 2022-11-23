@@ -29,6 +29,6 @@ apptainer exec \
         ls /arn
         pip install -e ./arn/ &&
         pip install exputils==0.1.7&&
-        docstr arn/arn/scripts/exp2/configs/visual_transforms/tsf_ann.yaml \
+        docstr arn/arn/scripts/exp2/configs/visual_transforms/x3d_ann.yaml \
             --feedback_amount 1.0 \
     "
