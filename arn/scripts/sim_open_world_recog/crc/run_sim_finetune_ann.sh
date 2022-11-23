@@ -4,7 +4,9 @@
 #$ -m abe
 #$ -q gpu -l gpu=1
 #$ -l h=!qa-rtx6k-044
-#$ -N tsf_ann_blur_fb_1.0
+#$ -l h=!qa-a10-001
+#$ -l h=!qa-a10-002
+#$ -N tsf_ann_fb_1.0
 
 # CRC script to run the simulated KOWL experiment.
 module load conda
@@ -29,6 +31,6 @@ apptainer exec \
         ls /arn
         pip install -e ./arn/ &&
         pip install exputils==0.1.7&&
-        docstr arn/arn/scripts/exp2/configs/visual_transforms/x3d_ann.yaml \
+        docstr arn/arn/scripts/exp2/configs/visual_transforms/tsf_ann_feedback_1.0.yaml \
             --feedback_amount 1.0 \
     "

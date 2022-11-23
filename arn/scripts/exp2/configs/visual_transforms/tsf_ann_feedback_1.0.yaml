@@ -1,0 +1,287 @@
+# The Open World Human Activity Recognition pipeline from given features
+# extracted from a feature representaiton model to the end.
+
+# This config is for [re-]evaluating a pre-fit fine tune model, loading a
+# pretrained model checkpoint at each call to fit.
+
+docstr:
+  style: numpy
+  from import:
+    arn.data.docstr_workarounds:
+      - get_steps
+    arn.data.kinetics_owl:
+      - EvalConfig
+      - EvalDataSplitConfig
+      - DataSplits
+      - KineticsOWL
+      - KineticsOWLExperiment
+    arn.data.kinetics_unified:
+      - KineticsUnified
+      - KineticsUnifiedFeatures
+      - KineticsSplitConfig
+      - KineticsUnifiedSubset
+      - LabelConfig
+      - BatchDirs
+    arn.models.fine_tune:
+      - FineTuneFC
+    arn.models.fine_tune_lit:
+      - FineTuneLit
+      - FineTuneFCLit
+      - init_trainer
+      - init_ray_plugin
+      - init_tensorboard_logger
+    arn.models.predictor:
+      - OWHAPredictor
+  main: run
+  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/visual_trans_eval/feedback_1.0/log.log'
+  log_level: DEBUG
+
+KineticsOWL: # Pipeline for the Open World Learning Data process
+  eval_config:
+    EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  post_feedback_eval_config:
+    EvalConfig:
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/'
+      train:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      validate:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+      test:
+        EvalDataSplitConfig:
+          pred_dir: 'preds/'
+          eval_dir: 'eval/'
+  maintain_experience: True
+  predictor:
+    OWHAPredictor: # the Open World Agent
+      load_inc_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/models/exp2_test-run_5inc-per-dset/kowl_tsf_test-run_fine-tune_label_recent_first_5inc-per-dset/version_72/chkpts
+      skip_fit: 0
+      load_inc_adjust: 1
+      fine_tune:
+        FineTuneLit:
+          model:
+            FineTuneFCLit:
+              #unk_thresh: 0.0
+              lr: 1e-3
+              model:
+                FineTuneFC:
+                  input_size: 768
+                  width: 768
+                  depth: 1
+                  dropout: 0.75
+                  n_classes: 410
+          batch_size: 1000
+          trainer:
+            init_trainer:
+              max_epochs: 1
+              log_every_n_steps: 1
+              track_grad_norm: 2
+              num_sanity_val_steps: 1
+              gpus: 1
+              enable_checkpointing: True
+              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/visual_trans_eval/feedback_1.0/chkpts/
+              logger:
+                init_tensorboard_logger:
+                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/visual_trans_eval/feedback_1.0/tb_log/
+  environment:
+    KineticsOWLExperiment:
+      inc_splits_per_dset: 5
+      intro_freq_first: True
+      visual_transforms_data:
+        KineticsUnifiedFeatures:
+          blacklist: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/blacklists/multi_aug_blacklist.log # TODO replace blacklist
+          annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
+          sample_dirs:
+            BatchDirs:
+              root_dir: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/timesformer_multi_augs_fix_final_plz # TODO replace features dir
+              batch_col: batch
+          device: cpu # cuda
+          dtype: float32
+          subset:
+            KineticsUnifiedSubset:
+              labels:
+                LabelConfig:
+                  name: label_recent_first
+              kinetics400:
+                KineticsSplitConfig:
+                  train: True
+                  validate: True
+                  test: True
+              kinetics600:
+                KineticsSplitConfig:
+                  train: True
+                  validate: True
+                  test: True
+              kinetics700_2020:
+                KineticsSplitConfig:
+                  train: True
+                  validate: True
+      start:
+        DataSplits:
+          train:
+            KineticsUnifiedFeatures:
+              blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+              annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
+              sample_dirs:
+                BatchDirs:
+                  root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
+                  batch_col: batch
+              device: cpu # cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: label_recent_first
+                  kinetics400:
+                    KineticsSplitConfig:
+                      train: True
+          validate:
+            KineticsUnifiedFeatures:
+              blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+              annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
+              sample_dirs:
+                BatchDirs:
+                  root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
+                  batch_col: batch
+              device: cpu # cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: label_recent_first
+                  kinetics400:
+                    KineticsSplitConfig:
+                      validate: True
+          test:
+            KineticsUnifiedFeatures:
+              blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+              annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
+              sample_dirs:
+                BatchDirs:
+                  root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
+                  batch_col: batch
+              device: cpu # cuda
+              dtype: float32
+              subset:
+                KineticsUnifiedSubset:
+                  labels:
+                    LabelConfig:
+                      name: label_recent_first
+                  kinetics400:
+                    KineticsSplitConfig:
+                      test: True
+      steps:
+        get_steps:
+          step_1: # Kinetics 600
+            DataSplits:
+              train:
+                KineticsUnifiedFeatures:
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
+                  sample_dirs:
+                    BatchDirs:
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
+                      batch_col: batch
+                  device: cpu # cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: label_recent_first
+                      kinetics600:
+                        KineticsSplitConfig:
+                          train: True
+              validate:
+                KineticsUnifiedFeatures:
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
+                  sample_dirs:
+                    BatchDirs:
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
+                      batch_col: batch
+                  device: cpu # cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: label_recent_first
+                      kinetics600:
+                        KineticsSplitConfig:
+                          validate: True
+              test:
+                KineticsUnifiedFeatures:
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
+                  sample_dirs:
+                    BatchDirs:
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
+                      batch_col: batch
+                  device: cpu # cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: label_recent_first
+                      kinetics600:
+                        KineticsSplitConfig:
+                          test: True
+
+          step_2: # Kinetics 700-2020
+            DataSplits:
+              train:
+                KineticsUnifiedFeatures:
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
+                  sample_dirs:
+                    BatchDirs:
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
+                      batch_col: batch
+                  device: cpu # cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: label_recent_first
+                      kinetics700_2020:
+                        KineticsSplitConfig:
+                          train: True
+              test:
+                KineticsUnifiedFeatures:
+                  blacklist: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/blacklists/blacklist-timesformer-kuni-uid.log
+                  annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
+                  sample_dirs:
+                    BatchDirs:
+                      root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/features/timesformer/
+                      batch_col: batch
+                  device: cpu # cuda
+                  dtype: float32
+                  subset:
+                    KineticsUnifiedSubset:
+                      labels:
+                        LabelConfig:
+                          name: label_recent_first
+                      kinetics700_2020:
+                        KineticsSplitConfig:
+                          validate: True

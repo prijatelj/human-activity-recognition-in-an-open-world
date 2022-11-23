@@ -33,7 +33,7 @@ docstr:
     arn.models.predictor:
       - OWHAPredictor
   main: run
-  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/logs/log.log'
+  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/visual_trans_eval/feedback_1.0/log.log'
   log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
@@ -95,10 +95,10 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               num_sanity_val_steps: 1
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/chkpts/
+              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/visual_trans_eval/feedback_1.0/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/blur/tb_log/
+                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/visual_trans_eval/feedback_1.0/tb_log/
   environment:
     KineticsOWLExperiment:
       inc_splits_per_dset: 5
