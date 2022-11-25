@@ -33,7 +33,7 @@ docstr:
     arn.models.predictor:
       - OWHAPredictor
   main: run
-  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/visual_trans_eval/feedback_1.0/log.log'
+  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/tsf_ann_feedback_1.0_log.log'
   log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
@@ -72,7 +72,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
     OWHAPredictor: # the Open World Agent
       load_inc_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/models/exp2_test-run_5inc-per-dset/kowl_tsf_test-run_fine-tune_label_recent_first_5inc-per-dset/version_72/chkpts
       skip_fit: 0
-      load_inc_adjust: 1
+      load_inc_adjust: -1
       fine_tune:
         FineTuneLit:
           model:
@@ -95,10 +95,10 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               num_sanity_val_steps: 1
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/visual_trans_eval/feedback_1.0/chkpts/
+              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/feedback_1.0/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/visual_trans_eval/feedback_1.0/tb_log/
+                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/fine-tune/label_recent_first/feedback_1.0/tb_log/
   environment:
     KineticsOWLExperiment:
       inc_splits_per_dset: 5

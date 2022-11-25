@@ -31,13 +31,13 @@ docstr:
     arn.models.predictor:
       - OWHAPredictor
   main: run
-  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/x3d/test-run/fine-tune/label_recent_first/blur/logs/log.log'
+  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/x3d/test-run/fine-tune/label_recent_first/x3d_ann_feedback_0.0_log.log'
   log_level: DEBUG
 
 KineticsOWL: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
-      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/'
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/x3d/test-run/fine-tune/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -52,7 +52,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/'
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/x3d/test-run/fine-tune/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -68,9 +68,9 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
   maintain_experience: True
   predictor:
     OWHAPredictor: # the Open World Agent
-      load_inc_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/models/exp2_test-run_5inc-per-dset/kowl_x3d_test-run_fine-tune_label_recent_first_5incs-per-step-dset/version_5/chkpts
+      load_inc_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/models/exp2_test-run_5inc-per-dset/kowl_x3d_test-run_skip-fit-1_fine-tune_label_recent_first_5inc-per-dset/version_0/chkpts
       skip_fit: 0
-      load_inc_adjust: 1
+      load_inc_adjust: -1
       fine_tune:
         FineTuneLit:
           model:
@@ -93,10 +93,10 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
               num_sanity_val_steps: 1
               gpus: 1
               enable_checkpointing: True
-              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/chkpts/
+              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/x3d/test-run/fine-tune/label_recent_first/feedback_0.0/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/results/kowl/x3d/test-run/fine-tune/label_recent_first/tb_log/
+                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/x3d/test-run/fine-tune/label_recent_first/feedback_0.0/tb_log/
       #novelty_detector: None # Classification + Clustering
   environment:
     KineticsOWLExperiment:
