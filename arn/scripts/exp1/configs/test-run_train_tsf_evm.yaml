@@ -31,7 +31,7 @@ docstr:
     arn.models.predictor:
       - EVMPredictor
   main: run
-  log_sink: '/mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/logs/log.log'
+  log_sink: '/media/har//results/k400_start/timesformer/test-run/evm/label_recent_first/logs/log.log'
   log_level: DEBUG
 
 kinetics_owl_evm: # Pipeline for the Open World Learning Data process
@@ -46,10 +46,10 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
       dtype: float32
       chunk_size: 1
       atol: 1e-5
-      save_dir: /mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/
+      save_dir: /media/har//results/k400_start/timesformer/test-run/evm/label_recent_first/
   eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/'
+      root_dir: '/media/har//results/k400_start/timesformer/test-run/evm/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -64,7 +64,7 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/k400_start/timesformer/test-run/evm/label_recent_first/'
+      root_dir: '/media/har//results/k400_start/timesformer/test-run/evm/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -84,7 +84,7 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
           train:
             KineticsUnifiedFeatures:
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /media/har//kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
@@ -102,7 +102,7 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
           validate:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /media/har//kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/
@@ -120,7 +120,7 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
           test:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/timesformer/blacklist-timesformer-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /media/har//kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/

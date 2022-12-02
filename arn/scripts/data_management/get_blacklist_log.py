@@ -1,7 +1,7 @@
 import sys
 
 kuni_csv_path = sys.argv[1]
-#   '/mnt/hdd/workspace/research/osr/har/kinetics_unified.csv',
+#   '/media/har//kinetics_unified.csv',
 kuni_features_dir = sys.argv[2]
 #   '/home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/timesformer/'
 log_file = sys.argv[3]

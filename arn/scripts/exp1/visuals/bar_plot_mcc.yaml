@@ -10,7 +10,7 @@ measures: # Determines how many figures are generated.
     mutual_information:
       normalized: 'arithmetic'
       base: 2
-root_dir: /mnt/hdd/workspace/research/osr/har/
+root_dir: /media/har//
 #measure_range: [0, 1]
 # Ordered as left-to-right for frepr and task models, back-to-front for splits
 ocms: # feature repr as groups

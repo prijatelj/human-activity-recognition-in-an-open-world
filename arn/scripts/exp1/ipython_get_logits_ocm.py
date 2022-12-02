@@ -9,7 +9,7 @@ from exputils.data import OrderedConfusionMatrices
 
 
 k400_train = KineticsUnifiedFeatures(
-    '/mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv',
+    '/media/har//kinetics_unified_batched.csv',
     #'/home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv',
     sample_dirs=BatchDirs(
         root_dir='/home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/',

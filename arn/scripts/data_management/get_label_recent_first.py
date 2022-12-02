@@ -6,7 +6,7 @@ from arn.data.kinetics_unified import *
 from arn.data.kinetics_owl import *
 
 kuni = KineticsUnifiedFeatures(
-    '/mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv',
+    '/media/har//kinetics_unified_batched.csv',
     #'/home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv',
     sample_dirs=BatchDirs(
         root_dir='/home/prijatelj/workspace/research/osr/repos/har/data/features/timesformer/timesformer/',
@@ -84,7 +84,7 @@ list(df[['label_kinetics600', 'label_kinetics700_2020']].values)
 
 
 k7_train = KineticsUnifiedFeatures(
-    '/mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv',
+    '/media/har//kinetics_unified_batched.csv',
     #'/home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv',
     sample_dirs=BatchDirs(
         root_dir='/home/prijatelj/workspace/research/osr/repos/har/data/features/x3d-maybe/x3d/',
@@ -102,7 +102,7 @@ k7_train = KineticsUnifiedFeatures(
     #whitelist='../data/kinetics400/first-20_whitelist_test-run.log',
 )
 k600_train = KineticsUnifiedFeatures(
-    '/mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv',
+    '/media/har//kinetics_unified_batched.csv',
     #'/home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv',
     sample_dirs=BatchDirs(
         root_dir='/home/prijatelj/workspace/research/osr/repos/har/data/features/x3d-maybe/x3d/',
@@ -124,7 +124,7 @@ k6_label_enc = deepcopy(k600_train.label_enc)
 k7_label_enc = deepcopy(k7_train.label_enc)
 
 k400_train = KineticsUnifiedFeatures(
-    '/mnt/hdd/workspace/research/osr/har/kinetics_unified_batched.csv',
+    '/media/har//kinetics_unified_batched.csv',
     '/home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv',
     BatchDirs(
         root_dir='/home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/',
@@ -223,7 +223,7 @@ missing_idx_k4_recent = df_no_k7_label[missing_labels].index
 df_no_k7_label.loc[missing_idx_k4_recent, 'label_recent_first'] = df_no_k7_label.loc[missing_idx_k4_recent, 'label_kinetics400']
 
 
-#df.to_csv('/mnt/hdd/workspace/research/osr/har/kinetics_unified_batched_recent_first.csv', index=False)
+#df.to_csv('/media/har//kinetics_unified_batched_recent_first.csv', index=False)
 
 
 remaps = {

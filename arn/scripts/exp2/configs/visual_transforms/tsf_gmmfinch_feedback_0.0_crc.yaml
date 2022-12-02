@@ -38,13 +38,13 @@ docstr:
     arn.models.novelty_recog.gmm_finch:
       - GMMFINCH
   main: run
-  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/tsf_gmm_finch_blur_fb_1.0/logs/log.log'
+  log_sink: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/jin_eval/feedback_0.0/log.log'
   log_level: DEBUG
 
 kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
   eval_config:
     EvalConfig: # NOTE: the code seems to not even use pred_dir or eval_dir...
-      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/tsf_gmm_finch_blur_fb_1.0/'
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/jin_eval/feedback_0.0/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -59,7 +59,7 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/tsf_gmm_finch_blur_fb_1.0/'
+      root_dir: '/afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/jin_eval/feedback_0.0/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -76,7 +76,7 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
   predictor:
     GMMFINCH: # the Open World Agent
       #min_samples: 2
-      load_inc_paths: /afs/crc.nd.edu/user/j/jhuang24/har/data/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/
+      load_inc_paths: /afs/crc.nd.edu/user/j/jhuang24/har/data/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_0/chkpts
       #min_samples: 2
       #detect_error_tol: 1e-5
       min_error_tol: 0.05
@@ -87,7 +87,6 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
       #cov_epsilon: 1e-4
       threshold_func: min_max_threshold
       skip_fit: 0 # Does not use the FineTune ANN at all.
-      #save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/tsf_gmm_finch_blur_fb_1.0/chkpts/
       fine_tune:
         FineTuneLit:
           model:
@@ -109,21 +108,21 @@ kinetics_owl_gmm_finch: # Pipeline for the Open World Learning Data process
               num_sanity_val_steps: 1
               gpus: 0
               enable_checkpointing: True
-              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/tsf_gmm_finch_blur_fb_1.0/chkpts/
+              default_root_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/jin_eval/feedback_0.0/chkpts/
               logger:
                 init_tensorboard_logger:
-                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/tsf_gmm_finch_blur_fb_1.0/tb_log/
+                  save_dir: /afs/crc.nd.edu/user/j/jhuang24/har/data/results/kowl/timesformer/test-run/gauss-recog/gmm_finch/label_recent_first/jin_eval/feedback_0.0/tb_log/
   environment:
     KineticsOWLExperiment:
       inc_splits_per_dset: 5
       intro_freq_first:
       visual_transforms_data:
         KineticsUnifiedFeatures:
-          blacklist: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/dumps/blacklists/blurtimesformer_blacklist.log # TODO replace blacklist
+          blacklist: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/blacklists/multi_aug_blacklist.log # TODO replace blacklist
           annotation_path: /afs/crc.nd.edu/user/j/jhuang24/har/data/kinetics/kinetics_unified.csv
           sample_dirs:
             BatchDirs:
-              root_dir: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/dumps/blurtimesformer # TODO replace features dir
+              root_dir: /afs/crc.nd.edu/user/j/jhuang24/scratch_31/sgrieggs/mnt/scratch_3/dumps/x3d_multi_augs_fix_final_plz # TODO replace features dir
               batch_col: batch
           device: cpu # cuda
           dtype: float32

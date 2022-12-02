@@ -72,7 +72,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures:
               post_load: flatten
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /media/har//kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
@@ -91,7 +91,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               post_load: flatten
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /media/har//kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
@@ -110,7 +110,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               post_load: flatten
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /media/har//kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/

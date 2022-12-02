@@ -16,7 +16,7 @@ measures: # Determines how many figures are generated.
 kowl: arn/scripts/exp2/configs/test-run_kowl_tsf_ftune.yaml
 measure_range: [0, 1]
 data_split: test
-root_dir: /mnt/hdd/workspace/research/osr/har/results/kowl/
+root_dir: /media/har//results/kowl/
 # Ordered as left-to-right for frepr and task models, back-to-front for splits
 ocms: # feature repr as groups
   TimeSformer:

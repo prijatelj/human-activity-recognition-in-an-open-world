@@ -235,6 +235,8 @@ class OWHAPredictor(object):
         self._increment = int(start_increment)
         self.skip_fit = skip_fit
         self.save_dir = create_filepath(save_dir) if save_dir else None
+        # print(self.save_dir)
+        # print("@@@@@")
         self._uid = uid if uid != 'datetime'  \
             else f"owhap-{datetime.now().strftime('_%Y-%m-%d_%H-%M-%S.%f')}"
 
@@ -248,6 +250,9 @@ class OWHAPredictor(object):
         # self.load_inc_adjust = load_inc_adjust
         self.load_inc_adjust = int(load_inc_adjust)
 
+        logger.debug('load_inc_paths = %s', load_inc_paths)
+        logger.debug('load_inc_adjust = %d', load_inc_adjust)
+
         if isinstance(load_inc_paths, str) and os.path.isdir(load_inc_paths):
             self.load_inc_paths = get_chkpts_paths(
                 load_inc_paths,
@@ -256,6 +261,8 @@ class OWHAPredictor(object):
                 ),
             )
 
+            logger.debug('predictor.load_inc_paths = %s', self.load_inc_paths)
+
             # check whether model folder is empty
             print(self.load_inc_paths)
 
@@ -263,8 +270,10 @@ class OWHAPredictor(object):
                 raise ValueError("No models found in provided directory")
 
         else:
-            raise ValueError("No such path for load_inc_paths")
-            # self.load_inc_paths = load_inc_paths
+            print("Predictor")
+            print(load_inc_paths)
+            # raise ValueError("No such path for load_inc_paths")
+            # self.load_inc_paths = OrderedDict[(0, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-0.h5'), (1, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-1.h5'), (2, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-2.h5'), (3, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-3.h5'), (4, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-4.h5'), (5, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-5.h5'), (6, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-6.h5'), (7, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-7.h5'), (8, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-8.h5'), (9, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-9.h5'), (10, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-10.h5')]
 
         logger.info('Predictor UID `%s` init finished.', self.uid)
 
@@ -305,22 +314,47 @@ class OWHAPredictor(object):
         """
         # Note this +1 is for loading older version, no longer current versions
         # fix this after first sub.
-        if (
-            self.load_inc_paths
-            and (self.increment + self.load_inc_adjust) in self.load_inc_paths
-        ):
-            if self.skip_fit >= 0 and self._increment >= self.skip_fit:
-                # NOTE Assumes if loading, you get 100% feedback from the label
-                # enc for fine tune ANNs.
-                self._label_enc = deepcopy(dataset.label_enc)
+        if ((self.skip_fit == 0 and self._increment == self.skip_fit)
+            or (self.skip_fit > 0 and self._increment >= self.skip_fit)):
+            #if self.skip_fit >= 0 and self._increment >= self.skip_fit:
+            # NOTE Assumes if loading, you get 100% feedback from the label
+            # enc for fine tune ANNs.
+            self._label_enc = deepcopy(dataset.label_enc)
 
-                n_classes = len(self.label_enc)
-                if n_classes != self.fine_tune.n_classes:
-                    self.fine_tune.set_n_classes(n_classes)
+            n_classes = len(self.label_enc)
+            if n_classes != self.fine_tune.n_classes:
+                self.fine_tune.set_n_classes(n_classes)
 
+            logger.debug('loading predictor state from path: %s',
+                         self.load_inc_paths[self.increment + self.load_inc_adjust])
+
+            # Saves values to persist after loading
             skip_fit = self.skip_fit
-            self.load_state(self.load_inc_paths[self.increment + 1])
+            load_inc_paths = self.load_inc_paths
+            load_inc_adjust = self.load_inc_adjust
+            _increment = self._increment
+
+            # Load the state of this object in place, current overriding values
+            self.load_state(
+                self.load_inc_paths[self.increment + self.load_inc_adjust])
+
+            # Reset desired values
             self.skip_fit = skip_fit
+            self.load_inc_paths = load_inc_paths
+            self.load_inc_adjust = load_inc_adjust
+            self._increment = _increment
+
+            # skip_fit = self.skip_fit
+            # self.load_state(
+            #     self.load_inc_paths[self.increment + self.load_inc_adjust])
+            # self.skip_fit = skip_fit
+            #
+            # load_state = self.load_state
+            # self.load_state(
+            #     self.load_inc_paths[self.increment + self.load_inc_adjust])
+            # self.load_state = load_state
+
+
 
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:
             # for saving checkpoints of state external to fine_tune.
@@ -402,7 +436,7 @@ class OWHAPredictor(object):
         #   As is w/o update to inherit OWHARecognizer, simply copy dset label
         #   enc if 100%. and only copy first label enc if 0%.
 
-        if self.fine_tune is not None: # and self.increment < self.skip_fit:
+        if self.fine_tune is None: # and self.increment < self.skip_fit:
             return
         try:
             self.fine_tune.model.load_from_checkpoint(

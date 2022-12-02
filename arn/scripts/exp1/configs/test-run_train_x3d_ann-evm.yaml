@@ -33,7 +33,7 @@ docstr:
       - EVMPredictor
       - ANNEVM
   main: run
-  log_sink: '/mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/logs/log.log'
+  log_sink: '/media/har//results/k400_start/x3d/test-run/ann-evm/label_recent_first/logs/log.log'
   log_level: DEBUG
 
 kinetics_owl_annevm: # Pipeline for the Open World Learning Data process
@@ -64,10 +64,10 @@ kinetics_owl_annevm: # Pipeline for the Open World Learning Data process
                   num_sanity_val_steps: 1
                   gpus: 1
                   enable_checkpointing: True
-                  default_root_dir: /mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/chkpts/
+                  default_root_dir: /media/har//results/k400_start/x3d/test-run/ann-evm/label_recent_first/chkpts/
                   logger:
                     init_tensorboard_logger:
-                      save_dir: /mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/tb_log/
+                      save_dir: /media/har//results/k400_start/x3d/test-run/ann-evm/label_recent_first/tb_log/
       evm:
         EVMPredictor:
           tail_size: 100
@@ -79,10 +79,10 @@ kinetics_owl_annevm: # Pipeline for the Open World Learning Data process
           dtype: float32
           chunk_size: 1
           atol: 1e-5
-          save_dir: /mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/
+          save_dir: /media/har//results/k400_start/x3d/test-run/ann-evm/label_recent_first/
   eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/'
+      root_dir: '/media/har//results/k400_start/x3d/test-run/ann-evm/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -97,7 +97,7 @@ kinetics_owl_annevm: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/k400_start/x3d/test-run/ann-evm/label_recent_first/'
+      root_dir: '/media/har//results/k400_start/x3d/test-run/ann-evm/label_recent_first/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -118,7 +118,7 @@ kinetics_owl_annevm: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures:
               post_load: flatten
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /media/har//kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
@@ -137,7 +137,7 @@ kinetics_owl_annevm: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               post_load: flatten
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /media/har//kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/
@@ -156,7 +156,7 @@ kinetics_owl_annevm: # Pipeline for the Open World Learning Data process
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
               post_load: flatten
               blacklist: /home/prijatelj/workspace/research/osr/repos/har/data/blacklists/x3d/blacklist-x3d-kuni-uid.log
-              annotation_path: /mnt/hdd/workspace/research/osr/har/kinetics_unified.csv
+              annotation_path: /media/har//kinetics_unified.csv
               sample_dirs:
                 BatchDirs:
                   root_dir: /home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/

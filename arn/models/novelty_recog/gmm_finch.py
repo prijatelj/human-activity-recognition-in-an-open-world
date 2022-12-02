@@ -60,6 +60,10 @@ class GMMFINCH(GMMRecognizer):
     def fit_knowns(self, features, labels, val_dataset=None):
         if self.load_inc_paths and self.increment in self.load_inc_paths:
             skip_fit = self.skip_fit
+            print("@" * 20)
+            print("gmm_finch.py. fit_knowns")
+            print(self.increment)
+            print(self.load_inc_paths[self.increment])
             self.load_state(self.load_inc_paths[self.increment])
             self.skip_fit = skip_fit
 
@@ -293,6 +297,9 @@ class GMMFINCH(GMMRecognizer):
             h5 = h5py.File(h5, 'r')
 
         if class_type is None:
+            print("@" * 20)
+            print("gmm_finch.py  load")
+            print(h5)
             loaded = GMMRecognizer.load(h5, GMMFINCH)
         else:
             loaded = GMMRecognizer.load(h5, class_type)
@@ -306,6 +313,9 @@ class GMMFINCH(GMMRecognizer):
         return loaded
 
     def load_state(self, h5, return_tmp=False, **kwargs):
+        print("@" * 20)
+        print("gmm_finch.py   load_state")
+        print(h5)
         tmp = super().load_state(h5, True, **kwargs)
 
         self.known_gmms = tmp.known_gmms

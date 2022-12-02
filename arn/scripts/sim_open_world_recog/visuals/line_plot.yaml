@@ -17,7 +17,7 @@ measures: # Determines how many figures are generated.
 kowl: arn/scripts/sim_open_world_recog/configs/test-run_exp2_gfinch.yaml
 measure_range: [0, 1]
 data_split: test
-root_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp2_2d_sim/test-run/gauss-recog/
+root_dir: /media/har//results/sim_owr/exp2_2d_sim/test-run/gauss-recog/
 # Ordered as left-to-right for frepr and task models, back-to-front for splits
 ocms: # feature repr as groups
   F.Repr.:

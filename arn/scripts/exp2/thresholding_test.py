@@ -22,7 +22,7 @@ logging.basicConfig(
 #"""
 
 k4_val = KineticsUnifiedFeatures(
-    '/mnt/hdd/workspace/research/osr/har/kinetics_unified.csv',
+    '/media/har//kinetics_unified.csv',
     #'/home/prijatelj/workspace/research/osr/repos/har/data/k700_k400_par_class_map.csv',
     sample_dirs=BatchDirs(
         root_dir='/home/prijatelj/workspace/research/osr/repos/har/data/features/x3d/',

@@ -436,10 +436,16 @@ class GaussianRecognizer(OWHARecognizer):
             h5 = h5py.File(h5, 'r')
 
         #loaded = OWHARecognizer.load(h5)
+        print("@" * 20)
+        print("guassian.py   load")
+        print(h5)
+
         if class_type is None:
             loaded = load_owhar(h5, GaussianRecognizer)
         else:
             loaded = load_owhar(h5, class_type)
+
+        print(loaded)
 
         if '_thresholds' in h5:
             loaded._thresholds = torch.tensor(np.array(h5['_thresholds']))
@@ -449,6 +455,9 @@ class GaussianRecognizer(OWHARecognizer):
         return loaded
 
     def load_state(self, h5, return_tmp=False, **kwargs):
+        print("@" * 20)
+        print("gaunssian.py load_state")
+        print(h5)
         tmp = super().load_state(h5, True, **kwargs)
 
         self.min_error_tol = tmp.min_error_tol

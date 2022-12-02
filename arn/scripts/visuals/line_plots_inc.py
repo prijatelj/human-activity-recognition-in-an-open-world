@@ -236,7 +236,7 @@ def wide_nmi_exp2_legend_on_side(df):
 
 if __name__ == '__main__':
     #df = load_incremental_ocms_df(...)
-    df = pd.read_csv('/mnt/hdd/workspace/research/osr/har/results/kowl/exp2_val_set_possibly_overlapping_training.csv')
+    df = pd.read_csv('/media/har//results/kowl/exp2_val_set_possibly_overlapping_training.csv')
 
     fig = line_plot(
         df[~df['Pre-feedback']],

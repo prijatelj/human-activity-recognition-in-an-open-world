@@ -78,7 +78,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   kinetics400_dir: x3d-features-k400/
                   kinetics600_dir: x3d-features-k600/
                   kinetics700_2020_dir: x3d-features-k700_2020/
-                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+                  root_dir: /media/har//kitware/
               device: cuda
               dtype: float32
               subset:
@@ -100,7 +100,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   kinetics400_dir: x3d-features-k400/
                   kinetics600_dir: x3d-features-k600/
                   kinetics700_2020_dir: x3d-features-k700_2020/
-                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+                  root_dir: /media/har//kitware/
               device: cuda
               dtype: float32
               subset:
@@ -122,7 +122,7 @@ KineticsOWL: # Pipeline for the Open World Learning Data process
                   kinetics400_dir: x3d-features-k400/
                   kinetics600_dir: x3d-features-k600/
                   kinetics700_2020_dir: x3d-features-k700_2020/
-                  root_dir: /mnt/hdd/workspace/research/osr/har/kitware/
+                  root_dir: /media/har//kitware/
               device: cuda
               dtype: float32
               subset:

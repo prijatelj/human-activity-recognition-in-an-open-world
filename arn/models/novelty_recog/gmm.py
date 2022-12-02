@@ -696,6 +696,8 @@ class GMM(object):
         close = isinstance(h5, str)
         if close:
             h5 = h5py.File(h5, 'r')
+
+        print(h5['label_enc'])
         loaded = GMM(
             #NominalDataEncoder(
             #    np.array(h5['label_enc'], dtype=str),
@@ -828,6 +830,11 @@ class GMMRecognizer(GaussianRecognizer):
         if close:
             h5 = h5py.File(h5, 'r')
 
+        print("@" * 20)
+        print("gmm.py")
+        print(h5)
+        print(class_type)
+
         if class_type is None:
             loaded = GaussianRecognizer.load(h5, GMMRecognizer)
         else:
@@ -845,6 +852,9 @@ class GMMRecognizer(GaussianRecognizer):
         return loaded
 
     def load_state(self, h5, return_tmp=False, **kwargs):
+        print("@" * 20)
+        print("gmm.py   load_state")
+        print(h5)
         tmp = super().load_state(h5, True, **kwargs)
 
         self.level = tmp.level

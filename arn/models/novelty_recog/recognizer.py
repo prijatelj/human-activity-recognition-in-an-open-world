@@ -60,6 +60,10 @@ def load_owhar(h5, class_type=None):
     # NOTE Does not load the fine_tune objects yet.
     loaded = class_type(fine_tune=None, **attrs)
 
+    print("@" * 20)
+    print("recognizer.py load_owhar")
+    print(loaded)
+
     if 'experience' in h5:
         loaded.experience = pd.DataFrame({
             'uid': pd.Series(
@@ -705,7 +709,12 @@ class OWHARecognizer(OWHAPredictor):
     def fit_knowns(self, dataset, val_dataset=None):
         """Inheritting classes must handle experience maintence."""
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:
-            return
+            if (self.load_inc_paths and self.increment + self.load_inc_adjust in self.load_inc_paths):
+                skip_fit = self.skip_fit
+                self.load_state(self.load_inc_paths[self.increment + self.load_inc_adjust])
+                self.skip_fit = skip_fit
+
+                return
         # NOTE This is an unideal hotfix, the predictor should not effect
         # evaluator data, but in this case we need to use recogs as labels, so
         # those recogs need added if missing to the provided experience
@@ -865,6 +874,9 @@ class OWHARecognizer(OWHAPredictor):
     ):
         """Update state inplace by extracting it from the loaded predictor."""
         # TODO this won't work with inheritance calls. Need to chain
+        print("@" * 20)
+        print("recognizor.py   load_state")
+        print(h5)
         tmp = type(self).load(h5)
 
         #self.fine_tune = tmp.fine_tune

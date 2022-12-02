@@ -40,15 +40,15 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
       cover_threshold: 0.7
       distance_multiplier: 1.0
       distance_metric: cosine
-      labels: /mnt/hdd/workspace/research/osr/har/sim_classify/labels_sim_k400.csv
+      labels: /media/har//sim_classify/labels_sim_k400.csv
       device: cpu
       dtype: float32
       chunk_size: 1
       atol: 1e-5
-      save_dir: /mnt/hdd/workspace/research/osr/har/results/sim_owr/exp1_2d_sim/evm/
+      save_dir: /media/har//results/sim_owr/exp1_2d_sim/evm/
   eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/sim_owr/exp1_2d_sim/evm/'
+      root_dir: '/media/har//results/sim_owr/exp1_2d_sim/evm/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -63,7 +63,7 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
           eval_dir: 'eval/'
   post_feedback_eval_config:
     EvalConfig:
-      root_dir: '/mnt/hdd/workspace/research/osr/har/results/sim_owr/exp1_2d_sim/evm/'
+      root_dir: '/media/har//results/sim_owr/exp1_2d_sim/evm/'
       train:
         EvalDataSplitConfig:
           pred_dir: 'preds/'
@@ -82,11 +82,11 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
         DataSplits:
           train:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              annotation_path: /mnt/hdd/workspace/research/osr/har/sim_classify/sim_kunified.csv
+              annotation_path: /media/har//sim_classify/sim_kunified.csv
               sample_dirs:
                 BatchDirs:
                   batch_col: batch
-                  root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
+                  root_dir: /media/har//sim_classify/
               device: cuda
               dtype: float32
               split_prefix: False
@@ -101,13 +101,13 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
                       train: True
           validate:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              annotation_path: /mnt/hdd/workspace/research/osr/har/sim_classify/sim_kunified.csv
+              annotation_path: /media/har//sim_classify/sim_kunified.csv
               split_prefix: False
               k700_suffix_label: False
               sample_dirs:
                 BatchDirs:
                   batch_col: batch
-                  root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
+                  root_dir: /media/har//sim_classify/
               device: cuda
               dtype: float32
               subset:
@@ -120,13 +120,13 @@ kinetics_owl_evm: # Pipeline for the Open World Learning Data process
                       validate: True
           test:
             KineticsUnifiedFeatures: #!docstr.configs:shared_data_kwargs
-              annotation_path: /mnt/hdd/workspace/research/osr/har/sim_classify/sim_kunified.csv
+              annotation_path: /media/har//sim_classify/sim_kunified.csv
               split_prefix: False
               k700_suffix_label: False
               sample_dirs:
                 BatchDirs:
                   batch_col: batch
-                  root_dir: /mnt/hdd/workspace/research/osr/har/sim_classify/
+                  root_dir: /media/har//sim_classify/
               device: cuda
               dtype: float32
               subset:
