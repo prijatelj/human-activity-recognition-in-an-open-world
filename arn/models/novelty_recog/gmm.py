@@ -697,13 +697,16 @@ class GMM(object):
         if close:
             h5 = h5py.File(h5, 'r')
 
-        print(h5['label_enc'])
+        if hasattr(h5['label_enc'], 'keys'):
+            nde = NominalDataEncoder.load_h5(h5['label_enc'])
+        else:
+            # Use hotfix for older model states that only save byte string of
+            # labels.
+            nde = load_h5_gmm_hotfix(h5['label_enc'])
+
         loaded = GMM(
-            #NominalDataEncoder(
-            #    np.array(h5['label_enc'], dtype=str),
-            #    unknown_idx=0,
-            #),
-            NominalDataEncoder.load_h5(h5['label_enc']),
+            nde,
+            # NOTE tmp hotfix for models saved before keys dtypes was saved
             torch.tensor(h5['locs']),
             torch.tensor(h5['covariance_matrices']),
             torch.tensor(h5['thresholds']),
@@ -714,6 +717,23 @@ class GMM(object):
         if close:
             h5.close()
         return loaded
+
+
+def load_h5_gmm_hotfix(h5):
+    """Issue: old versions only saved the keys as byte strings.
+
+    _argsorted_keys not existing in older versions may cause an error in
+    future, but i currently do not think so with exputils v0.1.7
+    """
+    raise NotImplementedError
+
+    # TODO load
+    # NominalDataEncodernp.array(h5[:].astype(str)))
+    return NominalDataEncoder(
+        np.array(h5['label_enc'], dtype=str),
+        unknown_idx=0,
+        # TODO any other attrs????
+    )
 
 
 class GMMRecognizer(GaussianRecognizer):
