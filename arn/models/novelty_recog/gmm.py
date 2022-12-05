@@ -719,15 +719,15 @@ class GMM(object):
         return loaded
 
 
-def load_h5_gmm_hotfix(h5, key):
+def load_h5_gmm_hotfix(h5):
     """Issue: old versions only saved the keys as byte strings.
 
     _argsorted_keys not existing in older versions may cause an error in
     future, but i currently do not think so with exputils v0.1.7
     """
     return NominalDataEncoder(
-        np.array(h5['label_enc'], dtype=str),
-        unknown_key=str(h5['label_enc'][0]),
+        np.array(h5, dtype=str),
+        unknown_key=str(h5[0]),
         unknown_idx=0,
     )
 
