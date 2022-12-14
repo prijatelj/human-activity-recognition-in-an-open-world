@@ -575,6 +575,10 @@ class EvalDataSplitConfig(NamedTuple):
         labels = None
 
         if predictor is None or predictor.label_enc is None:
+            print("#" * 30)
+            print("kinetics_kowl.py line 579")
+            print(predictor)
+            print(predictor.label_enc)
             n_classes = len(data_split.label_enc)
             if preds.shape[1] < n_classes:
                 # TODO the mismatch in test to the predictor.label_enc will
@@ -894,6 +898,9 @@ class EvalConfig:
             prefix = self.root_dir
 
         # NOTE relies on predictor to turn data_split into a DataLoader
+        print("#" * 30)
+        print("kinetics_owl.py line 902")
+        print(self.label_enc)
 
         #for name, dsplit in data_splits._asdict().items():
         for name in ['train', 'validate', 'test']:
@@ -905,6 +912,10 @@ class EvalConfig:
                 if dsplit.return_label:
                     dsplit.return_label = False
                 if experience:
+                    print("#" * 30)
+                    print("kinetics_owl.py line 913")
+                    print(dsplit)
+                    print(experience)
                     preds = predictor.predict(dsplit, experience)
                 else:
                     preds = predictor.predict(dsplit)
@@ -1216,6 +1227,7 @@ class KineticsOWL(object):
         return self.environment.increment
 
     def step(self, state=None):
+
         """The incremental step in incremental learning of Kinetics OWL."""
         # 1. Get new data (input samples only)
         logger.info("Getting step %d's data.", self.increment)
@@ -1365,6 +1377,10 @@ class KineticsOWL(object):
             if self.experience:
                 self.experience.train.return_label = False
             # 5. Opt. Predictor eval post update
+            print ("#" * 30)
+            print("kinetics_owl.py line 1374")
+            print(self.predictor)
+
             self.post_feedback_eval_config.eval(
                 new_data_splits,
                 self.predictor,

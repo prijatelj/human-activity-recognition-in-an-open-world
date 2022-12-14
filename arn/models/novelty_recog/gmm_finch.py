@@ -60,12 +60,16 @@ class GMMFINCH(GMMRecognizer):
     def fit_knowns(self, features, labels, val_dataset=None):
         if self.load_inc_paths and self.increment in self.load_inc_paths:
             skip_fit = self.skip_fit
-            print("@" * 20)
-            print("gmm_finch.py. fit_knowns")
-            print(self.increment)
-            print(self.load_inc_paths[self.increment])
             self.load_state(self.load_inc_paths[self.increment])
             self.skip_fit = skip_fit
+
+            print("@" * 20)
+            print("gmm_finch.py line 67 in fit_knowns")
+            print("self.label_enc: ", self.label_enc)
+            print("self._known_label_enc: ", self._known_label_enc)
+            print("self._recog_label_enc: ", self._recog_label_enc)
+            print("self.known_label_enc", self.known_label_enc, type(self.known_label_enc))
+            print("self.recog_label_enc", self.recog_label_enc, type(self.recog_label_enc))
 
             # Never refits given loaded state
             return
@@ -297,9 +301,6 @@ class GMMFINCH(GMMRecognizer):
             h5 = h5py.File(h5, 'r')
 
         if class_type is None:
-            print("@" * 20)
-            print("gmm_finch.py  load")
-            print(h5)
             loaded = GMMRecognizer.load(h5, GMMFINCH)
         else:
             loaded = GMMRecognizer.load(h5, class_type)
@@ -313,10 +314,25 @@ class GMMFINCH(GMMRecognizer):
         return loaded
 
     def load_state(self, h5, return_tmp=False, **kwargs):
-        print("@" * 20)
-        print("gmm_finch.py   load_state")
-        print(h5)
         tmp = super().load_state(h5, True, **kwargs)
+
+        print("@" * 20)
+        print("gmm_finch.py line 311 in load_state")
+        print("self.label_enc", self.label_enc, type(self.label_enc))
+        print("self.known_label_enc", self.known_label_enc, type(self.known_label_enc))
+        print("self.recog_label_enc", self.recog_label_enc, type(self.recog_label_enc))
+
+        print("self._label_enc", self._label_enc, type(self._label_enc))
+        print("self._known_label_enc", self._known_label_enc, type(self._known_label_enc))
+        print("self._recog_label_enc", self._recog_label_enc, type(self._recog_label_enc))
+
+        print("tmp.label_enc", tmp.label_enc, type(tmp.label_enc))
+        print("tmp.known_label_enc", tmp.known_label_enc, type(tmp.known_label_enc))
+        print("tmp.recog_label_enc", tmp.recog_label_enc, type(tmp.recog_label_enc))
+
+        print("tmp._label_enc", tmp._label_enc, type(tmp._label_enc))
+        print("tmp._known_label_enc", tmp._known_label_enc, type(tmp._known_label_enc))
+        print("tmp._recog_label_enc", tmp._recog_label_enc, type(tmp._recog_label_enc))
 
         self.known_gmms = tmp.known_gmms
 

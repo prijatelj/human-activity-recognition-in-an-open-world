@@ -846,11 +846,6 @@ class GMMRecognizer(GaussianRecognizer):
         if close:
             h5 = h5py.File(h5, 'r')
 
-        print("@" * 20)
-        print("gmm.py")
-        print(h5)
-        print(class_type)
-
         if class_type is None:
             loaded = GaussianRecognizer.load(h5, GMMRecognizer)
         else:
@@ -868,10 +863,25 @@ class GMMRecognizer(GaussianRecognizer):
         return loaded
 
     def load_state(self, h5, return_tmp=False, **kwargs):
-        print("@" * 20)
-        print("gmm.py   load_state")
-        print(h5)
         tmp = super().load_state(h5, True, **kwargs)
+
+        print("@" * 30)
+        print("gmm.py line 869 load_state")
+        print("self.label_enc", self.label_enc, type(self.label_enc))
+        print("self.known_label_enc", self.known_label_enc, type(self.known_label_enc))
+        print("self.recog_label_enc", self.recog_label_enc, type(self.recog_label_enc))
+
+        print("self._label_enc", self._label_enc, type(self._label_enc))
+        print("self._known_label_enc", self._known_label_enc, type(self._known_label_enc))
+        print("self._recog_label_enc", self._recog_label_enc, type(self._recog_label_enc))
+
+        print("tmp.label_enc", tmp.label_enc, type(tmp.label_enc))
+        print("tmp.known_label_enc", tmp.known_label_enc, type(tmp.known_label_enc))
+        print("tmp.recog_label_enc", tmp.recog_label_enc, type(tmp.recog_label_enc))
+
+        print("tmp._label_enc", tmp._label_enc, type(tmp._label_enc))
+        print("tmp._known_label_enc", tmp._known_label_enc, type(tmp._known_label_enc))
+        print("tmp._recog_label_enc", tmp._recog_label_enc, type(tmp._recog_label_enc))
 
         self.level = tmp.level
         self.unknown_gmm = tmp.unknown_gmm

@@ -270,8 +270,8 @@ class OWHAPredictor(object):
                 raise ValueError("No models found in provided directory")
 
         else:
-            print("Predictor")
-            print(load_inc_paths)
+            print("Predictor line 273: None is fine if it is not the first time to load")
+            # print(load_inc_paths)
             # raise ValueError("No such path for load_inc_paths")
             # self.load_inc_paths = OrderedDict[(0, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-0.h5'), (1, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-1.h5'), (2, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-2.h5'), (3, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-3.h5'), (4, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-4.h5'), (5, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-5.h5'), (6, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-6.h5'), (7, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-7.h5'), (8, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-8.h5'), (9, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-9.h5'), (10, '/media/har/models/gmm_finch/min_err_tol_.005_threshold_global_bs8192/tsf_gmm_finch_feedback_1/chkpts/version_52-10.h5')]
 
@@ -333,27 +333,25 @@ class OWHAPredictor(object):
             load_inc_paths = self.load_inc_paths
             load_inc_adjust = self.load_inc_adjust
             _increment = self._increment
+            save_dir = self.save_dir
+            _uid = self._uid
+
 
             # Load the state of this object in place, current overriding values
             self.load_state(
                 self.load_inc_paths[self.increment + self.load_inc_adjust])
+
+            print("@" * 20)
+            print("predictor.py line 343")
+            print(self.label_enc)
 
             # Reset desired values
             self.skip_fit = skip_fit
             self.load_inc_paths = load_inc_paths
             self.load_inc_adjust = load_inc_adjust
             self._increment = _increment
-
-            # skip_fit = self.skip_fit
-            # self.load_state(
-            #     self.load_inc_paths[self.increment + self.load_inc_adjust])
-            # self.skip_fit = skip_fit
-            #
-            # load_state = self.load_state
-            # self.load_state(
-            #     self.load_inc_paths[self.increment + self.load_inc_adjust])
-            # self.load_state = load_state
-
+            self.save_dir = save_dir
+            self._uid = _uid
 
 
         if self.skip_fit >= 0 and self._increment >= self.skip_fit:

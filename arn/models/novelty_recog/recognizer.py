@@ -60,9 +60,9 @@ def load_owhar(h5, class_type=None):
     # NOTE Does not load the fine_tune objects yet.
     loaded = class_type(fine_tune=None, **attrs)
 
-    print("@" * 20)
-    print("recognizer.py load_owhar")
-    print(loaded)
+    # print("@" * 20)
+    # print("recognizer.py line 64: load_owhar")
+    # print(loaded)
 
     if 'experience' in h5:
         loaded.experience = pd.DataFrame({
@@ -714,6 +714,10 @@ class OWHARecognizer(OWHAPredictor):
                 self.load_state(self.load_inc_paths[self.increment + self.load_inc_adjust])
                 self.skip_fit = skip_fit
 
+                print("@" * 20)
+                print("recognizor.py line 718 fit_knowns")
+                print(self.label_enc)
+
                 return
         # NOTE This is an unideal hotfix, the predictor should not effect
         # evaluator data, but in this case we need to use recogs as labels, so
@@ -874,10 +878,25 @@ class OWHARecognizer(OWHAPredictor):
     ):
         """Update state inplace by extracting it from the loaded predictor."""
         # TODO this won't work with inheritance calls. Need to chain
-        print("@" * 20)
-        print("recognizor.py   load_state")
-        print(h5)
         tmp = type(self).load(h5)
+
+        print("@" * 20)
+        print("recognizor.py line 884 in load_state")
+        print("self.label_enc", self.label_enc, type(self.label_enc))
+        print("self.known_label_enc", self.known_label_enc, type(self.known_label_enc))
+        print("self.recog_label_enc", self.recog_label_enc, type(self.recog_label_enc))
+
+        print("self._label_enc", self._label_enc, type(self._label_enc))
+        print("self._known_label_enc", self._known_label_enc, type(self._known_label_enc))
+        print("self._recog_label_enc", self._recog_label_enc, type(self._recog_label_enc))
+
+        print("tmp.label_enc", tmp.label_enc, type(tmp.label_enc))
+        print("tmp.known_label_enc", tmp.known_label_enc, type(tmp.known_label_enc))
+        print("tmp.recog_label_enc", tmp.recog_label_enc, type(tmp.recog_label_enc))
+
+        print("tmp._label_enc", tmp._label_enc, type(tmp._label_enc))
+        print("tmp._known_label_enc", tmp._known_label_enc, type(tmp._known_label_enc))
+        print("tmp._recog_label_enc", tmp._recog_label_enc, type(tmp._recog_label_enc))
 
         #self.fine_tune = tmp.fine_tune
         if load_uid:
