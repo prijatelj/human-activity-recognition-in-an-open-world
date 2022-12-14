@@ -16,7 +16,11 @@ MultivariateNormal = torch.distributions.multivariate_normal.MultivariateNormal
 from exputils.data.labels import NominalDataEncoder
 from exputils.io import create_filepath
 
-from arn.models.novelty_recog.recognizer import OWHARecognizer, load_owhar
+from arn.models.novelty_recog.recognizer import (
+    OWHARecognizer,
+    load_owhar,
+    h5_io,
+)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -401,12 +405,9 @@ class GaussianRecognizer(OWHARecognizer):
         )
         self._increment += 1
 
-    def save(self, h5, overwrite=False):
+    @h5_io('w')
+    def save(self, h5):
         """Save as an HDF5 file."""
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
-
         state = dict(
             # GaussianRecognizer
             min_error_tol=self.min_error_tol,
@@ -429,32 +430,24 @@ class GaussianRecognizer(OWHARecognizer):
             h5['_thresholds'] = self._thresholds.detach().cpu().numpy()
 
         super().save(h5)
-        if close:
-            h5.close()
 
+    @h5_io
     @staticmethod
     def load(h5, class_type=None):
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(h5, 'r')
-
-        #loaded = OWHARecognizer.load(h5)
-        print("@" * 20)
-        print("guassian.py   load")
-        print(h5)
-
+        # Call parent load() to load the init object w/ changes wrt ancestors.
         if class_type is None:
             loaded = load_owhar(h5, GaussianRecognizer)
         else:
             loaded = load_owhar(h5, class_type)
 
+        print("@" * 20)
+        print("guassian.py   load")
+        print(h5)
         print(loaded)
 
         if '_thresholds' in h5:
             loaded._thresholds = torch.tensor(np.array(h5['_thresholds']))
 
-        if close:
-            h5.close()
         return loaded
 
     def load_state(self, h5, return_tmp=False, **kwargs):

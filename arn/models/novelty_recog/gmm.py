@@ -31,7 +31,7 @@ from exputils.io import create_filepath
 from vast.clusteringAlgos.FINCH.python.finch import FINCH
 
 from arn.torch_utils import torch_dtype
-from arn.models.novelty_recog.recognizer import join_label_encs
+from arn.models.novelty_recog.recognizer import join_label_encs, h5_io
 from arn.models.novelty_recog.gaussian import (
     GaussianRecognizer,
     cred_hyperellipse_thresh,
@@ -654,11 +654,8 @@ class GMM(object):
             raise ValueError('`self.gmm` is None, must set gmm!')
         return (self.comp_log_prob(features) < self.thresholds).all(1)
 
-    def save(self, h5, overwrite=False):
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
-
+    @h5_io('w')
+    def save(self, h5):
         for key in ['label_enc', 'locs', 'covariance_matrices', 'thresholds']:
             if key in  h5:
                 raise ValueError(f'{key} already in given h5 dataset!')
@@ -688,15 +685,9 @@ class GMM(object):
                 continue
             h5.attrs[key] = val
 
-        if close:
-            h5.close()
-
+    @h5_io
     @staticmethod
     def load(h5):
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(h5, 'r')
-
         if hasattr(h5['label_enc'], 'keys'):
             nde = NominalDataEncoder.load_h5(h5['label_enc'])
         else:
@@ -714,8 +705,7 @@ class GMM(object):
             # Everything else!
             **dict(h5.attrs.items())
         )
-        if close:
-            h5.close()
+
         return loaded
 
 
@@ -824,11 +814,8 @@ class GMMRecognizer(GaussianRecognizer):
             **kwargs,
         )
 
-    def save(self, h5, overwrite=False):
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
-
+    @h5_io('w')
+    def save(self, h5):
         # Save the attrs unique to this object
         h5.attrs['level'] = self.level
 
@@ -837,15 +824,11 @@ class GMMRecognizer(GaussianRecognizer):
             self.unknown_gmm.save(h5.create_group('unknown_gmm'))
 
         super().save(h5)
-        if close:
-            h5.close()
 
+    @h5_io
     @staticmethod
     def load(h5, class_type=None):
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(h5, 'r')
-
+        # Call parent load() to load the init object w/ changes wrt ancestors.
         if class_type is None:
             loaded = GaussianRecognizer.load(h5, GMMRecognizer)
         else:
@@ -858,11 +841,10 @@ class GMMRecognizer(GaussianRecognizer):
             loaded.unknown_gmm = None
             loaded.unknown_likelihood = loaded.detect_likelihood
 
-        if close:
-            h5.close()
         return loaded
 
     def load_state(self, h5, return_tmp=False, **kwargs):
+        print('GMMRecognizer type(self) = ', type(self))
         tmp = super().load_state(h5, True, **kwargs)
 
         print("@" * 30)

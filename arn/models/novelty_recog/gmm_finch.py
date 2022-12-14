@@ -12,6 +12,7 @@ F = torch.nn.functional
 from exputils.data.labels import NominalDataEncoder
 from exputils.io import create_filepath
 
+from arn.models.novelty_recog.recognizer import h5_io
 from arn.models.novelty_recog.gaussian import min_max_threshold
 from arn.models.novelty_recog.gmm import (
     GMM,
@@ -280,26 +281,19 @@ class GMMFINCH(GMMRecognizer):
 
         return torch.stack(log_probs, dim=1).sum(1)
 
-    def save(self, h5, overwrite=False):
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
-
-        # Save known_gmms, but NOT gmm, as it is joined by the 2.
+    @h5_io('w')
+    def save(self, h5):
+        """Save known_gmms, but NOT gmm, as it is joined by the 2."""
         knowns = h5.create_group('known_gmms')
         for gmm in self.known_gmms:
             gmm.save(knowns.create_group(gmm.label_enc.unknown_key))
 
         super().save(h5)
-        if close:
-            h5.close()
 
+    @h5_io
     @staticmethod
     def load(h5, class_type=None):
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(h5, 'r')
-
+        # Call parent load() to load the init object w/ changes wrt ancestors.
         if class_type is None:
             loaded = GMMRecognizer.load(h5, GMMFINCH)
         else:
@@ -309,11 +303,10 @@ class GMMFINCH(GMMRecognizer):
             GMM.load(h5['known_gmms'][key]) for key in h5['known_gmms'].keys()
         ]
 
-        if close:
-            h5.close()
         return loaded
 
     def load_state(self, h5, return_tmp=False, **kwargs):
+        print('GMMFINCH type(self) = ', type(self))
         tmp = super().load_state(h5, True, **kwargs)
 
         print("@" * 20)

@@ -20,6 +20,24 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def h5_io(mode='r'):
+    """Decorator for I/O opening and closing h5py.File for read/write."""
+    def deco(func):
+        def inner(h5, *args, overwrite=False, **kwargs):
+            close = isinstance(h5, str)
+            if close:
+                if 'w' in mode:
+                    h5 = h5py.File(create_filepath(h5, overwrite), mode)
+                else:
+                    h5 = h5py.File(h5, mode)
+            results = func(h5, *args, **kwargs)
+            if close:
+                h5.close()
+            return results
+        return inner
+    return deco
+
+
 def join_label_encs(left, right, use_right_key=True):
     label_enc = deepcopy(left)
     if use_right_key:
@@ -43,14 +61,11 @@ def join_label_encs(left, right, use_right_key=True):
     label_enc.inv[0] = key
     return label_enc
 
-
+@h5_io
 def load_owhar(h5, class_type=None):
     """Load the class instance from the HDF5 file."""
     if class_type is None:
         class_type = OWHARecognizer
-    close = isinstance(h5, str)
-    if close:
-        h5 = h5py.File(h5, 'r')
 
     attrs = dict(h5.attrs.items())
     increment = attrs.pop('increment', None)
@@ -59,10 +74,6 @@ def load_owhar(h5, class_type=None):
 
     # NOTE Does not load the fine_tune objects yet.
     loaded = class_type(fine_tune=None, **attrs)
-
-    # print("@" * 20)
-    # print("recognizer.py line 64: load_owhar")
-    # print(loaded)
 
     if 'experience' in h5:
         loaded.experience = pd.DataFrame({
@@ -94,8 +105,6 @@ def load_owhar(h5, class_type=None):
             h5['_recog_label_enc']
         )
 
-    if close:
-        h5.close()
     return loaded
 
 
@@ -821,15 +830,13 @@ class OWHARecognizer(OWHAPredictor):
         """
         raise NotImplementedError('Inheriting class overrides this.')
 
-    def save(self, h5, overwrite=False, save_fine_tune=False):
+    @h5_io('w')
+    def save(self, h5, save_fine_tune=False):
         """Save as an HDF5 file."""
         if save_fine_tune:
             raise NotImplementedError(
                 f'{type(self).__name__}.save(save_fine_tune=True)'
             )
-        close = isinstance(h5, str)
-        if close:
-            h5 = h5py.File(create_filepath(h5, overwrite), 'w')
 
         state = dict(
             # OWHAPredictor
@@ -861,9 +868,6 @@ class OWHARecognizer(OWHAPredictor):
         if self._recog_label_enc is not None:
             self._recog_label_enc.save(h5.create_group('_recog_label_enc'))
 
-        if close:
-            h5.close()
-
     @staticmethod
     def load(h5):
         return load_owhar(h5, OWHARecognizer)
@@ -877,7 +881,9 @@ class OWHARecognizer(OWHAPredictor):
         load_increment=False,
     ):
         """Update state inplace by extracting it from the loaded predictor."""
-        # TODO this won't work with inheritance calls. Need to chain
+        # load_state() walks down to here, where then load() is performed, also
+        # walking down to this object's load, or load_owhar().
+        print('OWHARecognizer type(self) = ', type(self))
         tmp = type(self).load(h5)
 
         print("@" * 20)
