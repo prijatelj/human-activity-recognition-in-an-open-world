@@ -305,7 +305,7 @@ class GMMFINCH(GMMRecognizer):
 
         if loaded.known_label_enc is None and '_known_label_enc' not in h5:
             # Old versions didn't save _known_label_enc. Able to recover:
-            self.add_new_knowns([k for k in h5['known_gmms'].keys()])
+            loaded.add_new_knowns([k for k in h5['known_gmms'].keys()])
 
         return loaded
 
