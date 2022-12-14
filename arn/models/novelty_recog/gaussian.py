@@ -451,10 +451,11 @@ class GaussianRecognizer(OWHARecognizer):
         return loaded
 
     def load_state(self, h5, return_tmp=False, **kwargs):
+        print('GaussianRecognizer type(self) = ', type(self))
         tmp = super().load_state(h5, True, **kwargs)
 
         print("@" * 20)
-        print("gaunssian.py line 464 load_state")
+        print("gaussian.py line 464 load_state")
         print("self.label_enc", self.label_enc, type(self.label_enc))
         print("self.known_label_enc", self.known_label_enc, type(self.known_label_enc))
         print("self.recog_label_enc", self.recog_label_enc, type(self.recog_label_enc))

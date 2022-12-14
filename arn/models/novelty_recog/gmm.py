@@ -715,9 +715,9 @@ def load_h5_gmm_hotfix(h5):
     _argsorted_keys not existing in older versions may cause an error in
     future, but i currently do not think so with exputils v0.1.7
     """
+    labels = np.array(h5, dtype=str),
     return NominalDataEncoder(
-        np.array(h5, dtype=str),
-        unknown_key=str(h5[0]),
+        unknown_key=str(labels[0]),
         unknown_idx=0,
     )
 

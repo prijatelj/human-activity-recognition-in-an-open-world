@@ -63,7 +63,10 @@ def join_label_encs(left, right, use_right_key=True):
 
 @h5_io
 def load_owhar(h5, class_type=None):
-    """Load the class instance from the HDF5 file."""
+    """Load the class instance from the HDF5 file.
+    All __init__ parameters are stroed in the h5py attrs. The h5py datasets
+    are state to be set on the initialized object.
+    """
     if class_type is None:
         class_type = OWHARecognizer
 

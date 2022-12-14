@@ -303,6 +303,10 @@ class GMMFINCH(GMMRecognizer):
             GMM.load(h5['known_gmms'][key]) for key in h5['known_gmms'].keys()
         ]
 
+        if loaded.known_label_enc is None and '_known_label_enc' not in h5:
+            # Old versions didn't save _known_label_enc. Able to recover:
+            self.add_new_knowns([k for k in h5['known_gmms'].keys()])
+
         return loaded
 
     def load_state(self, h5, return_tmp=False, **kwargs):
