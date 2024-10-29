@@ -64,27 +64,6 @@ This section performs the in-depth analysis that breaks down how the predictors 
 
 TODO specify how to perform this analysis
 
-### License
-
-The license for this repository is incldued in `LICENSE.txt`.
-
-### Citation
-
-If you use our work, please cite us using the following bibtex:
-```
-TODO ONCE PUBLISHED
-```
-
-
-### Acknowledgements
-
-This research was sponsored in part by the National Science Foundation (NSF) grant CAREER-
-1942151 and by the Defense Advanced Research Projects Agency (DARPA) and the Army Re-
-search Office (ARO) under multiple contracts/agreements including HR001120C0055, W911NF-
-20-2-0005, W911NF-20-2-0004, HQ0034-19-D-0001, W911NF2020009. The views contained in
-this document are those of the authors and should not be interpreted as representing the official
-policies, either expressed or implied, of the DARPA or ARO, or the U.S. Government.
-
 
 ### Repository Directory Structure
 
@@ -107,3 +86,25 @@ Each directory will have an index.md file with information about the contents of
         + all data related code goes here, like preprocessing etc.
     - research/
         + The research experiments that use the package
+
+
+### License
+
+The license for this repository is incldued in `LICENSE.txt`.
+
+### Citation
+
+If you use our work, please cite us using the following bibtex:
+```
+TODO ONCE PUBLISHED
+```
+
+
+### Acknowledgements
+
+This research was sponsored in part by the National Science Foundation (NSF) grant CAREER-
+1942151 and by the Defense Advanced Research Projects Agency (DARPA) and the Army Re-
+search Office (ARO) under multiple contracts/agreements including HR001120C0055, W911NF-
+20-2-0005, W911NF-20-2-0004, HQ0034-19-D-0001, W911NF2020009. The views contained in
+this document are those of the authors and should not be interpreted as representing the official
+policies, either expressed or implied, of the DARPA or ARO, or the U.S. Government.
