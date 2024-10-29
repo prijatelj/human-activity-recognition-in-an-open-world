@@ -78,35 +78,13 @@ TODO ONCE PUBLISHED
 
 ### Acknowledgements
 
-This project was funded by . . .
+This research was sponsored in part by the National Science Foundation (NSF) grant CAREER-
+1942151 and by the Defense Advanced Research Projects Agency (DARPA) and the Army Re-
+search Office (ARO) under multiple contracts/agreements including HR001120C0055, W911NF-
+20-2-0005, W911NF-20-2-0004, HQ0034-19-D-0001, W911NF2020009. The views contained in
+this document are those of the authors and should not be interpreted as representing the official
+policies, either expressed or implied, of the DARPA or ARO, or the U.S. Government.
 
-Thank you to . . .
-
-
-### Activity Recognition Label Specifity
-
-Label specificity means how specific and detailed the labels are to the actual given data to provide more information related to the task.
-AR can have more specific labels, just as image classification tasks may have, e.g. object detection/recognitoin with 3D objects overlayed the 2d image providing at least the 3d info mapped to the pixels in the 2d image, if not providing the distance from the camera of that image.
-AR label specificty can be as follows:
-
-- Single class label per video
-    - seems to be known in literature as simply Activity Recognition
-    - Note some datasets focus specifically on human-based AR
-    - Datasets:
-- Single class label per frame in video
-    - Knownin literature as ???
-    - Datasets:
-- Multiple classes per frame in video w/ Bounding Boxes
-    - Knownin literature as ???
-    - Datasets:
-- Fully simulated / near perfectly specified labels
-    - All 2D frames have their corresponding 3D mapping.
-        Each object / area is mapped with a task relation by some probability [0, 1], i.e. how much that portion of 3D space pertains to a task.
-    - Knownin literature as ???
-    - Datasets:
-
-Note that AR relates to Next-Frame Prediction.
-PredNet (cite?) is a model known to perform the task of Next-Frame Prediction.
 
 ### Repository Directory Structure
 
