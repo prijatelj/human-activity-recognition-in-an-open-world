@@ -6,11 +6,13 @@ The original paper is available at [TODO URL].
 
 ### Installation
 
-This project is containerized using Docker and by extension, Singularity.
-The Docker image is available at Docker Hub and installable via:
-```
-docker  . . . [TODO: INSTALL FROM DOCKER HUB URL ONCE PUBLISHED]
-```
+This project's submission container uses Docker and Apptainer.
+For our submission version we had to convert to Apptainer/Singularity due to our local computer cluster, and is named `huma-activity-recog-submission.sif`.
+This submission version is hosted temporarily for [download on this google drive](https://drive.google.com/file/d/1wMySr7muXp33yB3QC-WKA6Mq4G7iWYtt/view?usp=sharing).
+
+A future Docker container will be provided at Dockerhub or at another permanent hosting service.
+
+#### Containerize Details
 
 See `containerize/index.md` for instructions on building the Docker or Singularity container.
 
