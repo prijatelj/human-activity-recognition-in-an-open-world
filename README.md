@@ -30,7 +30,7 @@ These model states are available for download at: [TODO URL ONCE PUBLISHED]
 
 To reproduce the training and experiments the initial pre-training model states need downloaded and the following sequence of commands are required to reproduce the experimental process followed in the paper.
 
-TODO pre-training model states links
+[TODO pre-training model states links]
 
 ##### Experiment 1: Analysis of HAR Model Robustness to Nuissance Novelty
 
@@ -91,7 +91,6 @@ Each directory will have an index.md file with information about the contents of
     - research/
         + The research experiments that use the package
 
-
 ### License
 
 The license for this repository is incldued in `LICENSE.txt`.
@@ -100,9 +99,22 @@ The license for this repository is incldued in `LICENSE.txt`.
 
 If you use our work, please cite us using the following bibtex:
 ```
-TODO ONCE PUBLISHED
+@article{prijateljHumanActivityRecognition2024,
+	title = {Human {Activity} {Recognition} in an {Open} {World}},
+	volume = {81},
+	copyright = {Copyright (c) 2024 Journal of Artificial Intelligence Research},
+	issn = {1076-9757},
+	url = {https://www.jair.org/index.php/jair/article/view/14476},
+	doi = {10.1613/jair.1.14476},
+	language = {en},
+	journal = {Journal of Artificial Intelligence Research},
+	author = {Prijatelj, Derek S. and Grieggs, Samuel and Huang, Jin and Du, Dawei and Shringi, Ameya and Funk, Christopher and Kaufman, Adam and Robertson, Eric and Scheirer, Walter J.},
+	month = dec,
+	year = {2024},
+	keywords = {neural networks, machine learning, perception, reasoning about actions and change},
+	pages = {935--971},
+}
 ```
-
 
 ### Acknowledgements
 
