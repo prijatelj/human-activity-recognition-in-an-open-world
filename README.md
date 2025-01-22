@@ -2,7 +2,9 @@
 
 Human Activity Recognition (HAR) as a classification task is the task of mapping videos to their corresponding activity label.
 Novelty and open world learning in this domain is akin to the open world learning versions of image classification or any traditional classification task.
-The original paper is available at [TODO URL].
+
+- The published paper is available in [JAIR Vol. 81 (2024)](https://doi.org/10.1613/jair.1.14476)
+- An updated arxiv version is also available at https://arxiv.org/abs/2212.12141 .
 
 ### Installation
 
