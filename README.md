@@ -42,19 +42,22 @@ These model states are available for download at:
 #### Repository Directory Structure
 
 The primary directories are:
-`tree -d 1 ./arn/`
+```bash
+tree -d 1 ./arn/
 arn/
 ├── data
 ├── models
 │   └── novelty_recog
 ├── scripts
 └── transforms
+```
 
 #### Reproducing the Training and Experiments
 
 The directory at `./arn/scripts/` contains the scripts used to manage the data, perform the experiments, and visualize the results.
 
-`tree -d 2 arn/scripts/`
+```bash
+tree -d 2 arn/scripts/
 arn/scripts/
 ├── data_management
 │   ├── clip
@@ -75,6 +78,7 @@ arn/scripts/
 │   ├── crc
 │   └── visuals
 └── visuals
+```
 
 The configuration files for each experiment and predictor pair are contained in `configs/`.
 These configs are used by the CLI tool `docstr` and examples of scripts used to run these experiments are contained within the `crc/` directories.
