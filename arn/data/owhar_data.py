@@ -2,7 +2,7 @@
 
 
 class OWHARData(object):
-    """The Open World Human Activity Recognitoin Data
+    """The Open World Human Activity Recognition Data
 
     datasets : list(KineticsUnified)
         A list of datasets where each index corresponds to a dataset used at
